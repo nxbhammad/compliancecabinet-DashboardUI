@@ -1,0 +1,13 @@
+{
+  "description": "This modern dashboard enhances user experience with a professional design, providing intuitive navigation and streamlined access to key data for efficient decision-making.",
+  "robots": {
+    "index": false
+  },
+  "icons": {
+    "icon": "/.figma/make/favicon.png"
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
