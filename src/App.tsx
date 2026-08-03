@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import cabinetLogo from './assets/cabinet-logo.png'
+import cabinetIcon from './assets/cabinet-icon.png'
+import LoginPage from './LoginPage'
 
 type AlertStatus = 'Pending' | 'Work Stop' | null
+
+const REDESIGNED_NAV_ITEMS = new Set(['Dashboard', 'The Cellar', 'Companies', 'People'])
 
 const NAV_ITEMS = [
   { icon: GridIcon, label: 'Dashboard', active: true },
@@ -40,18 +44,73 @@ type PendingRow = {
   newValue: string
   badge: 'GL' | 'WL'
   initials: string
+  notes: string
 }
 
+type ActionItemRow = {
+  id: number
+  requestDate: string
+  companyContactName: string
+  recordName: string
+  field: string
+  previousData: string
+  updatedData: string
+  notes: string
+  requestedBy: string
+}
+
+const MY_ACTION_ITEMS: ActionItemRow[] = [
+  {
+    id: 1,
+    requestDate: '07/28/2026 04:17:48 PM',
+    companyContactName: '2Hawk LLC',
+    recordName: '',
+    field: 'EIN',
+    previousData: '46-4447754',
+    updatedData: '46-4447753',
+    notes: 'EIN correction requested after IRS notification. Please verify updated EIN before approving.',
+    requestedBy: 'RN',
+  },
+]
+
+type FinalDecisionRow = {
+  id: number
+  companyContactName: string
+  recordName: string
+  field: string
+  previousData: string
+  updatedData: string
+  decisionDate: string
+  requestedBy: string
+  specialist: string
+  status: 'Approved' | 'Denied'
+}
+
+const FINAL_DECISIONS: FinalDecisionRow[] = [
+  { id: 1, companyContactName: '1 Matilda Wine Company, LLC', recordName: 'Scott Zaleski', field: 'Active/Inactive', previousData: 'Active', updatedData: 'Inactive', decisionDate: '07/27/2026 02:14:11 PM', requestedBy: 'AD', specialist: 'GL', status: 'Approved' },
+  { id: 2, companyContactName: 'Grape Nut', recordName: '1235 Fun Street', field: 'State', previousData: 'CA', updatedData: 'CT', decisionDate: '07/26/2026 11:08:33 AM', requestedBy: 'RN', specialist: 'AD', status: 'Denied' },
+  { id: 3, companyContactName: '1 Matilda Wine Company, LLC', recordName: 'Bonkers', field: 'DBA', previousData: 'Bonkers LLC', updatedData: 'Bonkers', decisionDate: '07/25/2026 04:42:09 PM', requestedBy: 'GL', specialist: 'AD', status: 'Approved' },
+  { id: 4, companyContactName: 'Folio Wine Company, LLC', recordName: 'Folio Wine Company, LLC', field: 'Entity Name', previousData: 'Folio Wines LLC', updatedData: 'Folio Wine Company, LLC', decisionDate: '07/24/2026 09:15:50 AM', requestedBy: 'AD', specialist: 'WL', status: 'Approved' },
+  { id: 5, companyContactName: '3 Grapes Wine Company, LLC', recordName: 'Jackie Wu', field: 'Active/Inactive', previousData: 'Inactive', updatedData: 'Active', decisionDate: '07/23/2026 03:27:18 PM', requestedBy: 'WL', specialist: 'GL', status: 'Denied' },
+  { id: 6, companyContactName: '4 Wines, LLC', recordName: '4 Wines', field: 'DBA', previousData: 'Four Wines', updatedData: '4 Wines', decisionDate: '07/22/2026 01:05:44 PM', requestedBy: 'RN', specialist: 'AD', status: 'Approved' },
+  { id: 7, companyContactName: 'Bubbles, LLC', recordName: '100 Champagne Ave', field: 'Street', previousData: '100 Champagne Avenue', updatedData: '100 Champagne Ave', decisionDate: '07/21/2026 10:33:02 AM', requestedBy: 'AD', specialist: 'GL', status: 'Approved' },
+  { id: 8, companyContactName: 'Amaze Holdings, Inc', recordName: 'Aaron Day', field: 'Email', previousData: 'aaron.old@amaze.co', updatedData: 'aaron@amaze.co', decisionDate: '07/20/2026 05:19:27 PM', requestedBy: 'HI', specialist: 'AD', status: 'Approved' },
+  { id: 9, companyContactName: 'Vineyard 29, LLC', recordName: 'Vineyard 29, LLC', field: 'Entity Name', previousData: 'V29 LLC', updatedData: 'Vineyard 29, LLC', decisionDate: '07/19/2026 08:47:55 AM', requestedBy: 'GL', specialist: 'WL', status: 'Approved' },
+  { id: 10, companyContactName: 'Paper Shredders, LLC', recordName: 'Operations', field: 'Active/Inactive', previousData: 'Active', updatedData: 'Inactive', decisionDate: '07/18/2026 12:11:40 PM', requestedBy: 'AD', specialist: 'RN', status: 'Approved' },
+  { id: 11, companyContactName: 'Dusty River Wine Cellars', recordName: 'Aaron Inman', field: 'Role', previousData: 'Contact', updatedData: 'Client Contact', decisionDate: '07/17/2026 03:55:16 PM', requestedBy: 'RN', specialist: 'AD', status: 'Approved' },
+  { id: 12, companyContactName: 'Aperture Cellars', recordName: 'Aaron Robertson', field: 'State', previousData: 'OR', updatedData: 'CA', decisionDate: '07/16/2026 09:22:08 AM', requestedBy: 'WL', specialist: 'GL', status: 'Approved' },
+]
+
 const PENDING_CHANGES: PendingRow[] = [
-  { id: 1, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: 'Folio Wine Company, LLC', field: 'Entity Name', newValue: 'Folio Wine Company, LLC', badge: 'GL', initials: 'AD' },
-  { id: 2, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: '123456 Grape Street', field: 'Street', newValue: '123456 Grape Streett', badge: 'GL', initials: 'AD' },
-  { id: 3, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: 'CA - DTC - 82 Wine Direct Shipper', field: 'New License', newValue: '', badge: 'GL', initials: 'AD' },
-  { id: 4, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: 'Folio Wine Company, LLC', field: 'Entity Name', newValue: 'Folio Wine Company, LLC', badge: 'WL', initials: 'AD' },
-  { id: 5, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: '123456 Grape Street', field: 'Street', newValue: '123456 Grape Streett', badge: 'WL', initials: 'AD' },
-  { id: 6, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: 'CA - DTC - 82 Wine Direct Shipper', field: 'New License', newValue: '', badge: 'WL', initials: 'AD' },
-  { id: 7, timestamp: '06/03/2025 08:07:53 PM', company: '3 Grapes Wine Company, LLC', detail: '3 Grapes Wine Company, LLC', field: 'Entity Name', newValue: '3 Grapes Wine Company, LLC', badge: 'WL', initials: 'AD' },
-  { id: 8, timestamp: '06/03/2025 08:07:53 PM', company: '4 Wines, LLC', detail: '4 Wines', field: 'DBA', newValue: 'Four Wines', badge: 'WL', initials: 'AD' },
-  { id: 9, timestamp: '06/03/2025 08:07:53 PM', company: 'Bubbles, LLC', detail: '100 Champagne Ave', field: 'Street', newValue: '100 Champagne Avenue', badge: 'WL', initials: 'AD' },
+  { id: 1, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: 'Folio Wine Company, LLC', field: 'Entity Name', newValue: 'Folio Wine Company, LLC', badge: 'GL', initials: 'AD', notes: 'Legal entity name update submitted after state filing confirmation. Supporting documents attached for review.' },
+  { id: 2, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: '123456 Grape Street', field: 'Street', newValue: '123456 Grape Streett', badge: 'GL', initials: 'RN', notes: 'Correcting street address typo on license record. Updated value matches county assessor records.' },
+  { id: 3, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: 'CA - DTC - 82 Wine Direct Shipper', field: 'New License', newValue: '', badge: 'GL', initials: 'AD', notes: 'New direct-to-consumer license application pending state approval. Awaiting certificate upload.' },
+  { id: 4, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: 'Folio Wine Company, LLC', field: 'Entity Name', newValue: 'Folio Wine Company, LLC', badge: 'WL', initials: 'WL', notes: 'Duplicate entity name change request from warehouse license specialist. Please coordinate with GL approval.' },
+  { id: 5, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: '123456 Grape Street', field: 'Street', newValue: '123456 Grape Streett', badge: 'WL', initials: 'HI', notes: 'Street address correction for warehouse permit. Same update as GL record — approve together if possible.' },
+  { id: 6, timestamp: '06/03/2025 08:07:53 PM', company: 'Folio Wine Company, LLC', detail: 'CA - DTC - 82 Wine Direct Shipper', field: 'New License', newValue: '', badge: 'WL', initials: 'AD', notes: '' },
+  { id: 7, timestamp: '06/03/2025 08:07:53 PM', company: '3 Grapes Wine Company, LLC', detail: '3 Grapes Wine Company, LLC', field: 'Entity Name', newValue: '3 Grapes Wine Company, LLC', badge: 'WL', initials: 'RN', notes: 'Entity name standardized to match TTB registration. No other fields affected.' },
+  { id: 8, timestamp: '06/03/2025 08:07:53 PM', company: '4 Wines, LLC', detail: '4 Wines', field: 'DBA', newValue: 'Four Wines', badge: 'WL', initials: 'GL', notes: 'DBA reverted to prior trade name per client request. Confirm marketing materials updated before approval.' },
+  { id: 9, timestamp: '06/03/2025 08:07:53 PM', company: 'Bubbles, LLC', detail: '100 Champagne Ave', field: 'Street', newValue: '100 Champagne Avenue', badge: 'GL', initials: 'HI', notes: 'Full street suffix added for compliance with state mailing requirements.' },
 ]
 
 type CompanyRow = {
@@ -128,9 +187,11 @@ const COMPANY_DETAIL_TABS = [
 
 const PERSON_DETAIL_TABS = ['Summary', 'Detail', 'Business Addresses', 'Change Log', 'Notes'] as const
 
+const PERSON_NOTE_TYPES = ['Flag', 'Note', 'Task'] as const
+
 const PERSON_NOTES = [
   { id: 1, type: 'Flag', note: 'Remember This !', author: 'Hammad Iftikhar' },
-  { id: 2, type: 'General', note: 'Aaron confirmed as primary DTC contact for Amaze Holdings.', author: 'Alissa DeLaRiva' },
+  { id: 2, type: 'Note', note: 'Aaron confirmed as primary DTC contact for Amaze Holdings.', author: 'Alissa DeLaRiva' },
 ]
 
 const PERSON_CHANGE_LOG = [
@@ -449,10 +510,65 @@ const CREDENTIAL_FILING_TYPES = ['Online', 'Paper', 'Email']
 const CREDENTIAL_FUNCTIONS = ['3T', 'DTC', '3T, DTC', 'Operational', 'Wholesale']
 const CREDENTIAL_SHARED_TYPES = ['Autofile', 'Client']
 
+type ActivityComment = {
+  id: number
+  author: string
+  text: string
+  date: string
+  parentId: number | null
+}
+
 const COMPANY_ACCOUNT_ACTIVITY = [
-  { id: 1, date: '06/01/2026 06:26:19 PM', subject: 'Test By AD', type: 'Issue', status: 'Open', flag: 'Green', category: 'Financial', department: 'OPS', backgroundDetails: 'Initial compliance review flagged a billing discrepancy on the Q1 filing. Follow up with finance team required.', authors: ['AD'], following: true },
-  { id: 2, date: '05/18/2026 02:14:08 PM', subject: 'License renewal reminder', type: 'Note', status: 'Closed', flag: 'Yellow', category: 'Licensing', department: 'OOS', backgroundDetails: 'CA Type 02 license renewal due in 45 days. Client notified via email.', authors: ['GL'], following: false },
-  { id: 3, date: '04/22/2026 10:05:33 AM', subject: 'TTB operations report filed', type: 'Task', status: 'Closed', flag: 'Green', category: 'Reporting', department: 'OPS', backgroundDetails: 'February operations report submitted through Permits Online. Confirmation #TTB-88421.', authors: ['WL', 'AD'], following: false },
+  {
+    id: 1,
+    date: '06/01/2026 06:26:19 PM',
+    subject: 'Test By AD',
+    type: 'Issue',
+    status: 'Open',
+    flag: 'Green',
+    category: 'Financial',
+    department: 'OPS',
+    backgroundDetails: 'Initial compliance review flagged a billing discrepancy on the Q1 filing. Follow up with finance team required.',
+    authors: ['AD'],
+    following: true,
+    comments: [
+      { id: 1, author: 'AD', text: 'Initial compliance review flagged a billing discrepancy on the Q1 filing. Follow up with finance team required.', date: '06/01/2026 06:26:19 PM', parentId: null },
+      { id: 2, author: 'GL', text: 'Reached out to finance — waiting on Q1 invoice backup.', date: '06/02/2026 10:14:02 AM', parentId: null },
+      { id: 3, author: 'AD', text: 'Thanks — please escalate if no reply by Friday.', date: '06/02/2026 11:05:40 AM', parentId: 2 },
+    ],
+  },
+  {
+    id: 2,
+    date: '05/18/2026 02:14:08 PM',
+    subject: 'License renewal reminder',
+    type: 'Note',
+    status: 'Closed',
+    flag: 'Yellow',
+    category: 'Licensing',
+    department: 'OOS',
+    backgroundDetails: 'CA Type 02 license renewal due in 45 days. Client notified via email.',
+    authors: ['GL'],
+    following: false,
+    comments: [
+      { id: 1, author: 'GL', text: 'CA Type 02 license renewal due in 45 days. Client notified via email.', date: '05/18/2026 02:14:08 PM', parentId: null },
+    ],
+  },
+  {
+    id: 3,
+    date: '04/22/2026 10:05:33 AM',
+    subject: 'TTB operations report filed',
+    type: 'Task',
+    status: 'Closed',
+    flag: 'Green',
+    category: 'Reporting',
+    department: 'OPS',
+    backgroundDetails: 'February operations report submitted through Permits Online. Confirmation #TTB-88421.',
+    authors: ['WL', 'AD'],
+    following: false,
+    comments: [
+      { id: 1, author: 'WL', text: 'February operations report submitted through Permits Online. Confirmation #TTB-88421.', date: '04/22/2026 10:05:33 AM', parentId: null },
+    ],
+  },
 ]
 
 const ACTIVITY_TYPES = ['Issue', 'Note', 'Task', 'Call', 'Email']
@@ -483,8 +599,11 @@ const PAST_ADDRESSES: typeof COMPANY_ADDRESSES = [
 ]
 
 export default function App() {
+  const [loggedIn, setLoggedIn] = useState(false)
   const [activeNav, setActiveNav] = useState('Dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const notificationsRef = useRef<HTMLDivElement>(null)
   const [favorites, setFavorites] = useState(FAVORITE_COMPANIES_INIT)
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null)
   const [companyTab, setCompanyTab] = useState<(typeof COMPANY_DETAIL_TABS)[number]>('Summary')
@@ -495,6 +614,19 @@ export default function App() {
   const [personTab, setPersonTab] = useState<(typeof PERSON_DETAIL_TABS)[number]>('Summary')
   const [addingPerson, setAddingPerson] = useState(false)
   const [people, setPeople] = useState<PersonRow[]>(PEOPLE_INIT)
+  const [cellarTab, setCellarTab] = useState<(typeof CELLAR_TABS)[number]>('My Action Items')
+  const [actionItems, setActionItems] = useState<ActionItemRow[]>(MY_ACTION_ITEMS)
+
+  useEffect(() => {
+    const closeNotifications = (event: MouseEvent) => {
+      if (!notificationsRef.current?.contains(event.target as Node)) {
+        setNotificationsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', closeNotifications)
+    return () => document.removeEventListener('mousedown', closeNotifications)
+  }, [])
 
   const toggleStar = (index: number) => {
     setFavorites(prev => prev.map((c, i) => i === index ? { ...c, starred: !c.starred } : c))
@@ -537,6 +669,7 @@ export default function App() {
   }
 
   const handleCompanyTabChange = (tab: (typeof COMPANY_DETAIL_TABS)[number]) => {
+    if (tab === 'Ownership') return
     setCompanyTab(tab)
     setCompanySubPage(null)
   }
@@ -545,9 +678,11 @@ export default function App() {
     ? companies.find(c => c.id === selectedCompanyId) ?? null
     : null
 
+  const isRedesignedNav = REDESIGNED_NAV_ITEMS.has(activeNav)
+
   const breadcrumbTrail: { label: string; onClick?: () => void }[] = (() => {
     if (activeNav === 'The Cellar') {
-      return [{ label: 'The Cellar' }, { label: 'Pending Changes' }]
+      return [{ label: 'The Cellar' }, { label: cellarTab }]
     }
     if (activeNav === 'Companies') {
       if (addingCompany) {
@@ -584,8 +719,15 @@ export default function App() {
         { label: personTab },
       ]
     }
+    if (!isRedesignedNav) {
+      return [{ label: activeNav }]
+    }
     return [{ label: 'Dashboard' }, { label: 'Overview' }]
   })()
+
+  if (!loggedIn) {
+    return <LoginPage onLogin={() => setLoggedIn(true)} />
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
@@ -596,11 +738,11 @@ export default function App() {
         {/* Sidebar header */}
         <div className="flex items-center justify-center px-3 py-4 border-b border-slate-200">
           {sidebarCollapsed ? (
-            <div className="w-9 h-9 overflow-hidden flex-shrink-0">
+            <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
               <img
-                src={cabinetLogo}
+                src={cabinetIcon}
                 alt="Cabinet"
-                className="h-9 w-auto max-w-none object-left object-contain"
+                className="w-9 h-9 object-contain"
               />
             </div>
           ) : (
@@ -620,16 +762,23 @@ export default function App() {
               onClick={() => handleNavClick(label)}
               className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors relative group ${
                 activeNav === label
-                  ? 'bg-indigo-50 text-indigo-700'
+                  ? 'bg-[#12518c]/10 text-[#12518c]'
                   : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
               }`}
             >
               {activeNav === label && (
-                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-indigo-500 rounded-r" />
+                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#12518c] rounded-r" />
               )}
               <Icon active={activeNav === label} />
               {!sidebarCollapsed && (
-                <span className="font-medium truncate">{label}</span>
+                <>
+                  <span className="font-medium truncate flex-1 text-left">{label}</span>
+                  {label === 'The Cellar' && actionItems.length > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[10px] font-bold leading-[18px] text-center flex-shrink-0">
+                      {actionItems.length}
+                    </span>
+                  )}
+                </>
               )}
             </button>
           ))}
@@ -661,7 +810,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={crumb.onClick}
-                      className="hover:text-[#7563fb] transition-colors truncate"
+                      className="hover:text-[#12518c] transition-colors truncate"
                     >
                       {crumb.label}
                     </button>
@@ -675,17 +824,75 @@ export default function App() {
             })}
           </nav>
           <div className="flex items-center gap-3 flex-shrink-0">
-            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">Staging Server</span>
-            <button className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M8 1a5 5 0 0 1 5 5c0 3 1.5 4 1.5 4H1.5S3 9 3 6a5 5 0 0 1 5-5z" strokeLinecap="round" />
-                <path d="M6.5 13a1.5 1.5 0 0 0 3 0" strokeLinecap="round" />
-              </svg>
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
-            </button>
+            <span className="text-xs text-[#a1802b] bg-[#e1c16e]/15 border border-[#e1c16e]/60 px-2.5 py-1 rounded-full font-medium">Staging Server</span>
+            <div ref={notificationsRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(open => !open)}
+                className={`relative w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+                  notificationsOpen ? 'bg-slate-100 text-[#12518c]' : 'hover:bg-slate-100'
+                }`}
+                aria-label="3 unread notifications"
+                aria-expanded={notificationsOpen}
+                title="Notifications"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M8 1a5 5 0 0 1 5 5c0 3 1.5 4 1.5 4H1.5S3 9 3 6a5 5 0 0 1 5-5z" strokeLinecap="round" />
+                  <path d="M6.5 13a1.5 1.5 0 0 0 3 0" strokeLinecap="round" />
+                </svg>
+                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-danger text-white text-[9px] font-bold leading-4 text-center ring-2 ring-white">
+                  3
+                </span>
+              </button>
+
+              {notificationsOpen && (
+                <div className="absolute right-0 top-10 z-50 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                    <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
+                    <span className="rounded-full bg-danger-light px-2 py-0.5 text-[10px] font-semibold text-danger">3 new</span>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {[
+                      { title: 'License renewal is due soon', detail: 'California Type 02 license expires in 45 days.', time: '10 min ago' },
+                      { title: 'New account activity', detail: 'A new compliance comment was added by GL.', time: '1 hour ago' },
+                      { title: 'Scope record updated', detail: 'The Operations service scope was changed.', time: 'Yesterday' },
+                    ].map(notification => (
+                      <button
+                        key={notification.title}
+                        type="button"
+                        className="flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50"
+                      >
+                        <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-danger" />
+                        <span className="min-w-0">
+                          <span className="block text-xs font-semibold text-slate-800">{notification.title}</span>
+                          <span className="mt-0.5 block text-[11px] leading-relaxed text-slate-500">{notification.detail}</span>
+                          <span className="mt-1 block text-[10px] text-slate-400">{notification.time}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="w-full border-t border-slate-100 px-4 py-2.5 text-xs font-semibold text-[#12518c] transition-colors hover:bg-slate-50"
+                  >
+                    View all notifications
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-              <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-semibold">HI</div>
+              <div className="w-7 h-7 rounded-full bg-[#12518c] flex items-center justify-center text-white text-xs font-semibold">HI</div>
               <span className="text-sm font-medium text-slate-700 hidden sm:block">Hammad Iftikhar</span>
+              <button
+                onClick={() => setLoggedIn(false)}
+                title="Logout"
+                className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 14H3.5A1.5 1.5 0 0 1 2 12.5v-9A1.5 1.5 0 0 1 3.5 2H6" />
+                  <path d="M10.5 11.5L14 8l-3.5-3.5M14 8H6" />
+                </svg>
+              </button>
             </div>
           </div>
         </header>
@@ -693,7 +900,12 @@ export default function App() {
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">
           {activeNav === 'The Cellar' ? (
-            <CellarPage />
+            <CellarPage
+              activeTab={cellarTab}
+              onTabChange={setCellarTab}
+              actionItems={actionItems}
+              onActionItemsChange={setActionItems}
+            />
           ) : activeNav === 'Companies' ? (
             addingCompany ? (
               <AddCompanyPage
@@ -740,6 +952,10 @@ export default function App() {
                 tab={personTab}
                 onTabChange={setPersonTab}
                 onBack={clearPersonSelection}
+                onDelete={() => {
+                  setPeople(prev => prev.filter(p => p.id !== selectedPerson.id))
+                  clearPersonSelection()
+                }}
                 onAlertChange={status => {
                   setSelectedPerson(prev => (prev ? { ...prev, alert: status } : prev))
                   setPeople(prev => prev.map(p => (p.id === selectedPerson.id ? { ...p, alert: status } : p)))
@@ -753,12 +969,14 @@ export default function App() {
                 onAddPerson={() => setAddingPerson(true)}
               />
             )
-          ) : (
+          ) : activeNav === 'Dashboard' ? (
             <DashboardPage
               favorites={favorites}
               toggleStar={toggleStar}
               setAlertStatus={setAlertStatus}
             />
+          ) : (
+            <WorkInProgressPage title={activeNav} />
           )}
 
           {/* Footer */}
@@ -779,6 +997,24 @@ export default function App() {
 
 /* ── Pages ───────────────────────────────────────────────────────── */
 
+function WorkInProgressPage({ title }: { title?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center animate-[fadeIn_0.25s_ease-out]">
+      <div className="w-16 h-16 rounded-2xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center mb-5">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+          <circle cx="12" cy="12" r="4" />
+        </svg>
+      </div>
+      {title && <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{title}</p>}
+      <h1 className="text-2xl font-bold text-slate-900">Work in Progress</h1>
+      <p className="mt-2 text-sm text-slate-500 max-w-sm">
+        This page is being redesigned and will be available soon.
+      </p>
+    </div>
+  )
+}
+
 type Favorite = {
   name: string
   type: string
@@ -797,6 +1033,25 @@ function DashboardPage({
   toggleStar: (index: number) => void
   setAlertStatus: (index: number, status: AlertStatus) => void
 }) {
+  const favCols = useTableColumns([
+    { key: 'name', label: 'Company Name' },
+    { key: 'type', label: 'Company Type' },
+    { key: 'dba', label: 'DBA' },
+    { key: 'status', label: 'Status' },
+    { key: 'alerts', label: 'Alerts' },
+  ])
+  const renewalCols = useTableColumns([
+    { key: 'name', label: 'Company Name' },
+    { key: 'state', label: 'State' },
+    { key: 'function', label: 'Function' },
+    { key: 'item', label: 'Item Name' },
+    { key: 'license', label: 'License/Permit #' },
+    { key: 'renewalDate', label: 'Renewal Due Date' },
+    { key: 'expiryDate', label: 'Expiration Date' },
+    { key: 'actionDays', label: 'Action (Days)' },
+  ])
+  const favColBtn = 'p-2 rounded-lg transition-all duration-200'
+
   return (
     <>
       <div className="mb-6">
@@ -806,9 +1061,9 @@ function DashboardPage({
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Active Licenses', value: '24', change: '+2 this month', color: 'bg-indigo-50 text-indigo-600' },
-          { label: 'Expired', value: '5', change: 'Needs attention', color: 'bg-red-50 text-red-600' },
-          { label: 'Renewing Soon', value: '12', change: 'Next 30 days', color: 'bg-amber-50 text-amber-600' },
+          { label: 'Active Licenses', value: '24', change: '+2 this month', color: 'bg-[#12518c]/10 text-[#12518c]' },
+          { label: 'Expired', value: '5', change: 'Needs attention', color: 'bg-danger-light text-danger' },
+          { label: 'Renewing Soon', value: '12', change: 'Next 30 days', color: 'bg-[#e1c16e]/15 text-[#a1802b]' },
           { label: 'Favorite Companies', value: '1', change: 'Pinned', color: 'bg-emerald-50 text-emerald-600' },
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-4">
@@ -829,12 +1084,10 @@ function DashboardPage({
           </div>
           <div className="flex items-center gap-2">
             <SearchInput placeholder="Search here…" />
-            <Select placeholder="Company Type" />
-            <Select placeholder="Filter By" />
-            <Select placeholder="Status" />
-            <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
-              <GridViewIcon />
-            </button>
+            <Select placeholder="Company Type" options={['Bond', 'Client', 'Industry', 'Registered Agent', 'Vendor', 'Warehouse']} />
+            <Select placeholder="Alerts" options={['Pending', 'Work Stop', 'No Alert']} />
+            <Select placeholder="Status" options={['Active', 'Inactive', 'Archived']} />
+            <ColumnSettingsDropdown {...favCols.dropdownProps} buttonClassName={favColBtn} />
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -842,9 +1095,11 @@ function DashboardPage({
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="pl-4 pr-0 py-3 w-7" />
-                {['Company Name', 'Company Type', 'DBA', 'Status', 'Alerts'].map((h, i) => (
-                  <th key={h} className={`text-left text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide ${i === 0 ? 'pl-2 pr-5' : 'px-5'}`}>{h}</th>
-                ))}
+                {favCols.show('name') && <th className="text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide pl-2 pr-5 text-left">Company Name</th>}
+                {favCols.show('type') && <th className="text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide px-5 text-left">Company Type</th>}
+                {favCols.show('dba') && <th className="text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide px-5 text-left">DBA</th>}
+                {favCols.show('status') && <th className="text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide px-5 text-center">Status</th>}
+                {favCols.show('alerts') && <th className="text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide px-5 text-center">Alerts</th>}
               </tr>
             </thead>
             <tbody>
@@ -853,35 +1108,43 @@ function DashboardPage({
                   key={i}
                   className={`transition-colors ${
                     c.alertStatus === 'Work Stop'
-                      ? 'bg-red-50 hover:bg-red-100 text-red-600'
+                      ? 'bg-danger-light hover:bg-danger-lighter text-danger'
                       : 'hover:bg-slate-50'
                   }`}
                 >
                   <td className="pl-4 pr-0 py-3.5">
                     <button
                       onClick={() => toggleStar(i)}
-                      className="group flex items-center justify-center w-6 h-6 rounded-md hover:bg-amber-50 transition-colors"
+                      className="group flex items-center justify-center w-6 h-6 rounded-md hover:bg-[#e1c16e]/20 transition-colors"
                       title={c.starred ? 'Remove from favorites' : 'Add to favorites'}
                     >
-                      <svg width="15" height="15" viewBox="0 0 15 15" fill={c.starred ? '#f59e0b' : 'none'} stroke={c.starred ? '#f59e0b' : (c.alertStatus === 'Work Stop' ? '#dc2626' : '#94a3b8')} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="transition-all group-hover:scale-110">
+                      <svg width="15" height="15" viewBox="0 0 15 15" fill={c.starred ? '#e1c16e' : 'none'} stroke={c.starred ? '#e1c16e' : (c.alertStatus === 'Work Stop' ? '#bb5757' : '#94a3b8')} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="transition-all group-hover:scale-110">
                         <path d="M7.5 1.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" />
                       </svg>
                     </button>
                   </td>
-                  <td className="pl-2 pr-5 py-3.5">
-                    <span className={`text-sm font-medium cursor-pointer ${c.alertStatus === 'Work Stop' ? 'text-red-600 hover:text-red-700' : 'text-indigo-600 hover:text-indigo-800'}`}>{c.name}</span>
-                  </td>
-                  <td className={`px-5 py-3.5 text-sm ${c.alertStatus === 'Work Stop' ? 'text-red-600' : 'text-slate-600'}`}>{c.type}</td>
-                  <td className={`px-5 py-3.5 text-sm ${c.alertStatus === 'Work Stop' ? 'text-red-600' : 'text-slate-600'}`}>{c.dba}</td>
-                  <td className="px-5 py-3.5">
-                    <StatusBadge status={c.status} alert={c.alertStatus === 'Work Stop'} />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <AlertDropdown
-                      status={c.alertStatus}
-                      onChange={(s) => setAlertStatus(i, s)}
-                    />
-                  </td>
+                  {favCols.show('name') && (
+                    <td className="pl-2 pr-5 py-3.5">
+                      <span className={`text-sm font-medium cursor-pointer ${c.alertStatus === 'Work Stop' ? 'text-danger hover:text-danger-hover' : 'text-[#12518c] hover:text-[#0e4173]'}`}>{c.name}</span>
+                    </td>
+                  )}
+                  {favCols.show('type') && <td className={`px-5 py-3.5 text-sm ${c.alertStatus === 'Work Stop' ? 'text-danger' : 'text-slate-600'}`}>{c.type}</td>}
+                  {favCols.show('dba') && <td className={`px-5 py-3.5 text-sm ${c.alertStatus === 'Work Stop' ? 'text-danger' : 'text-slate-600'}`}>{c.dba}</td>}
+                  {favCols.show('status') && (
+                    <td className="px-5 py-3.5 text-center">
+                      <StatusBadge status={c.status} alert={c.alertStatus === 'Work Stop'} />
+                    </td>
+                  )}
+                  {favCols.show('alerts') && (
+                    <td className="px-5 py-3.5">
+                      <div className="flex justify-center">
+                        <AlertDropdown
+                          status={c.alertStatus}
+                          onChange={(s) => setAlertStatus(i, s)}
+                        />
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -900,47 +1163,56 @@ function DashboardPage({
             <Select placeholder="Company" />
             <Select placeholder="License Type" />
             <Select placeholder="Function" />
-            <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
-              <GridViewIcon />
-            </button>
+            <ColumnSettingsDropdown {...renewalCols.dropdownProps} buttonClassName={favColBtn} />
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100">
-                {['Company Name', 'State', 'Function', 'Item Name', 'License/Permit #', 'Renewal Due Date', 'Expiration Date', 'Action (Days)'].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                ))}
+                {renewalCols.show('name') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide whitespace-nowrap">Company Name</th>}
+                {renewalCols.show('state') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide whitespace-nowrap">State</th>}
+                {renewalCols.show('function') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide whitespace-nowrap">Function</th>}
+                {renewalCols.show('item') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide whitespace-nowrap">Item Name</th>}
+                {renewalCols.show('license') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide whitespace-nowrap">License/Permit #</th>}
+                {renewalCols.show('renewalDate') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide whitespace-nowrap">Renewal Due Date</th>}
+                {renewalCols.show('expiryDate') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide whitespace-nowrap">Expiration Date</th>}
+                {renewalCols.show('actionDays') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide whitespace-nowrap">Action (Days)</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {RENEWALS.map((r, i) => (
                 <tr key={i} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <span className="text-sm font-medium text-indigo-600 hover:text-indigo-800 cursor-pointer">{r.name}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">{r.state}</span>
-                  </td>
-                  <td className="px-5 py-3.5 text-sm text-slate-600">{r.function}</td>
-                  <td className="px-5 py-3.5 text-sm text-slate-500">{r.item || '—'}</td>
-                  <td className="px-5 py-3.5 text-sm text-slate-700 font-mono">{r.license}</td>
-                  <td className="px-5 py-3.5 text-sm text-slate-600">{r.renewalDate}</td>
-                  <td className="px-5 py-3.5 text-sm text-slate-500">{r.expiryDate || '—'}</td>
-                  <td className="px-5 py-3.5">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-100">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
-                      {r.actionDays}
-                    </span>
-                  </td>
+                  {renewalCols.show('name') && (
+                    <td className="px-5 py-3.5">
+                      <span className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] cursor-pointer">{r.name}</span>
+                    </td>
+                  )}
+                  {renewalCols.show('state') && (
+                    <td className="px-5 py-3.5">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">{r.state}</span>
+                    </td>
+                  )}
+                  {renewalCols.show('function') && <td className="px-5 py-3.5 text-sm text-slate-600">{r.function}</td>}
+                  {renewalCols.show('item') && <td className="px-5 py-3.5 text-sm text-slate-500">{r.item || '—'}</td>}
+                  {renewalCols.show('license') && <td className="px-5 py-3.5 text-sm text-slate-700 font-mono">{r.license}</td>}
+                  {renewalCols.show('renewalDate') && <td className="px-5 py-3.5 text-sm text-slate-600">{r.renewalDate}</td>}
+                  {renewalCols.show('expiryDate') && <td className="px-5 py-3.5 text-sm text-slate-500">{r.expiryDate || '—'}</td>}
+                  {renewalCols.show('actionDays') && (
+                    <td className="px-5 py-3.5">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-danger-light text-danger border border-danger-border">
+                        <span className="w-1.5 h-1.5 rounded-full bg-danger-muted inline-block" />
+                        {r.actionDays}
+                      </span>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <div className="flex justify-end px-5 py-3.5 border-t border-slate-100">
-          <button className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1">
+          <button className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] transition-colors flex items-center gap-1">
             View All
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2 7h10M8 3l4 4-4 4" />
@@ -952,31 +1224,536 @@ function DashboardPage({
   )
 }
 
-function CellarPage() {
-  const [activeTab, setActiveTab] = useState<(typeof CELLAR_TABS)[number]>('Pending Changes')
+type ApprovalContext = {
+  company: string
+  field: string
+  detail?: string
+  newValue?: string
+  previousData?: string
+  updatedData?: string
+}
+
+function ApprovalNotesModal({
+  context,
+  notes,
+  onNotesChange,
+  onClose,
+  onSubmit,
+  submitting,
+  title = 'Approval Notes',
+  description = 'Add optional notes before approving this change.',
+  submitLabel = 'Submit',
+}: {
+  context: ApprovalContext
+  notes: string
+  onNotesChange: (value: string) => void
+  onClose: () => void
+  onSubmit: () => void
+  submitting: boolean
+  title?: string
+  description?: string
+  submitLabel?: string
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    textareaRef.current?.focus()
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !submitting) onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose, submitting])
+
+  return (
+    <AddressModalShell maxWidth="max-w-xl" onClose={submitting ? () => {} : onClose}>
+      <div className="flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-slate-100">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-[#12518c]">{title}</h3>
+          <p className="text-xs text-slate-500 mt-1">{description}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={submitting}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0 disabled:opacity-40"
+          aria-label="Close"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="px-6 py-5 space-y-4">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+            <div className="flex gap-2 min-w-0">
+              <span className="font-semibold text-slate-500 w-16 flex-shrink-0">Company</span>
+              <span className="text-slate-700 font-medium truncate">{context.company}</span>
+            </div>
+            <div className="flex gap-2 min-w-0">
+              <span className="font-semibold text-slate-500 w-16 flex-shrink-0">Previous</span>
+              <span className="text-slate-700 truncate">{context.previousData || context.detail || '—'}</span>
+            </div>
+            <div className="flex gap-2 min-w-0">
+              <span className="font-semibold text-slate-500 w-16 flex-shrink-0">Field</span>
+              <span className="text-slate-700 truncate">{context.field}</span>
+            </div>
+            <div className="flex gap-2 min-w-0">
+              <span className="font-semibold text-slate-500 w-16 flex-shrink-0">Updated</span>
+              <span className="text-slate-700 font-medium truncate">{context.updatedData || context.newValue || '—'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="approval-notes" className="block text-sm font-semibold text-slate-700 mb-2">
+            Notes
+          </label>
+          <textarea
+            ref={textareaRef}
+            id="approval-notes"
+            value={notes}
+            onChange={e => onNotesChange(e.target.value)}
+            disabled={submitting}
+            rows={4}
+            placeholder="Add approval notes (optional)…"
+            className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 bg-white text-slate-800 placeholder-slate-400 resize-none transition-all focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] disabled:bg-slate-50"
+          />
+          <p className="text-[11px] text-slate-400 mt-1.5">
+            {notes.length}/500 characters
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/40">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={submitting}
+          className="min-w-[96px] px-5 py-2 rounded-full text-xs font-semibold uppercase tracking-wide text-white bg-slate-500 hover:bg-slate-600 transition-colors disabled:opacity-60"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={submitting}
+          className={`min-w-[96px] px-5 py-2 rounded-full text-xs font-semibold uppercase tracking-wide text-white transition-colors disabled:opacity-70 flex items-center justify-center gap-2 ${
+            submitLabel === 'Deny' || submitLabel === 'Revert'
+              ? 'bg-danger hover:bg-danger-hover'
+              : 'bg-[#12518c] hover:bg-[#0e4173]'
+          }`}
+        >
+          {submitting && (
+            <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+              <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          )}
+          {submitting ? 'Submitting…' : submitLabel}
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function NotesPreviewModal({
+  company,
+  field,
+  notes,
+  onClose,
+}: {
+  company: string
+  field: string
+  notes: string
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  return (
+    <AddressModalShell maxWidth="max-w-md" onClose={onClose}>
+      <div className="flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-slate-100">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-[#12518c]">Notes Preview</h3>
+          <p className="text-xs text-slate-500 mt-1 truncate">{company} · {field}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0"
+          aria-label="Close"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+      <div className="px-6 py-5">
+        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{notes || 'No notes provided.'}</p>
+      </div>
+      <div className="flex items-center justify-end px-6 py-4 border-t border-slate-100 bg-slate-50/40">
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-w-[96px] px-5 py-2 rounded-full text-xs font-semibold uppercase tracking-wide text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function CellarToast({ message }: { message: string }) {
+  return createPortal(
+    <div className="fixed bottom-6 right-6 z-[10000] flex items-center gap-2.5 px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-medium shadow-lg animate-[fadeIn_0.2s_ease-out]">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3.5 8.5l3 3 6-6" />
+      </svg>
+      {message}
+    </div>,
+    document.body
+  )
+}
+
+function CellarPage({
+  activeTab,
+  onTabChange,
+  actionItems,
+  onActionItemsChange,
+}: {
+  activeTab: (typeof CELLAR_TABS)[number]
+  onTabChange: (tab: (typeof CELLAR_TABS)[number]) => void
+  actionItems: ActionItemRow[]
+  onActionItemsChange: (items: ActionItemRow[] | ((prev: ActionItemRow[]) => ActionItemRow[])) => void
+}) {
   const [selected, setSelected] = useState<number[]>([])
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [sortDesc, setSortDesc] = useState(true)
+  const [pendingRows, setPendingRows] = useState(PENDING_CHANGES)
+  const [approvalContext, setApprovalContext] = useState<ApprovalContext | null>(null)
+  const [approvalRowId, setApprovalRowId] = useState<number | null>(null)
+  const [approvalSource, setApprovalSource] = useState<'action' | 'pending' | null>(null)
+  const [approvalNotes, setApprovalNotes] = useState('')
+  const [submittingApproval, setSubmittingApproval] = useState(false)
+  const [denyTarget, setDenyTarget] = useState<ActionItemRow | null>(null)
+  const [denyNotes, setDenyNotes] = useState('')
+  const [submittingDeny, setSubmittingDeny] = useState(false)
+  const [notesPreview, setNotesPreview] = useState<{ company: string; field: string; notes: string } | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const [finalDecisions, setFinalDecisions] = useState(FINAL_DECISIONS)
+  const [fieldFilter, setFieldFilter] = useState('')
+  const [requestedByFilter, setRequestedByFilter] = useState('')
+  const [specialistFilter, setSpecialistFilter] = useState('')
+  const [revertTarget, setRevertTarget] = useState<FinalDecisionRow | null>(null)
+  const [revertNotes, setRevertNotes] = useState('')
+  const [submittingRevert, setSubmittingRevert] = useState(false)
 
-  const filtered = PENDING_CHANGES.filter(row =>
-    !search ||
-    row.company.toLowerCase().includes(search.toLowerCase()) ||
-    row.field.toLowerCase().includes(search.toLowerCase()) ||
-    row.detail.toLowerCase().includes(search.toLowerCase())
-  )
+  const actionItemCols = useTableColumns([
+    { key: 'company', label: 'Company/Contact Name' },
+    { key: 'recordName', label: 'Record Name' },
+    { key: 'requestDate', label: 'Request Date' },
+    { key: 'field', label: 'Field' },
+    { key: 'previousData', label: 'Previous Data' },
+    { key: 'updatedData', label: 'Updated Data' },
+    { key: 'notes', label: 'Notes' },
+    { key: 'requestedBy', label: 'Requested By' },
+  ])
+  const pendingCols = useTableColumns([
+    { key: 'company', label: 'Company' },
+    { key: 'timestamp', label: 'Timestamp' },
+    { key: 'detail', label: 'Detail' },
+    { key: 'field', label: 'Field' },
+    { key: 'newValue', label: 'New Value' },
+    { key: 'status', label: 'Status' },
+    { key: 'requestedBy', label: 'Requested By' },
+  ])
+  const finalCols = useTableColumns([
+    { key: 'company', label: 'Company/Contact Name' },
+    { key: 'recordName', label: 'Record Name' },
+    { key: 'decisionDate', label: 'Decision Date' },
+    { key: 'field', label: 'Field' },
+    { key: 'previousData', label: 'Previous Data' },
+    { key: 'updatedData', label: 'Updated Data' },
+    { key: 'requestedBy', label: 'Requested By' },
+    { key: 'specialist', label: 'Specialist' },
+    { key: 'status', label: 'Status' },
+  ])
+  const cellarColBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
 
-  const allSelected = filtered.length > 0 && filtered.every(r => selected.includes(r.id))
+  const PAGE_SIZE = 10
+
+  const filteredActionItems = actionItems
+    .filter(row => {
+      const q = search.toLowerCase()
+      return (
+        !q ||
+        row.companyContactName.toLowerCase().includes(q) ||
+        row.recordName.toLowerCase().includes(q) ||
+        row.field.toLowerCase().includes(q) ||
+        row.previousData.toLowerCase().includes(q) ||
+        row.updatedData.toLowerCase().includes(q) ||
+        row.requestedBy.toLowerCase().includes(q)
+      )
+    })
+    .sort((a, b) => {
+      const cmp = a.requestDate.localeCompare(b.requestDate)
+      return sortDesc ? -cmp : cmp
+    })
+
+  const filteredPending = pendingRows.filter(row => {
+    const q = search.toLowerCase()
+    const matchesSearch =
+      !q ||
+      row.company.toLowerCase().includes(q) ||
+      row.field.toLowerCase().includes(q) ||
+      row.detail.toLowerCase().includes(q)
+    return (
+      matchesSearch &&
+      (!requestedByFilter || row.initials === requestedByFilter) &&
+      (!specialistFilter || row.badge === specialistFilter)
+    )
+  })
+
+  const pendingRequestedByOptions = [...new Set(pendingRows.map(r => r.initials))].sort()
+  const pendingSpecialistOptions = [...new Set(pendingRows.map(r => r.badge))].sort()
+  const pendingFiltersActive = !!(search || requestedByFilter || specialistFilter)
+
+  const clearPendingFilters = () => {
+    setSearch('')
+    setRequestedByFilter('')
+    setSpecialistFilter('')
+    setPage(1)
+  }
+
+  const filteredFinalDecisions = finalDecisions.filter(row => {
+    const q = search.toLowerCase()
+    const matchesSearch =
+      !q ||
+      row.companyContactName.toLowerCase().includes(q) ||
+      row.recordName.toLowerCase().includes(q) ||
+      row.field.toLowerCase().includes(q) ||
+      row.previousData.toLowerCase().includes(q) ||
+      row.updatedData.toLowerCase().includes(q) ||
+      row.requestedBy.toLowerCase().includes(q) ||
+      row.specialist.toLowerCase().includes(q)
+    return (
+      matchesSearch &&
+      (!fieldFilter || row.field === fieldFilter) &&
+      (!requestedByFilter || row.requestedBy === requestedByFilter) &&
+      (!specialistFilter || row.specialist === specialistFilter)
+    )
+  })
+
+  const finalDecisionPages = Math.max(1, Math.ceil(filteredFinalDecisions.length / PAGE_SIZE))
+  const pagedFinalDecisions = filteredFinalDecisions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const finalPageStart = Math.max(1, Math.min(page - 2, finalDecisionPages - 4))
+  const finalPageNumbers = Array.from(
+    { length: Math.min(5, finalDecisionPages) },
+    (_, i) => finalPageStart + i
+  ).filter(n => n >= 1 && n <= finalDecisionPages)
+
+  const finalFieldOptions = [...new Set(finalDecisions.map(r => r.field))].sort()
+  const finalRequestedByOptions = [...new Set(finalDecisions.map(r => r.requestedBy))].sort()
+  const finalSpecialistOptions = [...new Set(finalDecisions.map(r => r.specialist))].sort()
+  const finalFiltersActive = !!(search || fieldFilter || requestedByFilter || specialistFilter)
+
+  const currentRows = activeTab === 'My Action Items' ? filteredActionItems : filteredPending
+  const allSelected = currentRows.length > 0 && currentRows.every(r => selected.includes(r.id))
 
   const toggleAll = () => {
     if (allSelected) setSelected([])
-    else setSelected(filtered.map(r => r.id))
+    else setSelected(currentRows.map(r => r.id))
   }
 
   const toggleRow = (id: number) => {
     setSelected(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
   }
 
+  const handleTabChange = (tab: (typeof CELLAR_TABS)[number]) => {
+    onTabChange(tab)
+    setSelected([])
+    setSearch('')
+    setPage(1)
+    setFieldFilter('')
+    setRequestedByFilter('')
+    setSpecialistFilter('')
+  }
+
+  const clearFinalFilters = () => {
+    setSearch('')
+    setFieldFilter('')
+    setRequestedByFilter('')
+    setSpecialistFilter('')
+    setPage(1)
+  }
+
+  const openActionApproval = (row: ActionItemRow) => {
+    setApprovalContext({
+      company: row.companyContactName,
+      field: row.field,
+      previousData: row.previousData,
+      updatedData: row.updatedData,
+    })
+    setApprovalRowId(row.id)
+    setApprovalSource('action')
+    setApprovalNotes('')
+    setSubmittingApproval(false)
+  }
+
+  const openPendingApproval = (row: PendingRow) => {
+    setApprovalContext({
+      company: row.company,
+      field: row.field,
+      detail: row.detail,
+      newValue: row.newValue,
+    })
+    setApprovalRowId(row.id)
+    setApprovalSource('pending')
+    setApprovalNotes('')
+    setSubmittingApproval(false)
+  }
+
+  const closeApprovalModal = () => {
+    if (submittingApproval) return
+    setApprovalContext(null)
+    setApprovalRowId(null)
+    setApprovalSource(null)
+    setApprovalNotes('')
+  }
+
+  const handleApprovalSubmit = () => {
+    if (!approvalContext || approvalRowId == null || !approvalSource) return
+    setSubmittingApproval(true)
+    setTimeout(() => {
+      if (approvalSource === 'action') {
+        onActionItemsChange(prev => prev.filter(r => r.id !== approvalRowId))
+      } else {
+        setPendingRows(prev => prev.filter(r => r.id !== approvalRowId))
+      }
+      setSelected(prev => prev.filter(id => id !== approvalRowId))
+      setToast(`"${approvalContext.field}" change approved for ${approvalContext.company}`)
+      closeApprovalModal()
+      setSubmittingApproval(false)
+      setTimeout(() => setToast(null), 3500)
+    }, 700)
+  }
+
+  const closeDenyModal = () => {
+    if (submittingDeny) return
+    setDenyTarget(null)
+    setDenyNotes('')
+  }
+
+  const handleDenySubmit = () => {
+    if (!denyTarget) return
+    setSubmittingDeny(true)
+    setTimeout(() => {
+      onActionItemsChange(prev => prev.filter(r => r.id !== denyTarget.id))
+      setSelected(prev => prev.filter(id => id !== denyTarget.id))
+      setToast(`"${denyTarget.field}" change denied for ${denyTarget.companyContactName}`)
+      closeDenyModal()
+      setSubmittingDeny(false)
+      setTimeout(() => setToast(null), 3500)
+    }, 700)
+  }
+
+  const closeRevertModal = () => {
+    if (submittingRevert) return
+    setRevertTarget(null)
+    setRevertNotes('')
+  }
+
+  const handleRevertSubmit = () => {
+    if (!revertTarget) return
+    setSubmittingRevert(true)
+    setTimeout(() => {
+      setFinalDecisions(prev => prev.filter(r => r.id !== revertTarget.id))
+      setToast(`"${revertTarget.field}" decision reverted for ${revertTarget.companyContactName}`)
+      closeRevertModal()
+      setSubmittingRevert(false)
+      setTimeout(() => setToast(null), 3500)
+    }, 700)
+  }
+
+  const tabButtonClass = (tab: (typeof CELLAR_TABS)[number]) =>
+    `px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+      activeTab === tab
+        ? 'bg-[#12518c] text-white shadow-sm'
+        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+    }`
+
   return (
     <>
+      {approvalContext && (
+        <ApprovalNotesModal
+          context={approvalContext}
+          notes={approvalNotes.slice(0, 500)}
+          onNotesChange={v => setApprovalNotes(v.slice(0, 500))}
+          onClose={closeApprovalModal}
+          onSubmit={handleApprovalSubmit}
+          submitting={submittingApproval}
+        />
+      )}
+
+      {denyTarget && (
+        <ApprovalNotesModal
+          context={{
+            company: denyTarget.companyContactName,
+            field: denyTarget.field,
+            previousData: denyTarget.previousData,
+            updatedData: denyTarget.updatedData,
+          }}
+          title="Deny Change"
+          description="Add optional notes before denying this change."
+          notes={denyNotes.slice(0, 500)}
+          onNotesChange={v => setDenyNotes(v.slice(0, 500))}
+          onClose={closeDenyModal}
+          onSubmit={handleDenySubmit}
+          submitting={submittingDeny}
+          submitLabel="Deny"
+        />
+      )}
+
+      {revertTarget && (
+        <ApprovalNotesModal
+          context={{
+            company: revertTarget.companyContactName,
+            field: revertTarget.field,
+            previousData: revertTarget.previousData,
+            updatedData: revertTarget.updatedData,
+          }}
+          title="Revert Decision"
+          description="Reverting will undo this approved change and restore the previous value. Add optional notes for the audit trail."
+          notes={revertNotes.slice(0, 500)}
+          onNotesChange={v => setRevertNotes(v.slice(0, 500))}
+          onClose={closeRevertModal}
+          onSubmit={handleRevertSubmit}
+          submitting={submittingRevert}
+          submitLabel="Revert"
+        />
+      )}
+
+      {notesPreview && (
+        <NotesPreviewModal
+          company={notesPreview.company}
+          field={notesPreview.field}
+          notes={notesPreview.notes}
+          onClose={() => setNotesPreview(null)}
+        />
+      )}
+
+      {toast && <CellarToast message={toast} />}
+
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-slate-900">The Cellar</h1>
       </div>
@@ -985,156 +1762,538 @@ function CellarPage() {
         {CELLAR_TABS.map(tab => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              activeTab === tab
-                ? 'bg-slate-700 text-white shadow-sm'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
+            type="button"
+            onClick={() => handleTabChange(tab)}
+            className={tabButtonClass(tab)}
           >
             {tab}
+            {tab === 'My Action Items' && actionItems.length > 0 && (
+              <span className={`ml-1.5 inline-flex min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold items-center justify-center ${
+                activeTab === tab ? 'bg-white/20 text-white' : 'bg-danger text-white'
+              }`}>
+                {actionItems.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {activeTab !== 'Pending Changes' ? (
-        <div className="bg-white rounded-xl border border-slate-200 px-6 py-16 text-center">
-          <p className="text-sm text-slate-500">No items in {activeTab}.</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-slate-200">
-          <div className="flex items-center justify-end px-5 py-4 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="5" cy="5" r="3.5" />
-                  <path d="M8 8l2.5 2.5" strokeLinecap="round" />
-                </svg>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search Here"
-                  className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 w-44 transition-all"
-                />
-              </div>
-              <Select placeholder="Requested By" />
-              <Select placeholder="Specialist" />
-              <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors" title="Column settings">
-                <GridViewIcon />
-              </button>
+      {activeTab === 'Final Decisions' ? (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+          <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <AddressSearchInput
+                value={search}
+                onChange={v => { setSearch(v); setPage(1) }}
+              />
+              <select
+                value={fieldFilter}
+                onChange={e => { setFieldFilter(e.target.value); setPage(1) }}
+                className={filterSelectClassName(fieldFilter)}
+                aria-label="Field"
+              >
+                <option value="">Field</option>
+                {finalFieldOptions.map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+              <select
+                value={requestedByFilter}
+                onChange={e => { setRequestedByFilter(e.target.value); setPage(1) }}
+                className={filterSelectClassName(requestedByFilter)}
+                aria-label="Requested By"
+              >
+                <option value="">Requested By</option>
+                {finalRequestedByOptions.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <select
+                value={specialistFilter}
+                onChange={e => { setSpecialistFilter(e.target.value); setPage(1) }}
+                className={filterSelectClassName(specialistFilter)}
+                aria-label="Specialist"
+              >
+                <option value="">Specialist</option>
+                {finalSpecialistOptions.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              {finalFiltersActive && (
+                <button
+                  type="button"
+                  onClick={clearFinalFilters}
+                  className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                    <path d="M3 3l8 8M11 3l-8 8" />
+                  </svg>
+                  Clear
+                </button>
+              )}
+              <ColumnSettingsDropdown {...finalCols.dropdownProps} buttonClassName={cellarColBtn} />
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px]">
+            <table className="w-full min-w-[1100px]">
               <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="px-4 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleAll}
-                      className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 cursor-pointer"
-                    />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Company</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Timestamp</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Detail</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Field</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">New Value</th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide w-[150px]">Actions</th>
+                <tr className="border-y border-slate-100 bg-slate-50/60">
+                  {finalCols.show('company') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Company/Contact Name</th>}
+                  {finalCols.show('recordName') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Record Name</th>}
+                  {finalCols.show('decisionDate') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Decision Date</th>}
+                  {finalCols.show('field') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Field</th>}
+                  {finalCols.show('previousData') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Previous Data</th>}
+                  {finalCols.show('updatedData') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Updated Data</th>}
+                  {finalCols.show('requestedBy') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
+                  {finalCols.show('specialist') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Specialist</th>}
+                  {finalCols.show('status') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Status</th>}
+                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap w-[100px]">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row, i) => (
-                  <tr
-                    key={row.id}
-                    className={`border-b border-slate-50 transition-colors ${
-                      i % 2 === 1 ? 'bg-slate-50/80' : 'bg-white'
-                    } hover:bg-indigo-50/40`}
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(row.id)}
-                        onChange={() => toggleRow(row.id)}
-                        className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <button className="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline text-left whitespace-nowrap">
-                        {row.company}
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 text-xs text-slate-500 whitespace-nowrap">{row.timestamp}</td>
-                    <td className="px-3 py-3 text-sm text-slate-600 max-w-[200px] truncate" title={row.detail}>
-                      {row.detail}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{row.field}</td>
-                    <td className="px-3 py-3 text-sm text-slate-600 max-w-[180px] truncate" title={row.newValue}>
-                      {row.newValue || '—'}
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#fccc47] text-slate-800">
-                        Pending
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center justify-center">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
-                          {row.initials}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 pr-4">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
-                          title="View file"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M4 2h5l3 3v8.5a1.5 1.5 0 0 1-1.5 1.5h-6.5A1.5 1.5 0 0 1 2.5 13.5v-10A1.5 1.5 0 0 1 4 2z" />
-                            <path d="M9 2v3h3M5.5 8h5M5.5 10.5h5M5.5 13h3" />
-                          </svg>
-                        </button>
-                        <button className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-[#7563fb] hover:bg-[#6450e8] transition-colors">
-                          Approve
-                        </button>
-                        <button className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-[#ea5054] hover:bg-[#d44347] transition-colors">
-                          Deny
-                        </button>
-                      </div>
+                {pagedFinalDecisions.length === 0 ? (
+                  <tr>
+                    <td colSpan={finalCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">
+                      No final decisions found.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  pagedFinalDecisions.map((row, i) => (
+                    <tr
+                      key={row.id}
+                      className={`border-b border-slate-100 transition-colors ${
+                        i % 2 ? 'bg-slate-50/40 hover:bg-[#12518c]/5' : 'bg-white hover:bg-[#12518c]/5'
+                      }`}
+                    >
+                      {finalCols.show('company') && (
+                        <td className="px-3 py-3">
+                          <button type="button" className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] hover:underline text-left whitespace-nowrap">
+                            {row.companyContactName}
+                          </button>
+                        </td>
+                      )}
+                      {finalCols.show('recordName') && (
+                        <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap max-w-[180px] truncate" title={row.recordName}>
+                          {row.recordName || '—'}
+                        </td>
+                      )}
+                      {finalCols.show('decisionDate') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{row.decisionDate}</td>}
+                      {finalCols.show('field') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{row.field}</td>}
+                      {finalCols.show('previousData') && (
+                        <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap max-w-[160px] truncate" title={row.previousData}>
+                          {row.previousData || '—'}
+                        </td>
+                      )}
+                      {finalCols.show('updatedData') && (
+                        <td className="px-3 py-3 text-sm text-slate-700 font-medium whitespace-nowrap max-w-[160px] truncate" title={row.updatedData}>
+                          {row.updatedData || '—'}
+                        </td>
+                      )}
+                      {finalCols.show('requestedBy') && (
+                        <td className="px-3 py-3">
+                          <div className="flex items-center justify-center">
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                              {row.requestedBy}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                      {finalCols.show('specialist') && (
+                        <td className="px-3 py-3">
+                          <div className="flex items-center justify-center">
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold bg-[#12518c]/10 text-[#12518c]">
+                              {row.specialist}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                      {finalCols.show('status') && (
+                        <td className="px-3 py-3">
+                          <div className="flex items-center justify-center">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                row.status === 'Approved'
+                                  ? 'bg-[#12518c]/10 text-[#12518c] border border-[#12518c]/20'
+                                  : 'bg-danger-light text-danger border border-danger-border'
+                              }`}
+                              title={`Decision: ${row.status}`}
+                            >
+                              {row.status}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                      <td className="px-3 py-3 pr-4">
+                        <div className="flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={() => { setRevertTarget(row); setRevertNotes('') }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-white bg-[#bb5757] hover:bg-[#a64a4a] transition-colors"
+                            title="Revert this decision"
+                          >
+                            <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 5.5A5 5 0 1 1 2.5 8" />
+                              <path d="M3 2.5v3h3" />
+                            </svg>
+                            Revert
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
-          <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100">
+          <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/40">
             <span className="text-sm text-slate-500">
-              Total: <span className="font-semibold text-slate-700">{filtered.length}</span>
+              Total: <span className="font-semibold text-slate-700">{filteredFinalDecisions.length}</span>
             </span>
             <div className="flex items-center gap-1">
-              <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 disabled:opacity-40" disabled>
+              <button
+                type="button"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-white disabled:opacity-40"
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                aria-label="Previous page"
+              >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M9 3L5 7l4 4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
-              <button className="min-w-8 h-8 px-2.5 flex items-center justify-center rounded-lg bg-indigo-600 text-white text-sm font-semibold">
-                1
-              </button>
-              <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 disabled:opacity-40" disabled>
+              {finalPageNumbers.map(pageNum => (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setPage(pageNum)}
+                  className={`min-w-8 h-8 px-2.5 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                    page === pageNum
+                      ? 'bg-[#12518c] text-white'
+                      : 'border border-slate-200 text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-white disabled:opacity-40"
+                disabled={page >= finalDecisionPages}
+                onClick={() => setPage(p => Math.min(finalDecisionPages, p + 1))}
+                aria-label="Next page"
+              >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M5 3l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
           </div>
-        </div>
+        </section>
+      ) : activeTab === 'My Action Items' ? (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <AddressSearchInput
+                value={search}
+                onChange={v => { setSearch(v); setPage(1) }}
+              />
+              <ColumnSettingsDropdown {...actionItemCols.dropdownProps} buttonClassName={cellarColBtn} />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px]">
+              <thead>
+                <tr className="border-y border-slate-100 bg-slate-50/60">
+                  <th className="px-4 py-2.5 w-10">
+                    <span className="sr-only">Select All</span>
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      aria-label="Select all rows"
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-[#12518c] cursor-pointer"
+                    />
+                  </th>
+                  {actionItemCols.show('company') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Company/Contact Name</th>}
+                  {actionItemCols.show('recordName') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Record Name</th>}
+                  {actionItemCols.show('requestDate') && (
+                    <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setSortDesc(d => !d)}
+                        className="inline-flex items-center gap-1 hover:text-[#12518c] transition-colors"
+                      >
+                        Request Date
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={sortDesc ? '' : 'rotate-180'}>
+                          <path d="M2.5 3.5L5 6l2.5-2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </th>
+                  )}
+                  {actionItemCols.show('field') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Field</th>}
+                  {actionItemCols.show('previousData') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Previous Data</th>}
+                  {actionItemCols.show('updatedData') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Updated Data</th>}
+                  {actionItemCols.show('notes') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Notes</th>}
+                  {actionItemCols.show('requestedBy') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
+                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap w-[150px]">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredActionItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={actionItemCols.visibleCount + 2} className="px-4 py-12 text-center text-sm text-slate-400">No action items found.</td>
+                  </tr>
+                ) : (
+                  filteredActionItems.map((row, i) => {
+                    const isSelected = selected.includes(row.id)
+                    return (
+                      <tr
+                        key={row.id}
+                        className={`border-b border-slate-100 transition-colors ${
+                          isSelected
+                            ? 'bg-[#12518c]/8'
+                            : i % 2
+                              ? 'bg-slate-50/40 hover:bg-[#12518c]/5'
+                              : 'bg-white hover:bg-[#12518c]/5'
+                        }`}
+                      >
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleRow(row.id)}
+                            className="w-3.5 h-3.5 rounded border-slate-300 text-[#12518c] cursor-pointer"
+                          />
+                        </td>
+                        {actionItemCols.show('company') && (
+                          <td className="px-3 py-3">
+                            <button type="button" className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] hover:underline text-left whitespace-nowrap">
+                              {row.companyContactName}
+                            </button>
+                          </td>
+                        )}
+                        {actionItemCols.show('recordName') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{row.recordName || '—'}</td>}
+                        {actionItemCols.show('requestDate') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{row.requestDate}</td>}
+                        {actionItemCols.show('field') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{row.field}</td>}
+                        {actionItemCols.show('previousData') && <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap">{row.previousData || '—'}</td>}
+                        {actionItemCols.show('updatedData') && <td className="px-3 py-3 text-sm text-slate-700 font-medium whitespace-nowrap">{row.updatedData || '—'}</td>}
+                        {actionItemCols.show('notes') && (
+                          <td className="px-3 py-3">
+                            {row.notes ? (
+                              <button
+                                type="button"
+                                onClick={() => setNotesPreview({ company: row.companyContactName, field: row.field, notes: row.notes })}
+                                className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] hover:underline"
+                              >
+                                Preview
+                              </button>
+                            ) : (
+                              <span className="text-sm text-slate-400">—</span>
+                            )}
+                          </td>
+                        )}
+                        {actionItemCols.show('requestedBy') && (
+                          <td className="px-3 py-3">
+                            <div className="flex items-center justify-center">
+                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                                {row.requestedBy}
+                              </span>
+                            </div>
+                          </td>
+                        )}
+                        <td className="px-3 py-3 pr-4">
+                          <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => openActionApproval(row)}
+                              className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setDenyTarget(row); setDenyNotes('') }}
+                              className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-danger hover:bg-danger-hover transition-colors"
+                            >
+                              Deny
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <AddressTableFooter total={filteredActionItems.length} page={page} onPageChange={setPage} />
+        </section>
+      ) : (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <AddressSearchInput
+                value={search}
+                onChange={v => { setSearch(v); setPage(1) }}
+              />
+              <select
+                value={requestedByFilter}
+                onChange={e => { setRequestedByFilter(e.target.value); setPage(1) }}
+                className={filterSelectClassName(requestedByFilter)}
+                aria-label="Requested By"
+              >
+                <option value="">Requested By</option>
+                {pendingRequestedByOptions.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <select
+                value={specialistFilter}
+                onChange={e => { setSpecialistFilter(e.target.value); setPage(1) }}
+                className={filterSelectClassName(specialistFilter)}
+                aria-label="Specialist"
+              >
+                <option value="">Specialist</option>
+                {pendingSpecialistOptions.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              {pendingFiltersActive && (
+                <button
+                  type="button"
+                  onClick={clearPendingFilters}
+                  className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                    <path d="M3 3l8 8M11 3l-8 8" />
+                  </svg>
+                  Clear
+                </button>
+              )}
+              <ColumnSettingsDropdown {...pendingCols.dropdownProps} buttonClassName={cellarColBtn} />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1050px]">
+              <thead>
+                <tr className="border-y border-slate-100 bg-slate-50/60">
+                  <th className="px-4 py-2.5 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-[#12518c] cursor-pointer"
+                    />
+                  </th>
+                  {pendingCols.show('company') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Company</th>}
+                  {pendingCols.show('timestamp') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Timestamp</th>}
+                  {pendingCols.show('detail') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Detail</th>}
+                  {pendingCols.show('field') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Field</th>}
+                  {pendingCols.show('newValue') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">New Value</th>}
+                  {pendingCols.show('status') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Status</th>}
+                  {pendingCols.show('requestedBy') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
+                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide w-[150px]">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPending.length === 0 ? (
+                  <tr>
+                    <td colSpan={pendingCols.visibleCount + 2} className="px-4 py-12 text-center text-sm text-slate-400">No pending changes found.</td>
+                  </tr>
+                ) : (
+                  filteredPending.map((row, i) => (
+                    <tr
+                      key={row.id}
+                      className={`border-b border-slate-100 transition-colors ${
+                        selected.includes(row.id)
+                          ? 'bg-[#12518c]/8'
+                          : i % 2
+                            ? 'bg-slate-50/40 hover:bg-[#12518c]/5'
+                            : 'bg-white hover:bg-[#12518c]/5'
+                      }`}
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(row.id)}
+                          onChange={() => toggleRow(row.id)}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-[#12518c] cursor-pointer"
+                        />
+                      </td>
+                      {pendingCols.show('company') && (
+                        <td className="px-3 py-3">
+                          <button type="button" className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] hover:underline text-left whitespace-nowrap">
+                            {row.company}
+                          </button>
+                        </td>
+                      )}
+                      {pendingCols.show('timestamp') && <td className="px-3 py-3 text-xs text-slate-500 whitespace-nowrap tabular-nums">{row.timestamp}</td>}
+                      {pendingCols.show('detail') && (
+                        <td className="px-3 py-3 text-sm text-slate-600 max-w-[200px] truncate" title={row.detail}>
+                          {row.detail}
+                        </td>
+                      )}
+                      {pendingCols.show('field') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{row.field}</td>}
+                      {pendingCols.show('newValue') && (
+                        <td className="px-3 py-3 text-sm text-slate-600 max-w-[180px] truncate" title={row.newValue}>
+                          {row.newValue || '—'}
+                        </td>
+                      )}
+                      {pendingCols.show('status') && (
+                        <td className="px-3 py-3">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#e1c16e]/15 text-[#8a6d24] border border-[#e1c16e]/40">
+                            Pending
+                          </span>
+                        </td>
+                      )}
+                      {pendingCols.show('requestedBy') && (
+                        <td className="px-3 py-3">
+                          <div className="flex items-center justify-center">
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                              {row.initials}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                      <td className="px-3 py-3 pr-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setNotesPreview({ company: row.company, field: row.field, notes: row.notes })}
+                            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-[#12518c] transition-colors"
+                            title="View notes"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M4 2h5l3 3v8.5a1.5 1.5 0 0 1-1.5 1.5h-6.5A1.5 1.5 0 0 1 2.5 13.5v-10A1.5 1.5 0 0 1 4 2z" />
+                              <path d="M9 2v3h3M5.5 8h5M5.5 10.5h5M5.5 13h3" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openPendingApproval(row)}
+                            className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+                          >
+                            Approve
+                          </button>
+                          <button type="button" className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-danger hover:bg-danger-hover transition-colors">
+                            Deny
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <AddressTableFooter total={filteredPending.length} page={page} onPageChange={setPage} />
+        </section>
       )}
     </>
   )
@@ -1155,6 +2314,16 @@ function PeoplePage({
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [page, setPage] = useState(1)
+
+  const peopleCols = useTableColumns([
+    { key: 'name', label: 'Name' },
+    { key: 'email', label: 'Email' },
+    { key: 'company', label: 'Company/Agency Name' },
+    { key: 'type', label: 'Type' },
+    { key: 'category', label: 'Category' },
+    { key: 'alerts', label: 'Alerts' },
+  ])
+  const peopleColBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
 
   const filtered = people.filter(p => {
     const q = search.toLowerCase()
@@ -1197,9 +2366,6 @@ function PeoplePage({
     URL.revokeObjectURL(url)
   }
 
-  const filterSelectClass =
-    'h-9 min-w-[140px] px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
-
   return (
     <>
       <div className="mb-5 flex items-start justify-between gap-4">
@@ -1221,7 +2387,7 @@ function PeoplePage({
 
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <div className="relative">
               <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <circle cx="5" cy="5" r="3.5" />
@@ -1231,13 +2397,13 @@ function PeoplePage({
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1) }}
                 placeholder="Search by name, email, or company/agency"
-                className="h-9 w-72 pl-8 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]"
+                className="h-9 w-72 pl-8 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]"
               />
             </div>
             <select
               value={typeFilter}
               onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
-              className={filterSelectClass}
+              className={filterSelectClassName(typeFilter)}
             >
               <option value="">Type</option>
               <option value="Client">Client</option>
@@ -1248,32 +2414,28 @@ function PeoplePage({
             <select
               value={categoryFilter}
               onChange={e => { setCategoryFilter(e.target.value); setPage(1) }}
-              className={filterSelectClass}
+              className={filterSelectClassName(categoryFilter)}
             >
               <option value="">Category</option>
               <option value="Individual">Individual</option>
               <option value="Shared Email">Shared Email</option>
             </select>
             {filtersActive && (
-              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors">
+              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                   <path d="M3 3l8 8M11 3l-8 8" />
                 </svg>
                 Clear
               </button>
             )}
-            <div className="ml-auto flex items-center gap-2">
-              <button type="button" className="p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Column settings">
-                <GridViewIcon />
-              </button>
-              <button
-                type="button"
-                onClick={exportPeople}
-                className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
-              >
-                Export
-              </button>
-            </div>
+            <ColumnSettingsDropdown {...peopleCols.dropdownProps} buttonClassName={peopleColBtn} />
+            <button
+              type="button"
+              onClick={exportPeople}
+              className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
+            >
+              Export
+            </button>
           </div>
         </div>
 
@@ -1281,17 +2443,18 @@ function PeoplePage({
           <table className="w-full min-w-[850px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
-                {['Name', 'Email', 'Company/Agency Name', 'Type', 'Category', 'Alerts'].map((heading, i) => (
-                  <th key={heading} className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide ${i === 3 || i === 5 ? 'text-center' : 'text-left'}`}>
-                    {heading}
-                  </th>
-                ))}
+                {peopleCols.show('name') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>}
+                {peopleCols.show('email') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>}
+                {peopleCols.show('company') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Company/Agency Name</th>}
+                {peopleCols.show('type') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-center">Type</th>}
+                {peopleCols.show('category') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Category</th>}
+                {peopleCols.show('alerts') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-center">Alerts</th>}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-400">No people found.</td>
+                  <td colSpan={peopleCols.visibleCount} className="px-4 py-12 text-center text-sm text-slate-400">No people found.</td>
                 </tr>
               ) : (
                 filtered.map((person, i) => (
@@ -1299,44 +2462,52 @@ function PeoplePage({
                     key={person.id}
                     className={`border-b border-slate-100 transition-colors ${
                       person.alert === 'Work Stop'
-                        ? 'bg-red-50 hover:bg-red-100'
+                        ? 'bg-danger-light hover:bg-danger-lighter'
                         : i % 2
-                          ? 'bg-slate-50/40 hover:bg-[#7563fb]/5'
-                          : 'bg-white hover:bg-[#7563fb]/5'
+                          ? 'bg-slate-50/40 hover:bg-[#12518c]/5'
+                          : 'bg-white hover:bg-[#12518c]/5'
                     }`}
                   >
-                    <td className={`px-4 py-3 text-sm font-medium ${person.alert === 'Work Stop' ? 'text-red-600' : 'text-slate-800'}`}>
-                      <button
-                        type="button"
-                        onClick={() => onSelectPerson(person)}
-                        className={`text-left hover:underline ${person.alert === 'Work Stop' ? 'text-red-600' : 'text-[#7563fb]'}`}
-                      >
-                        {person.name}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <a href={`mailto:${person.email}`} className={`${person.alert === 'Work Stop' ? 'text-red-600' : 'text-[#7563fb]'} hover:underline`}>{person.email}</a>
-                    </td>
-                    <td className={`px-4 py-3 text-sm ${person.alert === 'Work Stop' ? 'text-red-600' : 'text-slate-600'}`}>{person.company}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        person.type === 'Client' ? 'bg-sky-50 text-sky-700' :
-                        person.type === 'Agency' ? 'bg-violet-50 text-violet-700' :
-                        person.type === 'Vendor' ? 'bg-amber-50 text-amber-700' :
-                        'bg-emerald-50 text-emerald-700'
-                      }`}>
-                        {person.type}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-3 text-sm ${person.alert === 'Work Stop' ? 'text-red-600' : 'text-slate-600'}`}>{person.category}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center">
-                        <AlertDropdown
-                          status={person.alert}
-                          onChange={status => setAlertStatus(person.id, status)}
-                        />
-                      </div>
-                    </td>
+                    {peopleCols.show('name') && (
+                      <td className={`px-4 py-3 text-sm font-medium ${person.alert === 'Work Stop' ? 'text-danger' : 'text-slate-800'}`}>
+                        <button
+                          type="button"
+                          onClick={() => onSelectPerson(person)}
+                          className={`text-left hover:underline ${person.alert === 'Work Stop' ? 'text-danger' : 'text-[#12518c]'}`}
+                        >
+                          {person.name}
+                        </button>
+                      </td>
+                    )}
+                    {peopleCols.show('email') && (
+                      <td className="px-4 py-3 text-sm">
+                        <a href={`mailto:${person.email}`} className={`${person.alert === 'Work Stop' ? 'text-danger' : 'text-[#12518c]'} hover:underline`}>{person.email}</a>
+                      </td>
+                    )}
+                    {peopleCols.show('company') && <td className={`px-4 py-3 text-sm ${person.alert === 'Work Stop' ? 'text-danger' : 'text-slate-600'}`}>{person.company}</td>}
+                    {peopleCols.show('type') && (
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          person.type === 'Client' ? 'bg-sky-50 text-sky-700' :
+                          person.type === 'Agency' ? 'bg-violet-50 text-violet-700' :
+                          person.type === 'Vendor' ? 'bg-[#e1c16e]/15 text-[#8a6d24]' :
+                          'bg-emerald-50 text-emerald-700'
+                        }`}>
+                          {person.type}
+                        </span>
+                      </td>
+                    )}
+                    {peopleCols.show('category') && <td className={`px-4 py-3 text-sm ${person.alert === 'Work Stop' ? 'text-danger' : 'text-slate-600'}`}>{person.category}</td>}
+                    {peopleCols.show('alerts') && (
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center">
+                          <AlertDropdown
+                            status={person.alert}
+                            onChange={status => setAlertStatus(person.id, status)}
+                          />
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -1463,17 +2634,17 @@ function AddPersonPage({
                   options={['Client', 'Agency', 'Vendor', 'Industry']}
                   placeholder="Select…"
                 />
-                {errors.typeOfContact && <p className="mt-1 text-[11px] text-[#ea5054]">Type of contact is required.</p>}
+                {errors.typeOfContact && <p className="mt-1 text-[11px] text-[#bb5757]">Type of contact is required.</p>}
               </div>
               <DetailSelect label="Sal" value={form.sal} onChange={v => set('sal', v)} editing options={['Mr', 'Mrs', 'Ms', 'Dr', 'Prof']} placeholder="Select…" />
               <div>
                 <DetailField label="First Name *" value={form.firstName} onChange={v => set('firstName', v)} editing />
-                {errors.firstName && <p className="mt-1 text-[11px] text-[#ea5054]">First name is required.</p>}
+                {errors.firstName && <p className="mt-1 text-[11px] text-[#bb5757]">First name is required.</p>}
               </div>
               <DetailField label="Middle Name" value={form.middleName} onChange={v => set('middleName', v)} editing />
               <div>
                 <DetailField label="Last Name *" value={form.lastName} onChange={v => set('lastName', v)} editing />
-                {errors.lastName && <p className="mt-1 text-[11px] text-[#ea5054]">Last name is required.</p>}
+                {errors.lastName && <p className="mt-1 text-[11px] text-[#bb5757]">Last name is required.</p>}
               </div>
               <DetailSelect label="Suffix" value={form.suffix} onChange={v => set('suffix', v)} editing options={['Jr', 'Sr', 'II', 'III', 'IV']} placeholder="Select…" />
               <DetailField label="Role" value={form.role} onChange={v => set('role', v)} editing />
@@ -1568,16 +2739,20 @@ function PersonDetailPage({
   tab,
   onTabChange,
   onBack,
+  onDelete,
   onAlertChange,
 }: {
   person: PersonRow
   tab: (typeof PERSON_DETAIL_TABS)[number]
   onTabChange: (tab: (typeof PERSON_DETAIL_TABS)[number]) => void
   onBack: () => void
+  onDelete: () => void
   onAlertChange: (status: AlertStatus) => void
 }) {
   const [pastOpen, setPastOpen] = useState(true)
   const [alertStatus, setAlertStatus] = useState<AlertStatus>(person.alert)
+  const [detailEditRequest, setDetailEditRequest] = useState(0)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const workStopActive = alertStatus === 'Work Stop'
   const personId = 2000 + person.id
   const role = person.category === 'Shared Email' ? 'Shared Contact' : 'Client Contact'
@@ -1600,9 +2775,9 @@ function PersonDetailPage({
 
   return (
     <div className="space-y-5 animate-[fadeIn_0.25s_ease-out]">
-      <div className={`rounded-2xl border bg-white overflow-hidden shadow-sm ${workStopActive ? 'border-red-200' : 'border-slate-200'}`}>
+      <div className={`rounded-2xl border bg-white overflow-hidden shadow-sm ${workStopActive ? 'border-danger-border' : 'border-slate-200'}`}>
         {workStopActive && (
-          <div className="px-5 py-2 bg-[#ea5054] text-white text-xs font-semibold flex items-center gap-2">
+          <div className="px-5 py-2 bg-[#bb5757] text-white text-xs font-semibold flex items-center gap-2">
             <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
               <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.8" />
               <path d="M5.5 5.5l7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -1610,13 +2785,13 @@ function PersonDetailPage({
             Work Stop is active — compliance work is paused for this person
           </div>
         )}
-        <div className={`px-5 py-5 ${workStopActive ? 'bg-red-50/40' : ''}`}>
+        <div className={`px-5 py-5 ${workStopActive ? 'bg-danger-light/40' : ''}`}>
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             <div className="min-w-0">
               <button
                 type="button"
                 onClick={onBack}
-                className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#7563fb] transition-colors"
+                className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#12518c] transition-colors"
               >
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 3L5 7l4 4" />
@@ -1624,38 +2799,45 @@ function PersonDetailPage({
                 People
               </button>
               <div className="flex flex-wrap items-center gap-2 mb-2">
-                <h1 className={`text-xl sm:text-2xl font-bold truncate ${workStopActive ? 'text-red-600' : 'text-slate-900'}`}>
+                <h1 className={`text-xl sm:text-2xl font-bold truncate ${workStopActive ? 'text-danger' : 'text-slate-900'}`}>
                   {person.name}
                 </h1>
                 <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                  workStopActive ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+                  workStopActive ? 'bg-danger-lighter text-danger-hover' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {role}
                 </span>
                 <AlertDropdown status={alertStatus} onChange={applyAlert} />
               </div>
-              <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${workStopActive ? 'text-red-600' : 'text-slate-600'}`}>
-                <span><span className={workStopActive ? 'text-red-400' : 'text-slate-400'}>Person ID</span> {personId}</span>
-                <span className={workStopActive ? 'text-red-300' : 'text-slate-300'}>·</span>
-                <span><span className={workStopActive ? 'text-red-400' : 'text-slate-400'}>Type</span> {person.type}</span>
-                <span className={workStopActive ? 'text-red-300' : 'text-slate-300'}>·</span>
-                <span><span className={workStopActive ? 'text-red-400' : 'text-slate-400'}>Category</span> {person.category}</span>
+              <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${workStopActive ? 'text-danger' : 'text-slate-600'}`}>
+                <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>Person ID</span> {personId}</span>
+                <span className={workStopActive ? 'text-danger/40' : 'text-slate-300'}>·</span>
+                <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>Type</span> {person.type}</span>
+                <span className={workStopActive ? 'text-danger/40' : 'text-slate-300'}>·</span>
+                <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>Category</span> {person.category}</span>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-              <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Tags">
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2.5 8.5V3.5A1 1 0 0 1 3.5 2.5h5l5 5-5 5-5-5z" />
-                  <circle cx="5.5" cy="5.5" r="0.8" fill="currentColor" stroke="none" />
-                </svg>
-              </button>
-              <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Edit">
+              <button
+                type="button"
+                onClick={() => {
+                  onTabChange('Detail')
+                  setDetailEditRequest(n => n + 1)
+                }}
+                className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+                title="Edit"
+              >
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                   <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
                 </svg>
               </button>
-              <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-[#ea5054] hover:bg-red-50 transition-colors" title="Delete">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
+                title="Delete"
+              >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 6h18" />
                   <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -1683,13 +2865,13 @@ function PersonDetailPage({
                   aria-selected={isActive}
                   onClick={() => onTabChange(t)}
                   className={`relative px-3.5 sm:px-4 py-3 text-xs font-semibold whitespace-nowrap transition-colors ${
-                    isActive ? 'text-[#7563fb]' : 'text-slate-500 hover:text-slate-800'
+                    isActive ? 'text-[#12518c]' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   {t}
                   <span
                     className={`absolute left-2 right-2 bottom-0 h-0.5 rounded-full transition-opacity ${
-                      isActive ? 'bg-[#7563fb] opacity-100' : 'bg-transparent opacity-0'
+                      isActive ? 'bg-[#12518c] opacity-100' : 'bg-transparent opacity-0'
                     }`}
                     aria-hidden
                   />
@@ -1701,7 +2883,7 @@ function PersonDetailPage({
       </nav>
 
       {tab === 'Detail' ? (
-        <PersonDetailFieldsPage person={person} role={role} />
+        <PersonDetailFieldsPage person={person} role={role} editRequest={detailEditRequest} />
       ) : tab === 'Business Addresses' ? (
         <PersonAddressesPage />
       ) : tab === 'Change Log' ? (
@@ -1710,9 +2892,9 @@ function PersonDetailPage({
         <PersonNotesPage />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-5 items-start">
-          <section className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${workStopActive ? 'border-red-200' : 'border-slate-200'}`}>
+          <section className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${workStopActive ? 'border-danger-border' : 'border-slate-200'}`}>
             <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-[#7563fb]">General Information</h2>
+              <h2 className="text-sm font-semibold text-[#12518c]">General Information</h2>
               <div className="flex items-center gap-1">
                 <button type="button" className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100" title="Edit">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
@@ -1724,7 +2906,7 @@ function PersonDetailPage({
             <div className="px-4 py-4 space-y-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Name</p>
-                <p className={`mt-0.5 text-sm font-semibold ${workStopActive ? 'text-red-600' : 'text-slate-800'}`}>{person.name}</p>
+                <p className={`mt-0.5 text-sm font-semibold ${workStopActive ? 'text-danger' : 'text-slate-800'}`}>{person.name}</p>
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Role</p>
@@ -1732,7 +2914,7 @@ function PersonDetailPage({
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Email</p>
-                <a href={`mailto:${person.email}`} className="mt-0.5 text-sm text-[#7563fb] hover:underline inline-block">{person.email}</a>
+                <a href={`mailto:${person.email}`} className="mt-0.5 text-sm text-[#12518c] hover:underline inline-block">{person.email}</a>
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Type</p>
@@ -1757,6 +2939,18 @@ function PersonDetailPage({
           </div>
         </div>
       )}
+
+      {showDeleteConfirm && (
+        <AddressDeleteConfirmModal
+          title="Delete person"
+          locationName={person.name}
+          onCancel={() => setShowDeleteConfirm(false)}
+          onConfirm={() => {
+            setShowDeleteConfirm(false)
+            onDelete()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -1774,6 +2968,14 @@ function PersonAssociationCard({
   open?: boolean
   onToggle?: () => void
 }) {
+  const cols = useTableColumns([
+    { key: 'company', label: 'Company' },
+    { key: 'companyStatus', label: 'Company Status' },
+    { key: 'type', label: 'Type' },
+    { key: 'workPhone', label: 'Work Phone' },
+    { key: 'email', label: 'Email' },
+  ])
+
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
@@ -1785,7 +2987,7 @@ function PersonAssociationCard({
               </svg>
             </button>
           )}
-          <h2 className="text-sm font-semibold text-[#7563fb] truncate">{title}</h2>
+          <h2 className="text-sm font-semibold text-[#12518c] truncate">{title}</h2>
           <button type="button" className="p-1 rounded-md text-slate-400 hover:bg-slate-100" title="Info">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
               <circle cx="8" cy="8" r="6" />
@@ -1793,45 +2995,49 @@ function PersonAssociationCard({
             </svg>
           </button>
         </div>
-        <button type="button" className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100" title="Column settings">
-          <GridViewIcon />
-        </button>
+        <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName="p-1.5 rounded-md transition-all duration-200" />
       </div>
       {open && (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/60">
-                {['Company', 'Company Status', 'Type', 'Work Phone', 'Email'].map((h, i) => (
-                  <th key={h} className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide ${i === 2 ? 'text-center' : 'text-left'}`}>
-                    {h}
-                  </th>
-                ))}
+                {cols.show('company') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>}
+                {cols.show('companyStatus') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Company Status</th>}
+                {cols.show('type') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-center">Type</th>}
+                {cols.show('workPhone') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Work Phone</th>}
+                {cols.show('email') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-400">No record Found!</td>
+                  <td colSpan={cols.visibleCount} className="px-4 py-8 text-center text-sm text-slate-400">No record Found!</td>
                 </tr>
               ) : (
                 rows.map((row, i) => (
                   <tr key={`${row.company}-${i}`} className={`border-b border-slate-100 ${i % 2 ? 'bg-slate-50/40' : 'bg-white'}`}>
-                    <td className="px-4 py-3 text-sm">
-                      <button type="button" className="text-[#7563fb] font-medium hover:underline text-left">{row.company}</button>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        row.companyStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {row.companyStatus}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm text-slate-600">{row.type}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{row.workPhone || '—'}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <a href={`mailto:${row.email}`} className="text-[#7563fb] hover:underline">{row.email}</a>
-                    </td>
+                    {cols.show('company') && (
+                      <td className="px-4 py-3 text-sm">
+                        <button type="button" className="text-[#12518c] font-medium hover:underline text-left">{row.company}</button>
+                      </td>
+                    )}
+                    {cols.show('companyStatus') && (
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          row.companyStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {row.companyStatus}
+                        </span>
+                      </td>
+                    )}
+                    {cols.show('type') && <td className="px-4 py-3 text-center text-sm text-slate-600">{row.type}</td>}
+                    {cols.show('workPhone') && <td className="px-4 py-3 text-sm text-slate-600">{row.workPhone || '—'}</td>}
+                    {cols.show('email') && (
+                      <td className="px-4 py-3 text-sm">
+                        <a href={`mailto:${row.email}`} className="text-[#12518c] hover:underline">{row.email}</a>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -1843,7 +3049,15 @@ function PersonAssociationCard({
   )
 }
 
-function PersonDetailFieldsPage({ person, role }: { person: PersonRow; role: string }) {
+function PersonDetailFieldsPage({
+  person,
+  role,
+  editRequest = 0,
+}: {
+  person: PersonRow
+  role: string
+  editRequest?: number
+}) {
   const nameParts = person.name.replace(/^(Mr|Mrs|Ms|Dr|Prof)\s+/i, '').trim().split(/\s+/)
   const inferredFirst = nameParts[0] || ''
   const inferredLast = nameParts.length > 1 ? nameParts[nameParts.length - 1] : ''
@@ -1851,7 +3065,6 @@ function PersonDetailFieldsPage({ person, role }: { person: PersonRow; role: str
   const preferredMatch = person.name.match(/\(([^)]+)\)/)
   const preferredName = preferredMatch?.[1] || inferredFirst
 
-  const [editing, setEditing] = useState(false)
   const [openSection, setOpenSection] = useState('Basic Information')
   const initialForm = {
     typeOfContact: person.type,
@@ -1899,6 +3112,14 @@ function PersonDetailFieldsPage({ person, role }: { person: PersonRow; role: str
   }
   const [form, setForm] = useState(initialForm)
   const [formSnapshot, setFormSnapshot] = useState(initialForm)
+  const [editing, setEditing] = useState(editRequest > 0)
+
+  useEffect(() => {
+    if (editRequest > 0) {
+      setFormSnapshot(form)
+      setEditing(true)
+    }
+  }, [editRequest])
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm(prev => ({ ...prev, [key]: value }))
@@ -1923,7 +3144,7 @@ function PersonDetailFieldsPage({ person, role }: { person: PersonRow; role: str
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-8 h-8 rounded-lg bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M2 4.5h12M2 8h12M2 11.5h8" strokeLinecap="round" />
             </svg>
@@ -2030,7 +3251,7 @@ function PersonDetailFieldsPage({ person, role }: { person: PersonRow; role: str
                 aria-checked={form.usCitizen}
                 disabled={!editing}
                 onClick={() => set('usCitizen', !form.usCitizen)}
-                className={`relative w-10 h-5 rounded-full transition-colors mt-1.5 disabled:opacity-60 ${form.usCitizen ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
+                className={`relative w-10 h-5 rounded-full transition-colors mt-1.5 disabled:opacity-60 ${form.usCitizen ? 'bg-[#12518c]' : 'bg-slate-300'}`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.usCitizen ? 'translate-x-5' : ''}`} />
               </button>
@@ -2079,7 +3300,7 @@ function PersonDetailFieldsPage({ person, role }: { person: PersonRow; role: str
               aria-checked={form.currentEmployment}
               disabled={!editing}
               onClick={() => set('currentEmployment', !form.currentEmployment)}
-              className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-60 ${form.currentEmployment ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
+              className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-60 ${form.currentEmployment ? 'bg-[#12518c]' : 'bg-slate-300'}`}
             >
               <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.currentEmployment ? 'translate-x-5' : ''}`} />
             </button>
@@ -2150,35 +3371,43 @@ function PersonDetailFieldsPage({ person, role }: { person: PersonRow; role: str
 
 function PersonAddressesPage() {
   const [page, setPage] = useState(1)
+  const cols = useTableColumns([
+    { key: 'company', label: 'Company' },
+    { key: 'email', label: 'Email' },
+    { key: 'workPhone', label: 'Work Phone' },
+    { key: 'street', label: 'Street' },
+    { key: 'city', label: 'City' },
+    { key: 'state', label: 'State' },
+    { key: 'zip', label: 'Zip Code' },
+    { key: 'country', label: 'Country' },
+  ])
+  const colBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
 
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <h2 className="text-sm font-semibold text-slate-800">Business Addresses</h2>
-        <button
-          type="button"
-          className="p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-[#7563fb] hover:bg-slate-50 transition-colors"
-          title="Column settings"
-        >
-          <GridViewIcon />
-        </button>
+        <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[880px]">
           <thead>
             <tr className="border-y border-slate-100 bg-slate-50/60">
-              {['Company', 'Email', 'Work Phone', 'Street', 'City', 'State', 'Zip Code', 'Country'].map(h => (
-                <th key={h} className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
+              {cols.show('company') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Company</th>}
+              {cols.show('email') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Email</th>}
+              {cols.show('workPhone') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Work Phone</th>}
+              {cols.show('street') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Street</th>}
+              {cols.show('city') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">City</th>}
+              {cols.show('state') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">State</th>}
+              {cols.show('zip') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Zip Code</th>}
+              {cols.show('country') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Country</th>}
             </tr>
           </thead>
           <tbody>
             {PERSON_ADDRESSES.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
+                <td colSpan={cols.visibleCount} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
                   No record Found!
                 </td>
               </tr>
@@ -2186,30 +3415,34 @@ function PersonAddressesPage() {
               PERSON_ADDRESSES.map((a, i) => (
                 <tr
                   key={a.id}
-                  className={`border-b border-slate-100 transition-colors hover:bg-[#7563fb]/5 ${
+                  className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
                     i % 2 === 1 ? 'bg-slate-50/40' : 'bg-[#f8fafc]'
                   }`}
                 >
-                  <td className="px-4 py-3 text-sm whitespace-nowrap">
-                    <button type="button" className="font-medium text-[#7563fb] hover:underline text-left">
-                      {a.company}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-sm whitespace-nowrap">
-                    {a.email ? (
-                      <a href={`mailto:${a.email}`} className="text-[#7563fb] hover:underline">
-                        {a.email}
-                      </a>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.workPhone || ''}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.street || ''}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{a.city || ''}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{a.state || ''}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{a.zip || ''}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.country || ''}</td>
+                  {cols.show('company') && (
+                    <td className="px-4 py-3 text-sm whitespace-nowrap">
+                      <button type="button" className="font-medium text-[#12518c] hover:underline text-left">
+                        {a.company}
+                      </button>
+                    </td>
+                  )}
+                  {cols.show('email') && (
+                    <td className="px-4 py-3 text-sm whitespace-nowrap">
+                      {a.email ? (
+                        <a href={`mailto:${a.email}`} className="text-[#12518c] hover:underline">
+                          {a.email}
+                        </a>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                  )}
+                  {cols.show('workPhone') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.workPhone || ''}</td>}
+                  {cols.show('street') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.street || ''}</td>}
+                  {cols.show('city') && <td className="px-4 py-3 text-sm text-slate-600">{a.city || ''}</td>}
+                  {cols.show('state') && <td className="px-4 py-3 text-sm text-slate-600">{a.state || ''}</td>}
+                  {cols.show('zip') && <td className="px-4 py-3 text-sm text-slate-600">{a.zip || ''}</td>}
+                  {cols.show('country') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.country || ''}</td>}
                 </tr>
               ))
             )}
@@ -2236,6 +3469,16 @@ function PersonChangeLogPage() {
     )
   })
 
+  const cols = useTableColumns([
+    { key: 'statusDate', label: 'Status Date' },
+    { key: 'field', label: 'Field' },
+    { key: 'previousData', label: 'Previous Data' },
+    { key: 'updatedData', label: 'Updated Data' },
+    { key: 'notes', label: 'Notes' },
+    { key: 'requestedBy', label: 'Requested By' },
+  ])
+  const colBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
+
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
@@ -2248,13 +3491,7 @@ function PersonChangeLogPage() {
               setPage(1)
             }}
           />
-          <button
-            type="button"
-            className="p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-[#7563fb] hover:bg-slate-50 transition-colors"
-            title="Column settings"
-          >
-            <GridViewIcon />
-          </button>
+          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
         </div>
       </div>
 
@@ -2262,17 +3499,18 @@ function PersonChangeLogPage() {
         <table className="w-full min-w-[900px]">
           <thead>
             <tr className="border-y border-slate-100 bg-slate-50/60">
-              {['Status Date', 'Field', 'Previous Data', 'Updated Data', 'Notes', 'Requested By'].map(h => (
-                <th key={h} className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
+              {cols.show('statusDate') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Status Date</th>}
+              {cols.show('field') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Field</th>}
+              {cols.show('previousData') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Previous Data</th>}
+              {cols.show('updatedData') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Updated Data</th>}
+              {cols.show('notes') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Notes</th>}
+              {cols.show('requestedBy') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
+                <td colSpan={cols.visibleCount} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
                   No record Found!
                 </td>
               </tr>
@@ -2280,28 +3518,38 @@ function PersonChangeLogPage() {
               filtered.map((e, i) => (
                 <tr
                   key={e.id}
-                  className={`border-b border-slate-100 transition-colors hover:bg-[#7563fb]/5 ${
+                  className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
                     i % 2 === 1 ? 'bg-slate-50/40' : 'bg-[#f8fafc]'
                   }`}
                 >
-                  <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{e.statusDate}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700 max-w-[200px]">
-                    <span className="line-clamp-2" title={e.field}>{e.field}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px]">
-                    <span className="line-clamp-2" title={e.previousData || undefined}>{e.previousData || '—'}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 max-w-[220px]">
-                    <span className="line-clamp-2" title={e.updatedData || undefined}>{e.updatedData || '—'}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-500 max-w-[180px]">
-                    <span className="line-clamp-2" title={e.notes || undefined}>{e.notes || '—'}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
-                      {e.requestedBy}
-                    </span>
-                  </td>
+                  {cols.show('statusDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{e.statusDate}</td>}
+                  {cols.show('field') && (
+                    <td className="px-4 py-3 text-sm text-slate-700 max-w-[200px]">
+                      <span className="line-clamp-2" title={e.field}>{e.field}</span>
+                    </td>
+                  )}
+                  {cols.show('previousData') && (
+                    <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px]">
+                      <span className="line-clamp-2" title={e.previousData || undefined}>{e.previousData || '—'}</span>
+                    </td>
+                  )}
+                  {cols.show('updatedData') && (
+                    <td className="px-4 py-3 text-sm text-slate-600 max-w-[220px]">
+                      <span className="line-clamp-2" title={e.updatedData || undefined}>{e.updatedData || '—'}</span>
+                    </td>
+                  )}
+                  {cols.show('notes') && (
+                    <td className="px-4 py-3 text-sm text-slate-500 max-w-[180px]">
+                      <span className="line-clamp-2" title={e.notes || undefined}>{e.notes || '—'}</span>
+                    </td>
+                  )}
+                  {cols.show('requestedBy') && (
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
+                        {e.requestedBy}
+                      </span>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -2314,19 +3562,177 @@ function PersonChangeLogPage() {
   )
 }
 
+function PersonNoteTypeBadge({ type }: { type: string }) {
+  const styles: Record<string, string> = {
+    Flag: 'bg-amber-50 text-amber-800 border-amber-200',
+    Note: 'bg-[#12518c]/10 text-[#12518c] border-[#12518c]/20',
+    Task: 'bg-violet-50 text-violet-800 border-violet-200',
+  }
+  return (
+    <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium border ${styles[type] ?? 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+      {type}
+    </span>
+  )
+}
+
+function PersonAddNoteModal({
+  onClose,
+  onSave,
+  initial,
+}: {
+  onClose: () => void
+  onSave: (note: { type: string; note: string }) => void
+  initial?: { type: string; note: string }
+}) {
+  const isEdit = Boolean(initial)
+  const [type, setType] = useState(initial?.type ?? '')
+  const [note, setNote] = useState(initial?.note ?? '')
+  const [errors, setErrors] = useState({ type: false, note: false })
+  const noteRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  const validate = () => {
+    const next = { type: !type.trim(), note: !note.trim() }
+    setErrors(next)
+    return !Object.values(next).some(Boolean)
+  }
+
+  const handleSave = () => {
+    if (!validate()) return
+    onSave({ type: type.trim(), note: note.trim() })
+  }
+
+  const handleTypeChange = (v: string) => {
+    setType(v)
+    if (errors.type) setErrors(prev => ({ ...prev, type: false }))
+    if (v && noteRef.current) noteRef.current.focus()
+  }
+
+  return (
+    <AddressModalShell maxWidth="max-w-lg" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 14s-5-3.2-5-7a3 3 0 0 1 5-2.2A3 3 0 0 1 13 7c0 3.8-5 7-5 7z" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'People — Edit Note' : 'People — Add Note'}</h3>
+            <p className="text-[11px] text-slate-500">{isEdit ? 'Update this note for the person' : 'Add a flag, note, or task for this person'}</p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="px-5 py-5 space-y-4">
+        <div>
+          <OwnershipFormSelect
+            label="Type"
+            required
+            value={type}
+            onChange={handleTypeChange}
+            options={[...PERSON_NOTE_TYPES]}
+            placeholder="Select…"
+          />
+          {errors.type && <p className="mt-1 text-[11px] text-[#bb5757]">Type is required.</p>}
+        </div>
+
+        <div>
+          <OwnershipFormLabel required>Note</OwnershipFormLabel>
+          <textarea
+            ref={noteRef}
+            value={note}
+            onChange={e => {
+              setNote(e.target.value)
+              if (errors.note) setErrors(prev => ({ ...prev, note: false }))
+            }}
+            rows={5}
+            placeholder="Enter your note…"
+            className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 resize-y min-h-[120px] ${
+              errors.note
+                ? 'border-[#bb5757] focus:ring-[#bb5757]/20 focus:border-[#bb5757]'
+                : 'border-slate-200 focus:ring-[#12518c]/25 focus:border-[#12518c]'
+            }`}
+          />
+          {errors.note && <p className="mt-1 text-[11px] text-[#bb5757]">Note is required.</p>}
+        </div>
+      </div>
+
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-2.5">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!type.trim() || !note.trim()}
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Save
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
 function PersonNotesPage() {
   const [notes, setNotes] = useState(PERSON_NOTES)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingNote, setEditingNote] = useState<(typeof PERSON_NOTES)[number] | null>(null)
+  const [deleteNoteId, setDeleteNoteId] = useState<number | null>(null)
+  const [nextId, setNextId] = useState(() => Math.max(0, ...PERSON_NOTES.map(n => n.id)) + 1)
 
   const filtered = notes.filter(n => {
     const q = search.toLowerCase()
     return !q || [n.type, n.note, n.author].some(v => v.toLowerCase().includes(q))
   })
 
-  const removeNote = (id: number) => {
-    setNotes(prev => prev.filter(n => n.id !== id))
+  const confirmDeleteNote = () => {
+    if (deleteNoteId == null) return
+    setNotes(prev => prev.filter(n => n.id !== deleteNoteId))
+    setDeleteNoteId(null)
   }
+
+  const addNote = (data: { type: string; note: string }) => {
+    setNotes(prev => [
+      { id: nextId, type: data.type, note: data.note, author: 'Hammad Iftikhar' },
+      ...prev,
+    ])
+    setNextId(id => id + 1)
+    setShowAddModal(false)
+    setPage(1)
+  }
+
+  const updateNote = (data: { type: string; note: string }) => {
+    if (!editingNote) return
+    setNotes(prev => prev.map(n => (n.id === editingNote.id ? { ...n, type: data.type, note: data.note } : n)))
+    setEditingNote(null)
+  }
+
+  const cols = useTableColumns([
+    { key: 'type', label: 'Type' },
+    { key: 'note', label: 'Note' },
+    { key: 'author', label: 'Author' },
+  ])
+  const colBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
 
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
@@ -2342,17 +3748,15 @@ function PersonNotesPage() {
           />
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
           >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M6 2v8M2 6h8" />
+            </svg>
             Add New
           </button>
-          <button
-            type="button"
-            className="p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-[#7563fb] hover:bg-slate-50 transition-colors"
-            title="Column settings"
-          >
-            <GridViewIcon />
-          </button>
+          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
         </div>
       </div>
 
@@ -2360,22 +3764,17 @@ function PersonNotesPage() {
         <table className="w-full min-w-[640px]">
           <thead>
             <tr className="border-y border-slate-100 bg-slate-50/60">
-              {['Action', 'Type', 'Note', 'Author', ''].map((h, i) => (
-                <th
-                  key={h || 'delete'}
-                  className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                    i === 0 || i === 4 ? 'text-center w-16' : 'text-left'
-                  }`}
-                >
-                  {h}
-                </th>
-              ))}
+              <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-16">Action</th>
+              {cols.show('type') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Type</th>}
+              {cols.show('note') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Note</th>}
+              {cols.show('author') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Author</th>}
+              <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-16" />
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
+                <td colSpan={cols.visibleCount + 2} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
                   No record Found!
                 </td>
               </tr>
@@ -2383,7 +3782,7 @@ function PersonNotesPage() {
               filtered.map((note, i) => (
                 <tr
                   key={note.id}
-                  className={`border-b border-slate-100 transition-colors hover:bg-[#7563fb]/5 ${
+                  className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
                     i % 2 === 1 ? 'bg-slate-50/40' : 'bg-[#f8fafc]'
                   }`}
                 >
@@ -2391,6 +3790,7 @@ function PersonNotesPage() {
                     <div className="flex justify-center">
                       <button
                         type="button"
+                        onClick={() => setEditingNote(note)}
                         className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                         title="Edit"
                       >
@@ -2400,15 +3800,19 @@ function PersonNotesPage() {
                       </button>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{note.type}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{note.note}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{note.author}</td>
+                  {cols.show('type') && (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <PersonNoteTypeBadge type={note.type} />
+                    </td>
+                  )}
+                  {cols.show('note') && <td className="px-4 py-3 text-sm text-slate-700">{note.note}</td>}
+                  {cols.show('author') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{note.author}</td>}
                   <td className="px-4 py-3">
                     <div className="flex justify-center">
                       <button
                         type="button"
-                        onClick={() => removeNote(note.id)}
-                        className="p-1.5 rounded-md text-slate-400 hover:text-[#ea5054] hover:bg-red-50 transition-colors"
+                        onClick={() => setDeleteNoteId(note.id)}
+                        className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                         title="Delete"
                       >
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -2428,6 +3832,30 @@ function PersonNotesPage() {
       </div>
 
       <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
+
+      {showAddModal && (
+        <PersonAddNoteModal
+          onClose={() => setShowAddModal(false)}
+          onSave={addNote}
+        />
+      )}
+
+      {editingNote && (
+        <PersonAddNoteModal
+          initial={{ type: editingNote.type, note: editingNote.note }}
+          onClose={() => setEditingNote(null)}
+          onSave={updateNote}
+        />
+      )}
+
+      {deleteNoteId != null && (
+        <AddressDeleteConfirmModal
+          title="Delete note"
+          locationName={notes.find(n => n.id === deleteNoteId)?.note ?? 'this note'}
+          onCancel={() => setDeleteNoteId(null)}
+          onConfirm={confirmDeleteNote}
+        />
+      )}
     </section>
   )
 }
@@ -2518,7 +3946,7 @@ function AddCompanyPage({
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-8 h-8 rounded-lg bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+            <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M2 4.5h12M2 8h12M2 11.5h8" strokeLinecap="round" />
               </svg>
@@ -2546,11 +3974,11 @@ function AddCompanyPage({
                   options={['Client', 'Prospect', 'Vendor']}
                   placeholder="Select…"
                 />
-                {errors.companyType && <p className="mt-1 text-[11px] text-[#ea5054]">Company type is required.</p>}
+                {errors.companyType && <p className="mt-1 text-[11px] text-[#bb5757]">Company type is required.</p>}
               </div>
               <div>
                 <DetailField label="Entity Name *" value={form.entityName} onChange={v => set('entityName', v)} editing />
-                {errors.entityName && <p className="mt-1 text-[11px] text-[#ea5054]">Entity name is required.</p>}
+                {errors.entityName && <p className="mt-1 text-[11px] text-[#bb5757]">Entity name is required.</p>}
               </div>
               <DetailField
                 label="DBA"
@@ -2657,17 +4085,10 @@ function CompaniesPage({
     { key: 'alerts', label: 'Alerts' },
   ] as const
 
-  type CompanyColumnKey = (typeof COMPANY_COLUMNS)[number]['key']
+  const companyCols = useTableColumns(COMPANY_COLUMNS)
 
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [visibleColumns, setVisibleColumns] = useState<Record<CompanyColumnKey, boolean>>({
-    name: true,
-    dba: true,
-    status: true,
-    alerts: true,
-    type: true,
-  })
   const total = 550
 
   const filtered = companies.filter(c =>
@@ -2682,14 +4103,6 @@ function CompaniesPage({
 
   const setAlertStatus = (id: number, status: AlertStatus) => {
     onCompaniesChange(prev => prev.map(c => c.id === id ? { ...c, alert: status } : c))
-  }
-
-  const toggleColumn = (key: CompanyColumnKey) => {
-    setVisibleColumns(prev => {
-      const nextVisible = !prev[key]
-      if (!nextVisible && Object.values(prev).filter(Boolean).length <= 1) return prev
-      return { ...prev, [key]: nextVisible }
-    })
   }
 
   return (
@@ -2721,19 +4134,16 @@ function CompaniesPage({
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search Here"
-                className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 w-44 transition-all"
+                className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/30 focus:border-[#12518c] w-44 transition-all"
               />
             </div>
-            <Select placeholder="Select Company Type" />
-            <Select placeholder="Select Specialist" />
-            <Select placeholder="Select Status" />
+            <Select placeholder="Company Type" options={['Bond', 'Client', 'Industry', 'Registered Agent', 'Vendor', 'Warehouse']} />
+            <Select placeholder="Alerts" options={['Pending', 'Work Stop', 'No Alert']} />
+            <Select placeholder="Status" options={['Active', 'Inactive', 'Archived']} />
             <button className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-600 hover:bg-slate-700 transition-colors">
               Export
             </button>
-            <ColumnSettingsDropdown
-              columns={COMPANY_COLUMNS.map(c => ({ key: c.key, label: c.label, visible: visibleColumns[c.key] }))}
-              onToggle={(key) => toggleColumn(key as CompanyColumnKey)}
-            />
+            <ColumnSettingsDropdown {...companyCols.dropdownProps} />
           </div>
         </div>
 
@@ -2742,7 +4152,7 @@ function CompaniesPage({
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="pl-4 pr-0 py-3 w-8" />
-                {visibleColumns.name && (
+                {companyCols.show('name') && (
                   <th className="pl-2 pr-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     <span className="inline-flex items-center gap-1">
                       Company Name
@@ -2752,16 +4162,16 @@ function CompaniesPage({
                     </span>
                   </th>
                 )}
-                {visibleColumns.dba && (
+                {companyCols.show('dba') && (
                   <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">DBA</th>
                 )}
-                {visibleColumns.type && (
+                {companyCols.show('type') && (
                   <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Company Type</th>
                 )}
-                {visibleColumns.status && (
+                {companyCols.show('status') && (
                   <th className="px-5 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                 )}
-                {visibleColumns.alerts && (
+                {companyCols.show('alerts') && (
                   <th className="px-5 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Alerts</th>
                 )}
               </tr>
@@ -2772,24 +4182,24 @@ function CompaniesPage({
                   key={c.id}
                   className={`border-b border-slate-50 transition-colors ${
                     c.alert === 'Work Stop'
-                      ? 'bg-red-50 hover:bg-red-100 text-red-600'
+                      ? 'bg-danger-light hover:bg-danger-lighter text-danger'
                       : i % 2 === 1
-                        ? 'bg-slate-50/80 hover:bg-indigo-50/40'
-                        : 'bg-white hover:bg-indigo-50/40'
+                        ? 'bg-slate-50/80 hover:bg-[#12518c]/5'
+                        : 'bg-white hover:bg-[#12518c]/5'
                   }`}
                 >
                   <td className="pl-4 pr-0 py-3.5">
                     <button
                       onClick={() => toggleStar(c.id)}
-                      className="group flex items-center justify-center w-6 h-6 rounded-md hover:bg-amber-50 transition-colors"
+                      className="group flex items-center justify-center w-6 h-6 rounded-md hover:bg-[#e1c16e]/20 transition-colors"
                       title={c.starred ? 'Remove from favorites' : 'Add to favorites'}
                     >
                       <svg
                         width="15"
                         height="15"
                         viewBox="0 0 15 15"
-                        fill={c.starred ? '#f59e0b' : 'none'}
-                        stroke={c.starred ? '#f59e0b' : (c.alert === 'Work Stop' ? '#dc2626' : '#94a3b8')}
+                        fill={c.starred ? '#e1c16e' : 'none'}
+                        stroke={c.starred ? '#e1c16e' : (c.alert === 'Work Stop' ? '#bb5757' : '#94a3b8')}
                         strokeWidth="1.4"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -2799,39 +4209,39 @@ function CompaniesPage({
                       </svg>
                     </button>
                   </td>
-                  {visibleColumns.name && (
+                  {companyCols.show('name') && (
                     <td className="pl-2 pr-5 py-3.5">
                       <button
                         type="button"
                         onClick={() => onSelectCompany(c.id)}
                         className={`text-sm font-medium cursor-pointer text-left ${
-                          c.alert === 'Work Stop' ? 'text-red-600 hover:text-red-700' : 'text-indigo-600 hover:text-indigo-800'
+                          c.alert === 'Work Stop' ? 'text-danger hover:text-danger-hover' : 'text-[#12518c] hover:text-[#0e4173]'
                         }`}
                       >
                         {c.name}
                       </button>
                     </td>
                   )}
-                  {visibleColumns.dba && (
+                  {companyCols.show('dba') && (
                     <td className={`px-5 py-3.5 text-sm ${
-                      c.alert === 'Work Stop' ? 'text-red-600' : 'text-slate-600'
+                      c.alert === 'Work Stop' ? 'text-danger' : 'text-slate-600'
                     }`}>
                       {c.dba || '—'}
                     </td>
                   )}
-                  {visibleColumns.type && (
-                    <td className={`px-5 py-3.5 text-sm ${c.alert === 'Work Stop' ? 'text-red-600' : 'text-slate-600'}`}>
+                  {companyCols.show('type') && (
+                    <td className={`px-5 py-3.5 text-sm ${c.alert === 'Work Stop' ? 'text-danger' : 'text-slate-600'}`}>
                       {c.type}
                     </td>
                   )}
-                  {visibleColumns.status && (
+                  {companyCols.show('status') && (
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-center">
                         <CompanyStatusBadge status={c.status} alert={c.alert === 'Work Stop'} />
                       </div>
                     </td>
                   )}
-                  {visibleColumns.alerts && (
+                  {companyCols.show('alerts') && (
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-center">
                         <AlertDropdown
@@ -2867,7 +4277,7 @@ function CompaniesPage({
                 onClick={() => setPage(n)}
                 className={`min-w-8 h-8 px-2.5 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
                   page === n
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-[#12518c] text-white'
                     : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
@@ -2907,6 +4317,7 @@ function CompanySummaryPage({
   const [alertStatus, setAlertStatus] = useState<AlertStatus>(company.alert)
   const [notify, setNotify] = useState(true)
   const [changeFilter, setChangeFilter] = useState('')
+  const [detailEditRequest, setDetailEditRequest] = useState(0)
   const companyId = 1000 + company.id
 
   const filteredChanges = RECENT_CHANGES.filter(c =>
@@ -2919,10 +4330,10 @@ function CompanySummaryPage({
     <div className="space-y-5 animate-[fadeIn_0.25s_ease-out]">
       {/* Company identity — parent above tabs */}
       <div className={`rounded-2xl border bg-white overflow-hidden shadow-sm ${
-        workStopActive ? 'border-red-200' : 'border-slate-200'
+        workStopActive ? 'border-danger-border' : 'border-slate-200'
       }`}>
         {workStopActive && (
-          <div className="px-5 py-2 bg-[#ea5054] text-white text-xs font-semibold flex items-center gap-2">
+          <div className="px-5 py-2 bg-[#bb5757] text-white text-xs font-semibold flex items-center gap-2">
             <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
               <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.8" />
               <path d="M5.5 5.5l7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -2930,39 +4341,39 @@ function CompanySummaryPage({
             Work Stop is active — compliance work is paused for this company
           </div>
         )}
-        <div className={`px-5 py-5 ${workStopActive ? 'bg-red-50/40' : ''}`}>
+        <div className={`px-5 py-5 ${workStopActive ? 'bg-danger-light/40' : ''}`}>
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <button
                   type="button"
                   onClick={() => setStarred(s => !s)}
-                  className="w-8 h-8 rounded-lg hover:bg-amber-50 flex items-center justify-center transition-colors"
+                  className="w-8 h-8 rounded-lg hover:bg-[#e1c16e]/20 flex items-center justify-center transition-colors"
                   title={starred ? 'Remove from favorites' : 'Add to favorites'}
                 >
                   <svg
                     width="16"
                     height="16"
                     viewBox="0 0 15 15"
-                    fill={starred ? '#f59e0b' : 'none'}
-                    stroke={starred ? '#f59e0b' : (workStopActive ? '#dc2626' : '#94a3b8')}
+                    fill={starred ? '#e1c16e' : 'none'}
+                    stroke={starred ? '#e1c16e' : (workStopActive ? '#bb5757' : '#94a3b8')}
                     strokeWidth="1.4"
                   >
                     <path d="M7.5 1.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" />
                   </svg>
                 </button>
-                <h1 className={`text-xl sm:text-2xl font-bold truncate ${workStopActive ? 'text-red-600' : 'text-slate-900'}`}>
+                <h1 className={`text-xl sm:text-2xl font-bold truncate ${workStopActive ? 'text-danger' : 'text-slate-900'}`}>
                   {company.name}
                 </h1>
                 <CompanyStatusBadge status={company.status} alert={workStopActive} />
                 <AlertDropdown status={alertStatus} onChange={setAlertStatus} />
               </div>
-              <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm pl-10 ${workStopActive ? 'text-red-600' : 'text-slate-600'}`}>
-                <span><span className={workStopActive ? 'text-red-400' : 'text-slate-400'}>DBA</span> {company.dba || '—'}</span>
-                <span className={workStopActive ? 'text-red-300' : 'text-slate-300'}>·</span>
-                <span><span className={workStopActive ? 'text-red-400' : 'text-slate-400'}>Company ID</span> {companyId}</span>
-                <span className={workStopActive ? 'text-red-300' : 'text-slate-300'}>·</span>
-                <span><span className={workStopActive ? 'text-red-400' : 'text-slate-400'}>Type</span> {company.type}</span>
+              <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm pl-10 ${workStopActive ? 'text-danger' : 'text-slate-600'}`}>
+                <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>DBA</span> {company.dba || '—'}</span>
+                <span className={workStopActive ? 'text-danger/40' : 'text-slate-300'}>·</span>
+                <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>Company ID</span> {companyId}</span>
+                <span className={workStopActive ? 'text-danger/40' : 'text-slate-300'}>·</span>
+                <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>Type</span> {company.type}</span>
               </div>
             </div>
 
@@ -2973,13 +4384,22 @@ function CompanySummaryPage({
                   role="switch"
                   aria-checked={notify}
                   onClick={() => setNotify(n => !n)}
-                  className={`relative w-10 h-5 rounded-full transition-colors ${notify ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${notify ? 'bg-[#12518c]' : 'bg-slate-300'}`}
                 >
                   <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${notify ? 'translate-x-5' : ''}`} />
                 </button>
                 Enable Change Notification
               </label>
-              <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Edit">
+              <button
+                type="button"
+                onClick={() => {
+                  setDetailEditRequest(request => request + 1)
+                  onTabChange('Detail')
+                }}
+                className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+                title="Edit company"
+                aria-label="Edit company"
+              >
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                   <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
                 </svg>
@@ -2999,14 +4419,13 @@ function CompanySummaryPage({
       {/* Tab navigation — separate sticky bar below company info */}
       <nav
         aria-label="Company sections"
-        className="sticky top-0 z-10 -mt-1 rounded-2xl border border-slate-200 bg-white/95 backdrop-blur-sm shadow-sm"
+        className="-mt-1 rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
         <div className="overflow-x-auto px-2 sm:px-3 border-b border-slate-100">
           <div className="flex items-stretch gap-0 min-w-max" role="tablist">
             {COMPANY_DETAIL_TABS.map(t => {
               const isActive = tab === t
-              const isWorkStopTab = t === 'Work Stop'
-              const workStopStyle = isWorkStopTab && workStopActive
+              const isDisabled = t === 'Ownership'
 
               return (
                 <button
@@ -3014,25 +4433,25 @@ function CompanySummaryPage({
                   type="button"
                   role="tab"
                   aria-selected={isActive}
-                  onClick={() => onTabChange(t)}
+                  aria-disabled={isDisabled}
+                  disabled={isDisabled}
+                  onClick={() => {
+                    if (isDisabled) return
+                    onTabChange(t)
+                  }}
+                  title={isDisabled ? 'Ownership is temporarily unavailable' : undefined}
                   className={`relative px-3.5 sm:px-4 py-3 text-xs font-semibold whitespace-nowrap transition-colors ${
-                    isActive
-                      ? workStopStyle
-                        ? 'text-[#ea5054]'
-                        : 'text-[#7563fb]'
-                      : workStopStyle
-                        ? 'text-red-500/80 hover:text-[#ea5054]'
+                    isDisabled
+                      ? 'text-slate-300 cursor-not-allowed'
+                      : isActive
+                        ? 'text-[#12518c]'
                         : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   {t}
                   <span
                     className={`absolute left-2 right-2 bottom-0 h-0.5 rounded-full transition-opacity ${
-                      isActive
-                        ? workStopStyle
-                          ? 'bg-[#ea5054] opacity-100'
-                          : 'bg-[#7563fb] opacity-100'
-                        : 'bg-transparent opacity-0'
+                      isActive && !isDisabled ? 'bg-[#12518c] opacity-100' : 'bg-transparent opacity-0'
                     }`}
                     aria-hidden
                   />
@@ -3046,11 +4465,16 @@ function CompanySummaryPage({
       {tab === 'Work Stop' ? (
         <CompanyWorkStopPage companyId={companyId} />
       ) : tab === 'Detail' ? (
-        <CompanyDetailPage company={company} companyId={companyId} />
+        <CompanyDetailPage company={company} companyId={companyId} editRequest={detailEditRequest} />
       ) : tab === 'Addresses' ? (
         <CompanyAddressesPage companyId={companyId} />
       ) : tab === 'Contacts' ? (
-        <CompanyContactsPage companyId={companyId} />
+        <CompanyContactsPage
+          companyId={companyId}
+          companyName={company.name}
+          subPage={subPage}
+          onSubPageChange={onSubPageChange}
+        />
       ) : tab === 'Ownership' ? (
         <CompanyOwnershipPage
           companyId={companyId}
@@ -3069,17 +4493,7 @@ function CompanySummaryPage({
       ) : tab === 'Change Log' ? (
         <CompanyChangeLogPage companyId={companyId} />
       ) : tab !== 'Summary' ? (
-        <div className="bg-white rounded-2xl border border-slate-200 px-6 py-16 text-center shadow-sm">
-          <p className="text-sm font-medium text-slate-700 mb-1">{tab}</p>
-          <p className="text-sm text-slate-500">This section is not available in the summary preview yet.</p>
-          <button
-            type="button"
-            onClick={() => onTabChange('Summary')}
-            className="mt-4 text-sm font-medium text-indigo-600 hover:text-indigo-800"
-          >
-            Back to Summary
-          </button>
-        </div>
+        <WorkInProgressPage title={tab} />
       ) : (
         <div className="space-y-5">
           {/* Row 1: Service Scope | Ship Compliant */}
@@ -3162,7 +4576,7 @@ function CompanySummaryPage({
                   <tbody>
                     {COMPANY_CONTACTS.map((c, i) => (
                       <tr key={i} className={i % 2 === 1 ? 'bg-slate-50/80' : 'bg-white'}>
-                        <td className="px-2 py-2.5 text-xs font-medium text-indigo-600 truncate" title={c.name}>{c.name}</td>
+                        <td className="px-2 py-2.5 text-xs font-medium text-[#12518c] truncate" title={c.name}>{c.name}</td>
                         <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{c.role}</td>
                         <td className="px-2 py-2.5 text-xs text-slate-600 truncate" title={c.email}>{c.email}</td>
                         <td className="px-2 py-2.5 text-xs text-slate-500 truncate">{c.work}</td>
@@ -3228,7 +4642,7 @@ function CompanySummaryPage({
                 </thead>
                 <tbody>
                   {COMPANY_RENEWALS.map((r, i) => (
-                    <tr key={i} className={`border-t border-slate-50 ${i % 2 === 1 ? 'bg-slate-50/70' : 'bg-white'} hover:bg-indigo-50/40 transition-colors`}>
+                    <tr key={i} className={`border-t border-slate-50 ${i % 2 === 1 ? 'bg-slate-50/70' : 'bg-white'} hover:bg-[#12518c]/5 transition-colors`}>
                       <td className="px-4 py-2.5">
                         <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">{r.state}</span>
                       </td>
@@ -3236,8 +4650,8 @@ function CompanySummaryPage({
                       <td className="px-4 py-2.5 text-xs text-slate-600 truncate max-w-[140px]" title={r.item}>{r.item}</td>
                       <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">{r.expiration}</td>
                       <td className="px-4 py-2.5">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-50 text-[#ea5054] border border-red-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#ea5054]" />
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-danger-light text-[#bb5757] border border-danger-border">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#bb5757]" />
                           {r.action}
                         </span>
                       </td>
@@ -3257,7 +4671,7 @@ function CompanySummaryPage({
                 <select
                   value={changeFilter}
                   onChange={e => setChangeFilter(e.target.value)}
-                  className={`appearance-none text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-600 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer min-w-[180px] ${
+                  className={`appearance-none text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-600 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#12518c]/30 cursor-pointer min-w-[180px] ${
                     changeFilter ? 'pl-2.5 pr-14' : 'pl-2.5 pr-8'
                   }`}
                 >
@@ -3297,10 +4711,10 @@ function CompanySummaryPage({
             <div className="space-y-0">
               {filteredChanges.map((c, i) => (
                 <div key={i} className="flex gap-3 py-2.5 border-b border-slate-50 last:border-0">
-                  <span className="mt-1.5 w-2 h-2 rounded-sm bg-[#fccc47] flex-shrink-0 rotate-45" />
+                  <span className="mt-1.5 w-2 h-2 rounded-sm bg-[#e1c16e] flex-shrink-0 rotate-45" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className="text-[11px] font-semibold text-indigo-600">{c.type}</span>
+                      <span className="text-[11px] font-semibold text-[#12518c]">{c.type}</span>
                       <span className="text-[10px] text-slate-400 whitespace-nowrap">{c.date}</span>
                     </div>
                     <p className="text-xs text-slate-600 leading-relaxed">{c.detail}</p>
@@ -3343,7 +4757,17 @@ type ContactRow = {
   cell: string
 }
 
-function CompanyContactsPage({ companyId }: { companyId: number }) {
+function CompanyContactsPage({
+  companyId,
+  companyName,
+  subPage,
+  onSubPageChange,
+}: {
+  companyId: number
+  companyName: string
+  subPage: string | null
+  onSubPageChange: (subPage: string | null) => void
+}) {
   const [currentContacts, setCurrentContacts] = useState<ContactRow[]>(COMPANY_CONTACTS)
   const [pastContacts] = useState<ContactRow[]>(PAST_CONTACTS)
   const [currentSearch, setCurrentSearch] = useState('')
@@ -3391,7 +4815,7 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
 
   const openAdd = () => {
     setEditingContact(null)
-    setFormMode('add')
+    onSubPageChange('Add New Contact')
   }
 
   const openView = (contact: ContactRow) => {
@@ -3401,7 +4825,8 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
 
   const openEdit = (contact: ContactRow) => {
     setEditingContact(contact)
-    setFormMode('edit')
+    setFormMode(null)
+    onSubPageChange('Edit Contact')
   }
 
   const closeForm = () => {
@@ -3410,7 +4835,7 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
   }
 
   const saveContact = (data: Omit<ContactRow, 'id' | 'active' | 'cell'> & { id?: number; cell?: string }) => {
-    if (formMode === 'edit' && data.id != null) {
+    if ((formMode === 'edit' || subPage === 'Edit Contact') && data.id != null) {
       setCurrentContacts(prev =>
         prev.map(c => (c.id === data.id ? { ...c, ...data, cell: data.cell ?? c.cell, active: c.active } : c))
       )
@@ -3434,6 +4859,7 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
       ])
     }
     closeForm()
+    onSubPageChange(null)
   }
 
   const removeContact = (id: number) => {
@@ -3441,29 +4867,70 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
     setDeleteConfirmId(null)
   }
 
-  const currentColumns = ['Name', 'Role', 'Work Phone', 'Email', 'Street', 'Notes', 'Specialist', 'Category', 'Active/Inactive', 'Actions'] as const
-  const pastColumns = ['Name', 'Role', 'Work Phone', 'Email', 'Street', 'Notes', 'Specialist', 'Category', 'Active/Inactive'] as const
+  const currentCols = useTableColumns([
+    { key: 'name', label: 'Name' },
+    { key: 'role', label: 'Role' },
+    { key: 'work', label: 'Work Phone' },
+    { key: 'email', label: 'Email' },
+    { key: 'street', label: 'Street' },
+    { key: 'notes', label: 'Notes' },
+    { key: 'specialist', label: 'Specialist' },
+    { key: 'category', label: 'Category' },
+    { key: 'active', label: 'Active/Inactive' },
+  ])
+  const pastCols = useTableColumns([
+    { key: 'name', label: 'Name' },
+    { key: 'role', label: 'Role' },
+    { key: 'work', label: 'Work Phone' },
+    { key: 'email', label: 'Email' },
+    { key: 'street', label: 'Street' },
+    { key: 'notes', label: 'Notes' },
+    { key: 'specialist', label: 'Specialist' },
+    { key: 'category', label: 'Category' },
+    { key: 'active', label: 'Active/Inactive' },
+  ])
+  const contactColBtn = 'p-2 rounded-lg border border-slate-200 transition-all duration-200'
+
+  if (subPage === 'Add New Contact') {
+    return (
+      <AddContactPage
+        companyId={companyId}
+        companyName={companyName}
+        onCancel={() => onSubPageChange(null)}
+        onSave={saveContact}
+      />
+    )
+  }
+
+  if (subPage === 'Edit Contact' && editingContact) {
+    return (
+      <EditContactPage
+        companyId={companyId}
+        companyName={companyName}
+        contact={editingContact}
+        onCancel={() => {
+          setEditingContact(null)
+          onSubPageChange(null)
+        }}
+        onSave={saveContact}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#7563fb]">Current Contacts</h2>
+              <h2 className="text-sm font-semibold text-[#12518c]">Current Contacts</h2>
               <p className="text-xs text-slate-500">People linked to this company</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <AddressSearchInput value={currentSearch} onChange={setCurrentSearch} />
-            <button
-              type="button"
-              className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-              title="Column settings"
-            >
-              <GridViewIcon />
-            </button>
+            <ColumnSettingsDropdown {...currentCols.dropdownProps} buttonClassName={contactColBtn} />
             <button
               type="button"
               onClick={openAdd}
@@ -3481,22 +4948,22 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
           <table className="w-full min-w-[1100px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
-                {currentColumns.map((h, i) => (
-                  <th
-                    key={h}
-                    className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                      i >= 8 ? 'text-center' : 'text-left'
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {currentCols.show('name') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Name</th>}
+                {currentCols.show('role') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Role</th>}
+                {currentCols.show('work') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Work Phone</th>}
+                {currentCols.show('email') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Email</th>}
+                {currentCols.show('street') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Street</th>}
+                {currentCols.show('notes') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Notes</th>}
+                {currentCols.show('specialist') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Specialist</th>}
+                {currentCols.show('category') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Category</th>}
+                {currentCols.show('active') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Active/Inactive</th>}
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredCurrent.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-400">No record Found!</td>
+                  <td colSpan={currentCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No record Found!</td>
                 </tr>
               ) : (
                 filteredCurrent.map((c, i) => (
@@ -3506,33 +4973,37 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
                       i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
                     }`}
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">{c.name || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.role || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.work || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.email || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.street || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 max-w-[140px] truncate" title={c.notes}>{c.notes || '—'}</td>
-                    <td className="px-4 py-3">
-                      {c.specialist ? (
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#7563fb]/10 text-[#7563fb]">
-                          {c.specialist}
-                        </span>
-                      ) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.category || '—'}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-center">
-                        <AddressActiveToggle
-                          active={c.active}
-                          onChange={() => {
-                            if (c.active) requestInactive(c.id)
-                          }}
-                        />
-                      </div>
-                    </td>
+                    {currentCols.show('name') && <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">{c.name || '—'}</td>}
+                    {currentCols.show('role') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.role || '—'}</td>}
+                    {currentCols.show('work') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.work || '—'}</td>}
+                    {currentCols.show('email') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.email || '—'}</td>}
+                    {currentCols.show('street') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.street || '—'}</td>}
+                    {currentCols.show('notes') && <td className="px-4 py-3 text-sm text-slate-600 max-w-[140px] truncate" title={c.notes}>{c.notes || '—'}</td>}
+                    {currentCols.show('specialist') && (
+                      <td className="px-4 py-3">
+                        {c.specialist ? (
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#12518c]/10 text-[#12518c]">
+                            {c.specialist}
+                          </span>
+                        ) : '—'}
+                      </td>
+                    )}
+                    {currentCols.show('category') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.category || '—'}</td>}
+                    {currentCols.show('active') && (
+                      <td className="px-4 py-3">
+                        <div className="flex justify-center">
+                          <AddressActiveToggle
+                            active={c.active}
+                            onChange={() => {
+                              if (c.active) requestInactive(c.id)
+                            }}
+                          />
+                        </div>
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <button type="button" onClick={() => openView(c)} className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors" title="View">
+                        <button type="button" onClick={() => openView(c)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
                           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
                             <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
                             <circle cx="8" cy="8" r="1.75" />
@@ -3543,7 +5014,7 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
                             <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
                           </svg>
                         </button>
-                        <button type="button" onClick={() => setDeleteConfirmId(c.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#ea5054] hover:bg-red-50 transition-colors" title="Delete">
+                        <button type="button" onClick={() => setDeleteConfirmId(c.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 6h18" />
                             <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -3565,34 +5036,34 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#7563fb]">Past Contacts</h2>
+              <h2 className="text-sm font-semibold text-[#12518c]">Past Contacts</h2>
               <p className="text-xs text-slate-500">Historical contacts no longer linked</p>
             </div>
           </div>
           <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
+          <ColumnSettingsDropdown {...pastCols.dropdownProps} buttonClassName={contactColBtn} />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
-                {pastColumns.map((h, i) => (
-                  <th
-                    key={h}
-                    className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                      i === 8 ? 'text-center' : 'text-left'
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {pastCols.show('name') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Name</th>}
+                {pastCols.show('role') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Role</th>}
+                {pastCols.show('work') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Work Phone</th>}
+                {pastCols.show('email') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Email</th>}
+                {pastCols.show('street') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Street</th>}
+                {pastCols.show('notes') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Notes</th>}
+                {pastCols.show('specialist') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Specialist</th>}
+                {pastCols.show('category') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Category</th>}
+                {pastCols.show('active') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Active/Inactive</th>}
               </tr>
             </thead>
             <tbody>
               {filteredPast.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-14 text-center">
+                  <td colSpan={pastCols.visibleCount} className="px-4 py-14 text-center">
                     <p className="text-sm font-medium text-slate-500">No record Found!</p>
                     <p className="text-xs text-slate-400 mt-1">Past contacts will appear here when available</p>
                   </td>
@@ -3600,23 +5071,27 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
               ) : (
                 filteredPast.map((c, i) => (
                   <tr key={c.id} className={`border-b border-slate-100 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}>
-                    <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">{c.name || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.role || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.work || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.email || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.street || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 max-w-[140px] truncate" title={c.notes}>{c.notes || '—'}</td>
-                    <td className="px-4 py-3">
-                      {c.specialist ? (
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
-                          {c.specialist}
-                        </span>
-                      ) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.category || '—'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <AddressActiveToggle active={c.active} onChange={() => {}} />
-                    </td>
+                    {pastCols.show('name') && <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">{c.name || '—'}</td>}
+                    {pastCols.show('role') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.role || '—'}</td>}
+                    {pastCols.show('work') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.work || '—'}</td>}
+                    {pastCols.show('email') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.email || '—'}</td>}
+                    {pastCols.show('street') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.street || '—'}</td>}
+                    {pastCols.show('notes') && <td className="px-4 py-3 text-sm text-slate-600 max-w-[140px] truncate" title={c.notes}>{c.notes || '—'}</td>}
+                    {pastCols.show('specialist') && (
+                      <td className="px-4 py-3">
+                        {c.specialist ? (
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
+                            {c.specialist}
+                          </span>
+                        ) : '—'}
+                      </td>
+                    )}
+                    {pastCols.show('category') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.category || '—'}</td>}
+                    {pastCols.show('active') && (
+                      <td className="px-4 py-3 text-center">
+                        <AddressActiveToggle active={c.active} onChange={() => {}} />
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -3670,6 +5145,640 @@ function CompanyContactsPage({ companyId }: { companyId: number }) {
   )
 }
 
+function ContactPageField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  required,
+  error,
+  className = '',
+  readOnly = false,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  type?: string
+  required?: boolean
+  error?: string
+  className?: string
+  readOnly?: boolean
+}) {
+  return (
+    <label className={`block min-w-0 ${className}`}>
+      <span className="mb-1.5 block text-[11px] font-medium text-slate-600">
+        {label}{required && <span className="text-danger"> *</span>}
+      </span>
+      <input
+        type={type}
+        value={value}
+        readOnly={readOnly}
+        onChange={event => onChange(event.target.value)}
+        placeholder={placeholder}
+        className={`h-10 w-full rounded-lg border px-3 text-sm outline-none transition focus:ring-2 focus:ring-[#12518c]/20 ${
+          readOnly
+            ? 'cursor-default border-slate-200 bg-slate-50 text-slate-600'
+            : error
+              ? 'border-danger bg-white text-slate-800 focus:border-danger'
+              : 'border-slate-200 bg-white text-slate-800 focus:border-[#12518c]'
+        }`}
+      />
+      {error && <span className="mt-1 block text-[11px] text-danger">{error}</span>}
+    </label>
+  )
+}
+
+function ContactPageSelect({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder = 'Select…',
+  required,
+  error,
+  readOnly = false,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: string[]
+  placeholder?: string
+  required?: boolean
+  error?: string
+  readOnly?: boolean
+}) {
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1.5 block text-[11px] font-medium text-slate-600">
+        {label}{required && <span className="text-danger"> *</span>}
+      </span>
+      <select
+        value={value}
+        disabled={readOnly}
+        onChange={event => onChange(event.target.value)}
+        className={`h-10 w-full rounded-lg border px-3 text-sm outline-none transition focus:ring-2 focus:ring-[#12518c]/20 ${
+          readOnly
+            ? 'cursor-default border-slate-200 bg-slate-50 text-slate-600'
+            : error
+              ? 'border-danger bg-white text-slate-700 focus:border-danger'
+              : 'border-slate-200 bg-white text-slate-700 focus:border-[#12518c]'
+        }`}
+      >
+        <option value="">{placeholder}</option>
+        {options.map(option => <option key={option} value={option}>{option}</option>)}
+      </select>
+      {error && <span className="mt-1 block text-[11px] text-danger">{error}</span>}
+    </label>
+  )
+}
+
+function AddContactSection({
+  title,
+  description,
+  icon,
+  children,
+}: {
+  title: string
+  description: string
+  icon: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-5 py-4">
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#12518c]/10 text-[#12518c]">
+          {icon}
+        </span>
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+        </div>
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
+  )
+}
+
+function AddContactPage({
+  companyId,
+  companyName,
+  onCancel,
+  onSave,
+}: {
+  companyId: number
+  companyName: string
+  onCancel: () => void
+  onSave: (data: Omit<ContactRow, 'id' | 'active' | 'cell'> & { id?: number; cell?: string }) => void
+}) {
+  const [contactType, setContactType] = useState<'Individual' | 'Shared Email'>('Individual')
+  const [contactSource, setContactSource] = useState<'New' | 'Existing'>('New')
+  const [form, setForm] = useState({
+    existingContact: '',
+    salutation: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    suffix: '',
+    nickname: '',
+    alias: '',
+    role: '',
+    specialist: '',
+    businessEmail: '',
+    workPhone: '',
+    extension: '',
+    businessStreet: '',
+    businessCity: '',
+    businessState: '',
+    businessZip: '',
+    businessCountry: 'United States',
+    personalEmail: '',
+    cellPhone: '',
+    personalStreet: '',
+    personalCity: '',
+    personalState: '',
+    personalZip: '',
+    personalCountry: 'United States',
+    notes: '',
+  })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const set = (key: keyof typeof form, value: string) => {
+    setForm(previous => ({ ...previous, [key]: value }))
+    if (errors[key]) setErrors(previous => ({ ...previous, [key]: '' }))
+  }
+
+  const submit = () => {
+    const nextErrors: Record<string, string> = {}
+    if (contactSource === 'Existing') {
+      if (!form.existingContact) nextErrors.existingContact = 'Select an existing contact.'
+    } else if (contactType === 'Individual') {
+      if (!form.firstName.trim()) nextErrors.firstName = 'First name is required.'
+      if (!form.lastName.trim()) nextErrors.lastName = 'Last name is required.'
+    } else if (!form.firstName.trim()) {
+      nextErrors.firstName = 'Contact name is required.'
+    }
+    if (!form.role.trim()) nextErrors.role = 'Role is required.'
+    if (!form.businessEmail.trim() && !form.personalEmail.trim()) {
+      nextErrors.businessEmail = 'Add at least one email address.'
+    }
+
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length) return
+
+    const enteredName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(' ')
+    onSave({
+      name: contactSource === 'Existing' ? form.existingContact : enteredName,
+      role: form.role.trim(),
+      work: form.workPhone.trim(),
+      email: (form.businessEmail || form.personalEmail).trim(),
+      street: (form.businessStreet || form.personalStreet).trim(),
+      notes: form.notes.trim(),
+      specialist: form.specialist,
+      category: contactType,
+      cell: form.cellPhone.trim(),
+    })
+  }
+
+  const addressIcon = (
+    <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7.5h12v8H3zM5 7.5V4h8v3.5M6 11h.01M9 11h.01M12 11h.01" />
+    </svg>
+  )
+
+  return (
+    <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Add Contact</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Add a contact to <span className="font-medium text-slate-700">{companyName}</span>
+            <span className="text-slate-300"> · </span>Company ID {companyId}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onCancel} className="h-9 rounded-lg border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+            Cancel
+          </button>
+          <button type="button" onClick={submit} className="h-9 rounded-lg bg-slate-700 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800">
+            Save Contact
+          </button>
+        </div>
+      </div>
+
+      <AddContactSection
+        title="Contact Information"
+        description="Choose the contact type and enter their primary details."
+        icon={
+          <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="9" cy="6" r="3" />
+            <path d="M3.5 16c0-3 2.4-5 5.5-5s5.5 2 5.5 5" />
+          </svg>
+        }
+      >
+        <div className="space-y-5">
+          <div className="grid gap-5 border-b border-slate-100 pb-5 lg:grid-cols-2">
+            <div>
+              <p className="mb-2 text-[11px] font-medium text-slate-600">Type of contact <span className="text-danger">*</span></p>
+              <div className="grid grid-cols-2 gap-2">
+                {(['Individual', 'Shared Email'] as const).map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setContactType(type)}
+                    className={`rounded-xl border px-3 py-3 text-left transition ${
+                      contactType === type ? 'border-[#12518c] bg-[#12518c]/5 ring-1 ring-[#12518c]/20' : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+                      <span className={`h-3.5 w-3.5 rounded-full border-4 ${contactType === type ? 'border-[#12518c]' : 'border-slate-300'}`} />
+                      {type}
+                    </span>
+                    <span className="mt-1 block pl-5.5 text-[10px] leading-relaxed text-slate-500">
+                      {type === 'Individual' ? 'A specific person at this company' : 'A company-level email, such as compliance@'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-[11px] font-medium text-slate-600">Contact source</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(['New', 'Existing'] as const).map(source => (
+                  <button
+                    key={source}
+                    type="button"
+                    onClick={() => setContactSource(source)}
+                    className={`rounded-xl border px-3 py-3 text-left transition ${
+                      contactSource === source ? 'border-[#12518c] bg-[#12518c]/5 ring-1 ring-[#12518c]/20' : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+                      <span className={`h-3.5 w-3.5 rounded-full border-4 ${contactSource === source ? 'border-[#12518c]' : 'border-slate-300'}`} />
+                      {source}
+                    </span>
+                    <span className="mt-1 block pl-5.5 text-[10px] leading-relaxed text-slate-500">
+                      {source === 'New' ? 'Create a new contact record' : 'Link a contact already in Cabinet'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {contactSource === 'Existing' ? (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <ContactPageSelect
+                label="Existing Contact"
+                required
+                value={form.existingContact}
+                onChange={value => set('existingContact', value)}
+                options={[...new Set(COMPANY_CONTACTS.map(contact => contact.name).filter(Boolean))]}
+                placeholder="Search for a contact…"
+                error={errors.existingContact}
+              />
+              <ContactPageField label="Role" required value={form.role} onChange={value => set('role', value)} placeholder="e.g. Compliance Manager" error={errors.role} />
+              <ContactPageSelect label="Specialist" value={form.specialist} onChange={value => set('specialist', value)} options={CONTACT_SPECIALIST_OPTIONS} />
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <ContactPageSelect label="Salutation" value={form.salutation} onChange={value => set('salutation', value)} options={['Mr.', 'Ms.', 'Mrs.', 'Dr.']} />
+                <ContactPageField
+                  label={contactType === 'Shared Email' ? 'Contact Name' : 'First Name'}
+                  required
+                  value={form.firstName}
+                  onChange={value => set('firstName', value)}
+                  placeholder={contactType === 'Shared Email' ? 'e.g. Compliance Team' : 'First name'}
+                  error={errors.firstName}
+                />
+                <ContactPageField label="Middle Name" value={form.middleName} onChange={value => set('middleName', value)} placeholder="Middle name" />
+                <ContactPageField label="Last Name" required={contactType === 'Individual'} value={form.lastName} onChange={value => set('lastName', value)} placeholder="Last name" error={errors.lastName} />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <ContactPageSelect label="Suffix" value={form.suffix} onChange={value => set('suffix', value)} options={['Jr.', 'Sr.', 'II', 'III', 'IV']} />
+                <ContactPageField label="Nickname / Preferred Name" value={form.nickname} onChange={value => set('nickname', value)} placeholder="Preferred name" />
+                <ContactPageField label="Alias / Former Name" value={form.alias} onChange={value => set('alias', value)} placeholder="Optional alias" />
+                <ContactPageField label="Role" required value={form.role} onChange={value => set('role', value)} placeholder="e.g. Compliance Manager" error={errors.role} />
+              </div>
+              <div className="max-w-sm">
+                <ContactPageSelect label="Specialist" value={form.specialist} onChange={value => set('specialist', value)} options={CONTACT_SPECIALIST_OPTIONS} />
+              </div>
+            </>
+          )}
+        </div>
+      </AddContactSection>
+
+      <AddContactSection title="Business Contact" description="Work contact information and business address." icon={addressIcon}>
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ContactPageField label="Business Email" required value={form.businessEmail} onChange={value => set('businessEmail', value)} type="email" placeholder="name@company.com" error={errors.businessEmail} />
+            <ContactPageField label="Work / Office Phone" value={form.workPhone} onChange={value => set('workPhone', value)} placeholder="(000) 000-0000" />
+            <ContactPageField label="Extension" value={form.extension} onChange={value => set('extension', value)} placeholder="Ext." />
+          </div>
+          <ContactPageField label="Street" value={form.businessStreet} onChange={value => set('businessStreet', value)} placeholder="Street address" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ContactPageField label="City" value={form.businessCity} onChange={value => set('businessCity', value)} />
+            <ContactPageSelect label="State" value={form.businessState} onChange={value => set('businessState', value)} options={US_STATES} />
+            <ContactPageField label="Zip Code" value={form.businessZip} onChange={value => set('businessZip', value)} />
+            <ContactPageSelect label="Country" value={form.businessCountry} onChange={value => set('businessCountry', value)} options={['United States', 'Canada', 'Mexico']} />
+          </div>
+        </div>
+      </AddContactSection>
+
+      <AddContactSection title="Personal Contact" description="Optional personal contact details and mailing address." icon={addressIcon}>
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ContactPageField label="Personal Email" value={form.personalEmail} onChange={value => set('personalEmail', value)} type="email" placeholder="personal@email.com" />
+            <ContactPageField label="Cell / Home Phone" value={form.cellPhone} onChange={value => set('cellPhone', value)} placeholder="(000) 000-0000" />
+          </div>
+          <ContactPageField label="Street" value={form.personalStreet} onChange={value => set('personalStreet', value)} placeholder="Street address" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ContactPageField label="City" value={form.personalCity} onChange={value => set('personalCity', value)} />
+            <ContactPageSelect label="State" value={form.personalState} onChange={value => set('personalState', value)} options={US_STATES} />
+            <ContactPageField label="Zip Code" value={form.personalZip} onChange={value => set('personalZip', value)} />
+            <ContactPageSelect label="Country" value={form.personalCountry} onChange={value => set('personalCountry', value)} options={['United States', 'Canada', 'Mexico']} />
+          </div>
+          <label className="block pt-1">
+            <span className="mb-1.5 block text-[11px] font-medium text-slate-600">Notes</span>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-[#12518c] focus-within:ring-2 focus-within:ring-[#12518c]/20">
+              <div className="flex items-center gap-1 border-b border-slate-100 bg-slate-50 px-2 py-1.5 text-slate-500">
+                {['B', 'I', 'U', '•', '1.', '↗'].map((tool, index) => (
+                  <button key={`${tool}-${index}`} type="button" className={`h-7 min-w-7 rounded px-1.5 text-xs hover:bg-white hover:text-slate-800 ${tool === 'B' ? 'font-bold' : tool === 'I' ? 'italic' : tool === 'U' ? 'underline' : ''}`}>
+                    {tool}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={form.notes}
+                onChange={event => set('notes', event.target.value)}
+                rows={5}
+                placeholder="Add internal notes about this contact…"
+                className="w-full resize-y border-0 px-3 py-2.5 text-sm text-slate-800 outline-none"
+              />
+            </div>
+          </label>
+        </div>
+      </AddContactSection>
+
+      <div className="flex items-center justify-end gap-2 pb-2">
+        <button type="button" onClick={onCancel} className="h-9 rounded-lg border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+          Cancel
+        </button>
+        <button type="button" onClick={submit} className="h-9 rounded-lg bg-slate-700 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800">
+          Save Contact
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function splitContactName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return { firstName: '', middleName: '', lastName: '' }
+  if (parts.length === 1) return { firstName: parts[0], middleName: '', lastName: '' }
+  if (parts.length === 2) return { firstName: parts[0], middleName: '', lastName: parts[1] }
+  return { firstName: parts[0], middleName: parts.slice(1, -1).join(' '), lastName: parts[parts.length - 1] }
+}
+
+function EditContactPage({
+  companyId,
+  companyName,
+  contact,
+  onCancel,
+  onSave,
+}: {
+  companyId: number
+  companyName: string
+  contact: ContactRow
+  onCancel: () => void
+  onSave: (data: Omit<ContactRow, 'id' | 'active' | 'cell'> & { id?: number; cell?: string }) => void
+}) {
+  const nameParts = splitContactName(contact.name)
+  const [contactType, setContactType] = useState<'Individual' | 'Shared Email'>(
+    contact.category === 'Shared Email' ? 'Shared Email' : 'Individual'
+  )
+  const [form, setForm] = useState({
+    salutation: '',
+    firstName: nameParts.firstName,
+    middleName: nameParts.middleName,
+    lastName: nameParts.lastName,
+    suffix: '',
+    nickname: '',
+    alias: '',
+    role: contact.role,
+    specialist: contact.specialist,
+    businessEmail: contact.email,
+    workPhone: contact.work,
+    extension: '',
+    businessStreet: contact.street,
+    businessCity: '',
+    businessState: '',
+    businessZip: '',
+    businessCountry: 'United States',
+    personalEmail: contact.email,
+    cellPhone: contact.cell === '—' ? '' : contact.cell,
+    personalStreet: '',
+    personalCity: '',
+    personalState: '',
+    personalZip: '',
+    personalCountry: 'United States',
+    notes: contact.notes,
+  })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const isIndividual = contactType === 'Individual'
+
+  const set = (key: keyof typeof form, value: string) => {
+    setForm(previous => ({ ...previous, [key]: value }))
+    if (errors[key]) setErrors(previous => ({ ...previous, [key]: '' }))
+  }
+
+  const submit = () => {
+    const nextErrors: Record<string, string> = {}
+    if (!form.role.trim()) nextErrors.role = 'Role is required.'
+    if (!form.businessEmail.trim()) nextErrors.businessEmail = 'Business email is required.'
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length) return
+
+    onSave({
+      id: contact.id,
+      name: contact.name || [form.firstName, form.middleName, form.lastName].filter(Boolean).join(' '),
+      role: form.role.trim(),
+      work: form.workPhone.trim(),
+      email: form.businessEmail.trim(),
+      street: form.businessStreet.trim(),
+      notes: form.notes.trim(),
+      specialist: form.specialist,
+      category: contactType,
+      cell: form.cellPhone.trim(),
+    })
+  }
+
+  const addressIcon = (
+    <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7.5h12v8H3zM5 7.5V4h8v3.5M6 11h.01M9 11h.01M12 11h.01" />
+    </svg>
+  )
+
+  return (
+    <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Edit Contact</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Edit contact for <span className="font-medium text-slate-700">{companyName}</span>
+            <span className="text-slate-300"> · </span>Company ID {companyId}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onCancel} className="h-9 rounded-lg border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+            Cancel
+          </button>
+          <button type="button" onClick={submit} className="h-9 rounded-lg bg-slate-700 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800">
+            Save
+          </button>
+        </div>
+      </div>
+
+      <AddContactSection
+        title="Contact Information"
+        description="Update company-level role and contact details."
+        icon={
+          <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="9" cy="6" r="3" />
+            <path d="M3.5 16c0-3 2.4-5 5.5-5s5.5 2 5.5 5" />
+          </svg>
+        }
+      >
+        <div className="space-y-5">
+          <div>
+            <p className="mb-2 text-[11px] font-medium text-slate-600">Type of contact <span className="text-danger">*</span></p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(['Individual', 'Shared Email'] as const).map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setContactType(type)}
+                  className={`rounded-xl border px-3 py-3 text-left transition ${
+                    contactType === type ? 'border-[#12518c] bg-[#12518c]/5 ring-1 ring-[#12518c]/20' : 'border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+                    <span className={`h-3.5 w-3.5 rounded-full border-4 ${contactType === type ? 'border-[#12518c]' : 'border-slate-300'}`} />
+                    {type}
+                  </span>
+                  <span className="mt-1 block pl-5.5 text-[10px] leading-relaxed text-slate-500">
+                    {type === 'Individual' ? 'A specific person at this company' : 'A company-level email, such as compliance@'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {isIndividual && (
+            <div className="rounded-xl border border-[#e1c16e]/60 bg-[#e1c16e]/15 px-4 py-3 text-sm text-[#73591e]">
+              Personal information can only be updated in the People module.
+            </div>
+          )}
+
+          {isIndividual ? (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <ContactPageSelect label="Salutation" value={form.salutation} onChange={value => set('salutation', value)} options={['Mr.', 'Ms.', 'Mrs.', 'Dr.']} readOnly />
+                <ContactPageField label="First Name" required value={form.firstName} onChange={value => set('firstName', value)} readOnly />
+                <ContactPageField label="Middle Name" value={form.middleName} onChange={value => set('middleName', value)} readOnly />
+                <ContactPageField label="Last Name" required value={form.lastName} onChange={value => set('lastName', value)} readOnly />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <ContactPageSelect label="Suffix" value={form.suffix} onChange={value => set('suffix', value)} options={['Jr.', 'Sr.', 'II', 'III', 'IV']} readOnly />
+                <ContactPageField label="Nickname / Preferred Name" value={form.nickname} onChange={value => set('nickname', value)} readOnly />
+                <ContactPageField label="Alias / Former Name" value={form.alias} onChange={value => set('alias', value)} className="xl:col-span-2" readOnly />
+              </div>
+            </>
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ContactPageField label="Role" required value={form.role} onChange={value => set('role', value)} placeholder="e.g. Compliance Manager" error={errors.role} />
+            <ContactPageSelect label="Specialist" value={form.specialist} onChange={value => set('specialist', value)} options={CONTACT_SPECIALIST_OPTIONS} />
+          </div>
+        </div>
+      </AddContactSection>
+
+      <AddContactSection title="Business Address" description="Company contact details for this person or shared inbox." icon={addressIcon}>
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ContactPageField label="Email" required value={form.businessEmail} onChange={value => set('businessEmail', value)} type="email" error={errors.businessEmail} />
+            <ContactPageField label="Work / Office Phone" value={form.workPhone} onChange={value => set('workPhone', value)} placeholder="(000) 000-0000" />
+            <ContactPageField label="Extension" value={form.extension} onChange={value => set('extension', value)} placeholder="Ext." />
+          </div>
+          <ContactPageField label="Street" value={form.businessStreet} onChange={value => set('businessStreet', value)} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ContactPageField label="City" value={form.businessCity} onChange={value => set('businessCity', value)} />
+            <ContactPageSelect label="State" value={form.businessState} onChange={value => set('businessState', value)} options={US_STATES} />
+            <ContactPageField label="Zip Code" value={form.businessZip} onChange={value => set('businessZip', value)} />
+            <ContactPageSelect label="Country" value={form.businessCountry} onChange={value => set('businessCountry', value)} options={['United States', 'Canada', 'Mexico']} />
+          </div>
+        </div>
+      </AddContactSection>
+
+      {isIndividual && (
+        <AddContactSection title="Personal Address" description="Read-only personal details managed in People." icon={addressIcon}>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ContactPageField label="Email" value={form.personalEmail} onChange={value => set('personalEmail', value)} type="email" readOnly />
+              <ContactPageField label="Cell / Home Phone" value={form.cellPhone} onChange={value => set('cellPhone', value)} readOnly />
+            </div>
+            <ContactPageField label="Street" value={form.personalStreet} onChange={value => set('personalStreet', value)} readOnly />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <ContactPageField label="City" value={form.personalCity} onChange={value => set('personalCity', value)} readOnly />
+              <ContactPageSelect label="State" value={form.personalState} onChange={value => set('personalState', value)} options={US_STATES} readOnly />
+              <ContactPageField label="Zip Code" value={form.personalZip} onChange={value => set('personalZip', value)} readOnly />
+              <ContactPageSelect label="Country" value={form.personalCountry} onChange={value => set('personalCountry', value)} options={['United States', 'Canada', 'Mexico']} readOnly />
+            </div>
+          </div>
+        </AddContactSection>
+      )}
+
+      <AddContactSection
+        title="Notes"
+        description="Internal notes for this company contact."
+        icon={
+          <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <path d="M4 3.5h10v11H4zM6.5 6.5h5M6.5 9h5M6.5 11.5h3" />
+          </svg>
+        }
+      >
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-[#12518c] focus-within:ring-2 focus-within:ring-[#12518c]/20">
+          <div className="flex items-center gap-1 border-b border-slate-100 bg-slate-50 px-2 py-1.5 text-slate-500">
+            {['B', 'I', 'U', '•', '1.', '↗'].map((tool, index) => (
+              <button key={`${tool}-${index}`} type="button" className={`h-7 min-w-7 rounded px-1.5 text-xs hover:bg-white hover:text-slate-800 ${tool === 'B' ? 'font-bold' : tool === 'I' ? 'italic' : tool === 'U' ? 'underline' : ''}`}>
+                {tool}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={form.notes}
+            onChange={event => set('notes', event.target.value)}
+            rows={5}
+            placeholder="Add internal notes about this contact…"
+            className="w-full resize-y border-0 px-3 py-2.5 text-sm text-slate-800 outline-none"
+          />
+        </div>
+      </AddContactSection>
+
+      <div className="flex items-center justify-end gap-2 pb-2">
+        <button type="button" onClick={onCancel} className="h-9 rounded-lg border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+          Cancel
+        </button>
+        <button type="button" onClick={submit} className="h-9 rounded-lg bg-slate-700 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800">
+          Save
+        </button>
+      </div>
+    </div>
+  )
+}
+
 type OwnershipRow = {
   id: number
   name: string
@@ -3691,7 +5800,7 @@ function OwnershipFormLabel({ children, required }: { children: string; required
   return (
     <span className="block text-[11px] font-medium text-slate-500 mb-1.5 leading-tight">
       {children}
-      {required && <span className="text-[#ea5054]"> *</span>}
+      {required && <span className="text-[#bb5757]"> *</span>}
     </span>
   )
 }
@@ -3808,12 +5917,12 @@ function OwnershipRadioGroup({
               onClick={() => onChange(opt.value)}
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
                 selected
-                  ? 'border-[#7563fb] bg-[#7563fb]/10 text-[#5b4ae0]'
+                  ? 'border-[#12518c] bg-[#12518c]/10 text-[#0e4173]'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
               } ${readOnly ? 'cursor-default opacity-90' : ''}`}
             >
-              <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${selected ? 'border-[#7563fb]' : 'border-slate-300'}`}>
-                {selected && <span className="w-1.5 h-1.5 rounded-full bg-[#7563fb]" />}
+              <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${selected ? 'border-[#12518c]' : 'border-slate-300'}`}>
+                {selected && <span className="w-1.5 h-1.5 rounded-full bg-[#12518c]" />}
               </span>
               {opt.label}
             </button>
@@ -3851,12 +5960,12 @@ function OwnershipFormSection({
   const open = controlledOpen ?? uncontrolledOpen
   const toggle = onToggle ?? (() => setUncontrolledOpen(o => !o))
   return (
-    <section className={`rounded-xl border overflow-hidden transition-colors ${open ? 'border-[#7563fb]/25' : 'border-slate-200'}`}>
+    <section className={`rounded-xl border overflow-hidden transition-colors ${open ? 'border-[#12518c]/25' : 'border-slate-200'}`}>
       <button
         type="button"
         onClick={toggle}
         className={`w-full flex items-center gap-2.5 px-4 py-3 text-left transition-colors ${
-          open ? 'bg-[#7563fb]/5 border-b border-[#7563fb]/10' : 'bg-slate-50 hover:bg-slate-100/80'
+          open ? 'bg-[#12518c]/5 border-b border-[#12518c]/10' : 'bg-slate-50 hover:bg-slate-100/80'
         }`}
       >
         {icon && (
@@ -3864,10 +5973,10 @@ function OwnershipFormSection({
             {icon}
           </span>
         )}
-        <span className={`flex-1 text-xs font-semibold uppercase tracking-wide ${open ? 'text-[#7563fb]' : 'text-slate-500'}`}>
+        <span className={`flex-1 text-xs font-semibold uppercase tracking-wide ${open ? 'text-[#12518c]' : 'text-slate-500'}`}>
           {title}
         </span>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className={`transition-transform ${open ? 'rotate-180 text-[#7563fb]' : 'text-slate-400'}`}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className={`transition-transform ${open ? 'rotate-180 text-[#12518c]' : 'text-slate-400'}`}>
           <path d="M3.5 5.25L7 8.75l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
@@ -3904,7 +6013,7 @@ function OwnershipQuestionRow({
             onClick={() => onChange(opt.v)}
             className={`px-3 py-1.5 rounded-md text-[11px] font-semibold border transition-colors ${
               value === opt.v
-                ? 'border-[#7563fb] bg-[#7563fb]/10 text-[#5b4ae0]'
+                ? 'border-[#12518c] bg-[#12518c]/10 text-[#0e4173]'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
             }`}
           >
@@ -4043,9 +6152,9 @@ function EmploymentFormModal({
             type="text"
             value={form.jobTitle}
             onChange={e => set('jobTitle', e.target.value)}
-            className={`${detailControlClass} bg-white border-slate-300 text-slate-900 ${errors.jobTitle ? 'border-[#ea5054]' : ''}`}
+            className={`${detailControlClass} bg-white border-slate-300 text-slate-900 ${errors.jobTitle ? 'border-[#bb5757]' : ''}`}
           />
-          {errors.jobTitle && <p className="mt-1 text-[11px] text-[#ea5054]">Job Title is required.</p>}
+          {errors.jobTitle && <p className="mt-1 text-[11px] text-[#bb5757]">Job Title is required.</p>}
         </label>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4055,9 +6164,9 @@ function EmploymentFormModal({
               type="text"
               value={form.company}
               onChange={e => set('company', e.target.value)}
-              className={`${detailControlClass} bg-white border-slate-300 text-slate-900 ${errors.company ? 'border-[#ea5054]' : ''}`}
+              className={`${detailControlClass} bg-white border-slate-300 text-slate-900 ${errors.company ? 'border-[#bb5757]' : ''}`}
             />
-            {errors.company && <p className="mt-1 text-[11px] text-[#ea5054]">Company is required.</p>}
+            {errors.company && <p className="mt-1 text-[11px] text-[#bb5757]">Company is required.</p>}
           </label>
           <label className="block">
             <OwnershipFormLabel required>City</OwnershipFormLabel>
@@ -4065,9 +6174,9 @@ function EmploymentFormModal({
               type="text"
               value={form.city}
               onChange={e => set('city', e.target.value)}
-              className={`${detailControlClass} bg-white border-slate-300 text-slate-900 ${errors.city ? 'border-[#ea5054]' : ''}`}
+              className={`${detailControlClass} bg-white border-slate-300 text-slate-900 ${errors.city ? 'border-[#bb5757]' : ''}`}
             />
-            {errors.city && <p className="mt-1 text-[11px] text-[#ea5054]">City is required.</p>}
+            {errors.city && <p className="mt-1 text-[11px] text-[#bb5757]">City is required.</p>}
           </label>
         </div>
 
@@ -4103,7 +6212,7 @@ function EmploymentFormModal({
             role="switch"
             aria-checked={form.current}
             onClick={() => set('current', !form.current)}
-            className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${form.current ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
+            className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${form.current ? 'bg-[#12518c]' : 'bg-slate-300'}`}
           >
             <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.current ? 'translate-x-5' : ''}`} />
           </button>
@@ -4391,7 +6500,7 @@ function AddOwnershipPage({
                       options={[...new Set(COMPANY_CONTACTS.map(c => c.name).filter(Boolean))]}
                       placeholder="Search for a Contact…"
                     />
-                    {errors.existingContact && <p className="mt-1 text-[11px] text-[#ea5054]">Please select a contact.</p>}
+                    {errors.existingContact && <p className="mt-1 text-[11px] text-[#bb5757]">Please select a contact.</p>}
                   </div>
                 </div>
               ) : (
@@ -4400,12 +6509,12 @@ function AddOwnershipPage({
                     <OwnershipFormSelect label="Sal" value={personForm.sal} onChange={v => setPerson('sal', v)} readOnly={readOnly} options={['Mr', 'Mrs', 'Ms', 'Dr', 'Prof']} />
                     <div>
                       <OwnershipFormField label="First Name" required value={personForm.firstName} onChange={v => setPerson('firstName', v)} readOnly={readOnly} />
-                      {errors.firstName && <p className="mt-1 text-[11px] text-[#ea5054]">Required</p>}
+                      {errors.firstName && <p className="mt-1 text-[11px] text-[#bb5757]">Required</p>}
                     </div>
                     <OwnershipFormField label="Middle Name" value={personForm.middleName} onChange={v => setPerson('middleName', v)} readOnly={readOnly} />
                     <div>
                       <OwnershipFormField label="Last Name" required value={personForm.lastName} onChange={v => setPerson('lastName', v)} readOnly={readOnly} />
-                      {errors.lastName && <p className="mt-1 text-[11px] text-[#ea5054]">Required</p>}
+                      {errors.lastName && <p className="mt-1 text-[11px] text-[#bb5757]">Required</p>}
                     </div>
                     <OwnershipFormSelect label="Suffix" value={personForm.suffix} onChange={v => setPerson('suffix', v)} readOnly={readOnly} options={['Jr', 'Sr', 'II', 'III', 'IV']} />
                     <OwnershipFormField label="TTB POB" value={personForm.ttbPob} onChange={v => setPerson('ttbPob', v)} readOnly={readOnly} />
@@ -4473,7 +6582,7 @@ function AddOwnershipPage({
                     aria-checked={personForm.usCitizen}
                     disabled={readOnly}
                     onClick={() => setPerson('usCitizen', !personForm.usCitizen)}
-                    className={`relative w-10 h-5 rounded-full transition-colors mt-1 ${personForm.usCitizen ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
+                    className={`relative w-10 h-5 rounded-full transition-colors mt-1 ${personForm.usCitizen ? 'bg-[#12518c]' : 'bg-slate-300'}`}
                   >
                     <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${personForm.usCitizen ? 'translate-x-5' : ''}`} />
                   </button>
@@ -4536,7 +6645,7 @@ function AddOwnershipPage({
                                   <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
                                 </svg>
                               </button>
-                              <button type="button" onClick={() => removeEmployment(e.id)} disabled={readOnly} className="p-1.5 rounded-md text-slate-400 hover:text-[#ea5054] hover:bg-red-50 transition-colors disabled:opacity-50" title="Delete">
+                              <button type="button" onClick={() => removeEmployment(e.id)} disabled={readOnly} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors disabled:opacity-50" title="Delete">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                                   <path d="M3 6h18" />
                                   <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -4565,7 +6674,7 @@ function AddOwnershipPage({
                   <OwnershipFormField label="Cancellation Date" value={personForm.cancellationDate} onChange={v => setPerson('cancellationDate', v)} readOnly={readOnly} placeholder="MM-DD-YYYY" type="date" />
                 </div>
                 {(errors.ownershipPct || errors.effectiveDate) && (
-                  <p className="text-[11px] text-[#ea5054]">Ownership % and Effective Date are required when the person holds ownership.</p>
+                  <p className="text-[11px] text-[#bb5757]">Ownership % and Effective Date are required when the person holds ownership.</p>
                 )}
               </OwnershipFormSection>
             )}
@@ -4629,12 +6738,12 @@ function AddOwnershipPage({
                 ]}
               />
               <OwnershipFormSelect label="Entity Type" required value={subForm.entityType} onChange={v => setSub('entityType', v)} readOnly={readOnly} options={['LLC', 'Corporation', 'Partnership', 'LP', 'LLP']} />
-              {errors.entityType && <p className="text-[11px] text-[#ea5054] -mt-2">Entity Type is required.</p>}
+              {errors.entityType && <p className="text-[11px] text-[#bb5757] -mt-2">Entity Type is required.</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <OwnershipFormField label="Entity Name" required value={subForm.entityName} onChange={v => setSub('entityName', v)} readOnly={readOnly} />
                 <OwnershipFormField label="EIN" value={subForm.ein} onChange={v => setSub('ein', v)} readOnly={readOnly} placeholder="XX-XXXXXXX" />
               </div>
-              {errors.entityName && <p className="text-[11px] text-[#ea5054] -mt-2">Entity Name is required.</p>}
+              {errors.entityName && <p className="text-[11px] text-[#bb5757] -mt-2">Entity Name is required.</p>}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <OwnershipFormField label="Phone" value={subForm.phone} onChange={v => setSub('phone', v)} readOnly={readOnly} />
                 <OwnershipFormField label="Extension" value={subForm.extension} onChange={v => setSub('extension', v)} readOnly={readOnly} />
@@ -4666,7 +6775,7 @@ function AddOwnershipPage({
                 <OwnershipFormField label="Cancellation Date" value={subForm.cancellationDate} onChange={v => setSub('cancellationDate', v)} readOnly={readOnly} type="date" />
               </div>
               {(errors.ownershipPct || errors.effectiveDate) && (
-                <p className="text-[11px] text-[#ea5054]">Ownership % and Effective Date are required.</p>
+                <p className="text-[11px] text-[#bb5757]">Ownership % and Effective Date are required.</p>
               )}
             </OwnershipFormSection>
 
@@ -4817,16 +6926,16 @@ function CompanyOwnershipPage({
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#7563fb]">Ownership</h2>
+              <h2 className="text-sm font-semibold text-[#12518c]">Ownership</h2>
               <p className="text-xs text-slate-500">Owners and equity holders for this company</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold text-slate-700">
               Total Ownership %:
-              <span className="text-[#7563fb]">{totalOwnershipPct.toFixed(2)}</span>
+              <span className="text-[#12518c]">{totalOwnershipPct.toFixed(2)}</span>
             </span>
             <AddressSearchInput value={search} onChange={setSearch} />
             <button
@@ -4882,7 +6991,7 @@ function CompanyOwnershipPage({
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${
                         o.principalType === 'sub-company'
-                          ? 'bg-indigo-50 text-indigo-700'
+                          ? 'bg-[#12518c]/10 text-[#12518c]'
                           : 'bg-violet-50 text-violet-700'
                       }`}>
                         {o.principalType === 'sub-company' ? 'Sub-Co' : 'Person'}
@@ -4896,7 +7005,7 @@ function CompanyOwnershipPage({
                     <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{o.cancellationDate || '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-0.5">
-                        <button type="button" onClick={() => openView(o)} className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors" title="View">
+                        <button type="button" onClick={() => openView(o)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
                           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
                             <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
                             <circle cx="8" cy="8" r="1.75" />
@@ -4910,7 +7019,7 @@ function CompanyOwnershipPage({
                         <button
                           type="button"
                           onClick={() => setVariationOwner(o)}
-                          className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors"
+                          className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                           title="Add Variation"
                         >
                           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -4919,7 +7028,7 @@ function CompanyOwnershipPage({
                             <path d="M9.5 8.5v3M8 10h3" />
                           </svg>
                         </button>
-                        <button type="button" onClick={() => setDeleteConfirmId(o.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#ea5054] hover:bg-red-50 transition-colors" title="Delete">
+                        <button type="button" onClick={() => setDeleteConfirmId(o.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 6h18" />
                             <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -5004,7 +7113,7 @@ function OwnershipVariationModal({
     <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
               <path d="M10.5 5.5V4.2A1.2 1.2 0 0 0 9.3 3H4.2A1.2 1.2 0 0 0 3 4.2v5.1A1.2 1.2 0 0 0 4.2 10.5H5.5" />
@@ -5025,8 +7134,8 @@ function OwnershipVariationModal({
 
       <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
         {/* Base record context */}
-        <div className="flex items-center gap-3 rounded-xl border border-[#7563fb]/20 bg-[#7563fb]/5 px-4 py-3">
-          <span className="w-8 h-8 rounded-full bg-white border border-[#7563fb]/25 text-[#7563fb] flex items-center justify-center text-xs font-bold flex-shrink-0">
+        <div className="flex items-center gap-3 rounded-xl border border-[#12518c]/20 bg-[#12518c]/5 px-4 py-3">
+          <span className="w-8 h-8 rounded-full bg-white border border-[#12518c]/25 text-[#12518c] flex items-center justify-center text-xs font-bold flex-shrink-0">
             {owner.name.trim().charAt(0).toUpperCase()}
           </span>
           <div className="min-w-0">
@@ -5052,7 +7161,7 @@ function OwnershipVariationModal({
                 options={['OOS', 'OPS']}
                 placeholder="Select…"
               />
-              {errors.department && <p className="mt-1 text-[11px] text-[#ea5054]">Department is required.</p>}
+              {errors.department && <p className="mt-1 text-[11px] text-[#bb5757]">Department is required.</p>}
             </div>
             <div>
               <OwnershipFormField
@@ -5062,7 +7171,7 @@ function OwnershipVariationModal({
                 onChange={v => set('label', v)}
                 placeholder="e.g. DTC Filing Name"
               />
-              {errors.label && <p className="mt-1 text-[11px] text-[#ea5054]">Label is required.</p>}
+              {errors.label && <p className="mt-1 text-[11px] text-[#bb5757]">Label is required.</p>}
             </div>
           </div>
         </div>
@@ -5105,7 +7214,7 @@ function OwnershipVariationModal({
                     options={['Owner', 'Officer', 'Director', 'Manager', 'Member', 'Partner']}
                     placeholder="Select…"
                   />
-                  {errors.personProfileType && <p className="mt-1 text-[11px] text-[#ea5054]">Person Profile Type is required.</p>}
+                  {errors.personProfileType && <p className="mt-1 text-[11px] text-[#bb5757]">Person Profile Type is required.</p>}
                 </div>
               </div>
             ) : (
@@ -5128,12 +7237,48 @@ function OwnershipVariationModal({
         <button
           type="button"
           onClick={handleSave}
-          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#7563fb] hover:bg-[#6352e8] transition-colors"
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
         >
           Save Variation
         </button>
       </div>
     </AddressModalShell>
+  )
+}
+
+function ReportSecretCell({ value, label }: { value: string; label: string }) {
+  const [revealed, setRevealed] = useState(false)
+
+  if (!value) {
+    return <span className="text-slate-400">—</span>
+  }
+
+  return (
+    <div className="group inline-flex min-w-[72px] items-center gap-1.5">
+      <span className="font-mono text-sm text-slate-500">
+        {revealed ? value : '•'.repeat(Math.min(Math.max(value.length, 4), 8))}
+      </span>
+      <button
+        type="button"
+        onClick={() => setRevealed(current => !current)}
+        className={`rounded-md p-1 text-slate-400 transition-all hover:bg-slate-100 hover:text-[#12518c] ${
+          revealed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+        }`}
+        aria-label={revealed ? `Hide ${label}` : `Show ${label}`}
+        title={revealed ? `Hide ${label}` : `Show ${label}`}
+      >
+        {revealed ? (
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+            <path d="M2 2l12 12M6.5 6.7A3 3 0 0 0 8 11a3 3 0 0 0 2.9-2.2M4.2 4.3C2.7 5.4 1.5 7 1.5 8s2.5 4.5 6.5 4.5c1.1 0 2.1-.3 3-.8M11 5.5A3 3 0 0 1 12.5 8" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
+            <circle cx="8" cy="8" r="2" />
+          </svg>
+        )}
+      </button>
+    </div>
   )
 }
 
@@ -5151,7 +7296,6 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   const [itemFilter, setItemFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [renewalFilter, setRenewalFilter] = useState('')
-  const [page, setPage] = useState(1)
   const [reportSearch, setReportSearch] = useState('')
   const [reportPage, setReportPage] = useState(1)
   const [reportStateFilter, setReportStateFilter] = useState('')
@@ -5168,6 +7312,8 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   const [editReport, setEditReport] = useState<ReportRow | null>(null)
   const [deleteReportId, setDeleteReportId] = useState<number | null>(null)
   const [viewLicense, setViewLicense] = useState<LicenseRow | null>(null)
+  const [editLicense, setEditLicense] = useState<LicenseRow | null>(null)
+  const [reportLicense, setReportLicense] = useState<LicenseRow | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [addOpen, setAddOpen] = useState(false)
 
@@ -5258,10 +7404,42 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
       key={r.id}
       className={`border-b border-slate-100 hover:bg-slate-50/80 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'} ${r.active ? '' : 'opacity-60'}`}
     >
+      <td className="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state}</td>
+      <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.func}</td>
+      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.filingFrequency}</td>
+      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.type}</td>
+      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.filingType}</td>
+      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.accountNo || '—'}</td>
+      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.dueDate || '—'}</td>
+      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.login || '—'}</td>
+      <td className="px-4 py-3 whitespace-nowrap"><ReportSecretCell value={r.password} label="password" /></td>
+      <td className="px-4 py-3 whitespace-nowrap"><ReportSecretCell value={r.pin} label="PIN" /></td>
+      <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px] truncate" title={r.reportingNotes}>{r.reportingNotes || '—'}</td>
+      <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px] truncate" title={r.filingNotes}>{r.filingNotes || '—'}</td>
+      <td className="px-4 py-3">
+        <div className="flex justify-center">
+          {opts.actions ? (
+            <button
+              type="button"
+              onClick={() => toggleReportActive(r.id)}
+              role="switch"
+              aria-checked={r.active}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${r.active ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+              title={r.active ? 'Active' : 'Inactive'}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${r.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </button>
+          ) : (
+            <span className={`relative inline-flex h-5 w-9 items-center rounded-full ${r.active ? 'bg-[#12518c]/50' : 'bg-slate-300'}`}>
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ${r.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </span>
+          )}
+        </div>
+      </td>
       {opts.actions && (
         <td className="px-4 py-3">
-          <div className="flex items-center gap-0.5">
-            <button type="button" onClick={() => setViewReport(r)} className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors" title="View">
+          <div className="flex items-center justify-center gap-0.5">
+            <button type="button" onClick={() => setViewReport(r)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
                 <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
                 <circle cx="8" cy="8" r="1.75" />
@@ -5272,41 +7450,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
               </svg>
             </button>
-          </div>
-        </td>
-      )}
-      <td className="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state}</td>
-      <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.func}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.filingFrequency}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.type}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.filingType}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.accountNo || '—'}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.dueDate || '—'}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.login || '—'}</td>
-      <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap font-mono">{r.password || '—'}</td>
-      <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap font-mono">{r.pin || '—'}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px] truncate" title={r.reportingNotes}>{r.reportingNotes || '—'}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px] truncate" title={r.filingNotes}>{r.filingNotes || '—'}</td>
-      <td className="px-4 py-3">
-        <div className="flex items-center justify-center gap-1.5">
-          {opts.actions ? (
-            <button
-              type="button"
-              onClick={() => toggleReportActive(r.id)}
-              role="switch"
-              aria-checked={r.active}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${r.active ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
-              title={r.active ? 'Active' : 'Inactive'}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${r.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
-            </button>
-          ) : (
-            <span className={`relative inline-flex h-5 w-9 items-center rounded-full ${r.active ? 'bg-[#7563fb]/50' : 'bg-slate-300'}`}>
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ${r.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
-            </span>
-          )}
-          {opts.actions && (
-            <button type="button" onClick={() => setDeleteReportId(r.id)} className="p-1 rounded-md text-slate-400 hover:text-[#ea5054] hover:bg-red-50 transition-colors" title="Delete">
+            <button type="button" onClick={() => setDeleteReportId(r.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 6h18" />
                 <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -5314,15 +7458,17 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <path d="M10 11v6M14 11v6" />
               </svg>
             </button>
-          )}
-        </div>
-      </td>
+          </div>
+        </td>
+      )}
     </tr>
   )
 
   const activeCount = licenses.filter(l => l.status === 'Active').length
   const expiredCount = licenses.filter(l => l.actionIn === 'Expired').length
   const canceledCount = licenses.filter(l => l.status === 'Canceled').length
+  const reportActiveCount = reportRows.filter(r => r.active).length
+  const reportInactiveCount = reportRows.filter(r => !r.active).length
   const filtersActive = !!(stateFilter || funcFilter || itemFilter || statusFilter || renewalFilter || search)
 
   const clearFilters = () => {
@@ -5332,7 +7478,6 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     setItemFilter('')
     setStatusFilter('')
     setRenewalFilter('')
-    setPage(1)
   }
 
   const removeLicense = (id: number) => {
@@ -5346,13 +7491,16 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     if (!addAnother) setAddOpen(false)
   }
 
-  const filterSelectClass =
-    'h-9 min-w-[130px] px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
+  const updateLicense = (data: Omit<LicenseRow, 'id'>) => {
+    if (!editLicense) return
+    setLicenses(prev => prev.map(l => (l.id === editLicense.id ? { ...l, ...data } : l)))
+    setEditLicense(null)
+  }
 
   const licenseColumns = [
     'State',
     'City/County',
-    'Func',
+    'Function',
     'Item',
     'Item Name',
     'License / Permit #',
@@ -5377,7 +7525,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     'Pin',
     'Reporting Notes',
     'Filing Notes',
-    'Active/Inactive',
+    'Status',
   ] as const
 
   return (
@@ -5393,13 +7541,13 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 type="button"
                 onClick={() => setSubTab(t)}
                 className={`relative px-4 py-3 text-xs font-semibold whitespace-nowrap transition-colors ${
-                  active ? 'text-[#7563fb]' : 'text-slate-500 hover:text-slate-800'
+                  active ? 'text-[#12518c]' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {t}
                 <span
                   className={`absolute left-2 right-2 bottom-0 h-0.5 rounded-full ${
-                    active ? 'bg-[#7563fb]' : 'bg-transparent'
+                    active ? 'bg-[#12518c]' : 'bg-transparent'
                   }`}
                 />
               </button>
@@ -5412,9 +7560,9 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
             {/* Header + stats */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
               <div className="flex items-center gap-2.5 min-w-0">
-                <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+                <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
                 <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-[#7563fb]">Licensing Summary</h2>
+                  <h2 className="text-sm font-semibold text-[#12518c]">Licensing Summary</h2>
                   <p className="text-xs text-slate-500">Company ID {companyId} · permits, bonds, and state licenses</p>
                 </div>
               </div>
@@ -5422,7 +7570,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-[11px] font-semibold text-emerald-700">
                   Active <span className="tabular-nums">{activeCount}</span>
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50 text-[11px] font-semibold text-[#ea5054]">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-danger-light text-[11px] font-semibold text-[#bb5757]">
                   Expired <span className="tabular-nums">{expiredCount}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">
@@ -5448,26 +7596,26 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-slate-100 bg-white">
-              <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-              <select value={stateFilter} onChange={e => { setStateFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+            <div className="flex flex-wrap items-center justify-end gap-2 px-5 py-3 border-b border-slate-100 bg-white">
+              <AddressSearchInput value={search} onChange={v => setSearch(v)} />
+              <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} className={filterSelectClassName(stateFilter)}>
                 <option value="">State / State Code</option>
                 {states.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              <select value={funcFilter} onChange={e => { setFuncFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={funcFilter} onChange={e => setFuncFilter(e.target.value)} className={filterSelectClassName(funcFilter)}>
                 <option value="">Function</option>
                 {funcs.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
-              <select value={itemFilter} onChange={e => { setItemFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={itemFilter} onChange={e => setItemFilter(e.target.value)} className={filterSelectClassName(itemFilter)}>
                 <option value="">Item</option>
                 {items.map(it => <option key={it} value={it}>{it}</option>)}
               </select>
-              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={filterSelectClassName(statusFilter)}>
                 <option value="">Item Status</option>
                 <option value="Active">Active</option>
                 <option value="Canceled">Canceled</option>
               </select>
-              <select value={renewalFilter} onChange={e => { setRenewalFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={renewalFilter} onChange={e => setRenewalFilter(e.target.value)} className={filterSelectClassName(renewalFilter)}>
                 <option value="">Renewal Timing</option>
                 <option value="Expired">Expired</option>
                 <option value="Due Soon">Due Soon (≤30 days)</option>
@@ -5477,12 +7625,12 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="h-9 px-3 rounded-lg text-xs font-semibold text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors"
+                  className="h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                 >
                   Clear filters
                 </button>
               )}
-              <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors ml-auto" title="Column settings">
+              <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Column settings">
                 <GridViewIcon />
               </button>
             </div>
@@ -5529,9 +7677,9 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                         <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.expiration || '—'}</td>
                         <td className="px-3 py-3 whitespace-nowrap">
                           {l.actionIn === 'Expired' ? (
-                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ea5054] text-white">Expired</span>
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#bb5757] text-white">Expired</span>
                           ) : Number(l.actionIn) <= 30 ? (
-                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">{l.actionIn}d</span>
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#e1c16e]/30 text-[#8a6d24]">{l.actionIn}d</span>
                           ) : (
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">{l.actionIn}d</span>
                           )}
@@ -5548,24 +7696,24 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                         <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap max-w-[140px] truncate" title={l.comment}>{l.comment || '—'}</td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-center gap-0.5">
-                            <button type="button" onClick={() => setViewLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors" title="View">
+                            <button type="button" onClick={() => setViewLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
                               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
                                 <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
                                 <circle cx="8" cy="8" r="1.75" />
                               </svg>
                             </button>
-                            <button type="button" className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
+                            <button type="button" onClick={() => setEditLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
                               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
                                 <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
                               </svg>
                             </button>
-                            <button type="button" className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors" title="Documents">
+                            <button type="button" onClick={() => setReportLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="Report">
                               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
                                 <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
                                 <path d="M9.5 2.5V6H13" />
                               </svg>
                             </button>
-                            <button type="button" onClick={() => setDeleteId(l.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#ea5054] hover:bg-red-50 transition-colors" title="Delete">
+                            <button type="button" onClick={() => setDeleteId(l.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
                               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M3 6h18" />
                                 <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -5581,100 +7729,110 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 </tbody>
               </table>
             </div>
-
-            <AddressTableFooter total={filteredLicenses.length} page={page} onPageChange={setPage} />
           </>
-        ) : null}
-      </div>
-
-      {subTab === 'Reporting Summary' && (
-        <>
-          {/* Current Reports */}
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
-                  <div className="min-w-0">
-                    <h2 className="text-sm font-semibold text-[#7563fb]">Current Reports</h2>
-                    <p className="text-xs text-slate-500">Active filing schedules and credentials</p>
-                  </div>
-                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#7563fb]/10 text-[10px] font-bold text-[#7563fb]">{filteredReports.length}</span>
+        ) : (
+          <>
+            {/* Header + stats */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold text-[#12518c]">Reporting Summary</h2>
+                  <p className="text-xs text-slate-500">Company ID {companyId} · filing schedules, credentials, and due dates</p>
                 </div>
-                <div className="flex flex-col items-end gap-2 min-w-0">
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <AddressSearchInput value={reportSearch} onChange={v => { setReportSearch(v); setReportPage(1) }} />
-                    <select value={reportStateFilter} onChange={e => { setReportStateFilter(e.target.value); setReportPage(1) }} className={filterSelectClass}>
-                      <option value="">State</option>
-                      {reportStates.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select value={reportFuncFilter} onChange={e => { setReportFuncFilter(e.target.value); setReportPage(1) }} className={filterSelectClass}>
-                      <option value="">Function</option>
-                      {reportFuncs.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select value={reportTypeFilter} onChange={e => { setReportTypeFilter(e.target.value); setReportPage(1) }} className={filterSelectClass}>
-                      <option value="">Report Type</option>
-                      {reportTypes.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select value={reportFilingTypeFilter} onChange={e => { setReportFilingTypeFilter(e.target.value); setReportPage(1) }} className={filterSelectClass}>
-                      <option value="">Filing Type</option>
-                      {reportFilingTypes.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select value={reportFreqFilter} onChange={e => { setReportFreqFilter(e.target.value); setReportPage(1) }} className={filterSelectClass}>
-                      <option value="">Filing Frequency</option>
-                      {reportFreqs.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select value={reportDueFilter} onChange={e => { setReportDueFilter(e.target.value); setReportPage(1) }} className={filterSelectClass}>
-                      <option value="">Due Date</option>
-                      {reportDues.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    {reportFiltersActive && (
-                      <button type="button" onClick={clearReportFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors">
-                        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                          <path d="M3 3l8 8M11 3l-8 8" />
-                        </svg>
-                        Clear
-                      </button>
-                    )}
-                    <button type="button" className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors">
-                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M8 2v8M5 7l3 3 3-3" />
-                        <path d="M3 13h10" />
-                      </svg>
-                      Export
-                    </button>
-                  </div>
-                  <p className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                      <circle cx="8" cy="8" r="6.5" /><path d="M8 7.5v3.5M8 5h.01" strokeLinecap="round" />
-                    </svg>
-                    Note: Search does not affect export.
-                  </p>
-                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-[11px] font-semibold text-emerald-700">
+                  Active <span className="tabular-nums">{reportActiveCount}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">
+                  Inactive <span className="tabular-nums">{reportInactiveCount}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-[11px] font-semibold text-sky-700">
+                  Total <span className="tabular-nums">{filteredReports.length}</span>
+                </span>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+                >
+                  Export
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEditReport(null); setAddReportOpen(true) }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                    <path d="M6 2.5v7M2.5 6h7" />
+                  </svg>
+                  Add New
+                </button>
               </div>
             </div>
 
+            {/* Filters */}
+            <div className="flex flex-wrap items-center justify-end gap-2 px-5 py-3 border-b border-slate-100 bg-white">
+              <AddressSearchInput value={reportSearch} onChange={v => { setReportSearch(v); setReportPage(1) }} />
+              <select value={reportStateFilter} onChange={e => { setReportStateFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportStateFilter)}>
+                <option value="">State</option>
+                {reportStates.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={reportFuncFilter} onChange={e => { setReportFuncFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportFuncFilter)}>
+                <option value="">Function</option>
+                {reportFuncs.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={reportTypeFilter} onChange={e => { setReportTypeFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportTypeFilter)}>
+                <option value="">Report Type</option>
+                {reportTypes.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={reportFilingTypeFilter} onChange={e => { setReportFilingTypeFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportFilingTypeFilter)}>
+                <option value="">Filing Type</option>
+                {reportFilingTypes.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={reportFreqFilter} onChange={e => { setReportFreqFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportFreqFilter)}>
+                <option value="">Filing Frequency</option>
+                {reportFreqs.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={reportDueFilter} onChange={e => { setReportDueFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportDueFilter)}>
+                <option value="">Due Date</option>
+                {reportDues.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {reportFiltersActive && (
+                <button
+                  type="button"
+                  onClick={clearReportFilters}
+                  className="h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
+              <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Column settings">
+                <GridViewIcon />
+              </button>
+            </div>
+
+            {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1200px]">
                 <thead>
                   <tr className="border-y border-slate-100 bg-slate-50/60">
-                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Action</th>
                     {reportColumns.map((h) => (
                       <th
                         key={h}
-                        className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                          h === 'Active/Inactive' ? 'text-center' : 'text-left'
+                        className={`px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
+                          h === 'Status' ? 'text-center' : 'text-left'
                         }`}
                       >
                         {h}
                       </th>
                     ))}
+                    <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredReports.length === 0 ? (
                     <tr>
-                      <td colSpan={reportColumns.length + 1} className="px-4 py-12 text-center text-sm text-slate-400">No reports found.</td>
+                      <td colSpan={reportColumns.length + 1} className="px-4 py-12 text-center text-sm text-slate-400">No reports match your filters.</td>
                     </tr>
                   ) : (
                     filteredReports.map((r, i) => renderReportRow(r, i, { actions: true }))
@@ -5684,69 +7842,74 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
             </div>
 
             <AddressTableFooter total={filteredReports.length} page={reportPage} onPageChange={setReportPage} />
-          </section>
 
-          {/* Past Reports */}
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setPastReportsOpen(o => !o)}
-              className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white hover:bg-slate-50/60 transition-colors"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <svg
-                  width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                  className={`text-slate-400 transition-transform flex-shrink-0 ${pastReportsOpen ? 'rotate-90' : ''}`}
-                >
-                  <path d="M6 4l4 4-4 4" />
-                </svg>
-                <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
-                <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-[#7563fb]">Past Reports</h2>
-                  <p className="text-xs text-slate-500">Archived / inactive filings</p>
+            {/* Past Reports */}
+            <div className="border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setPastReportsOpen(o => !o)}
+                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left bg-gradient-to-r from-slate-50/80 to-white hover:bg-slate-50/60 transition-colors"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <svg
+                    width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                    className={`text-slate-400 transition-transform flex-shrink-0 ${pastReportsOpen ? 'rotate-90' : ''}`}
+                  >
+                    <path d="M6 4l4 4-4 4" />
+                  </svg>
+                  <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-semibold text-[#12518c]">Past Reports</h2>
+                    <p className="text-xs text-slate-500">Archived / inactive filings</p>
+                  </div>
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{pastReports.length}</span>
                 </div>
-                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{pastReports.length}</span>
-              </div>
-            </button>
+              </button>
 
-            {pastReportsOpen && (
-              <>
-                <div className="flex justify-end px-5 py-3 border-b border-slate-100">
-                  <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1120px]">
-                    <thead>
-                      <tr className="border-y border-slate-100 bg-slate-50/60">
-                        {reportColumns.map((h) => (
-                          <th
-                            key={h}
-                            className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                              h === 'Active/Inactive' ? 'text-center' : 'text-left'
-                            }`}
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredPastReports.length === 0 ? (
-                        <tr>
-                          <td colSpan={reportColumns.length} className="px-4 py-10 text-center text-sm text-slate-400">No record found!</td>
+              {pastReportsOpen && (
+                <>
+                  <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-y border-slate-100 bg-white">
+                    <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
+                    <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors ml-auto" title="Column settings">
+                      <GridViewIcon />
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1120px]">
+                      <thead>
+                        <tr className="border-y border-slate-100 bg-slate-50/60">
+                          {reportColumns.map((h) => (
+                            <th
+                              key={h}
+                              className={`px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
+                                h === 'Status' ? 'text-center' : 'text-left'
+                              }`}
+                            >
+                              {h}
+                            </th>
+                          ))}
                         </tr>
-                      ) : (
-                        filteredPastReports.map((r, i) => renderReportRow(r, i, { actions: false }))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="px-5 py-3 text-xs text-slate-500 border-t border-slate-100">Total: {filteredPastReports.length}</div>
-              </>
-            )}
-          </section>
-        </>
-      )}
+                      </thead>
+                      <tbody>
+                        {filteredPastReports.length === 0 ? (
+                          <tr>
+                            <td colSpan={reportColumns.length} className="px-4 py-12 text-center text-sm text-slate-400">No record found!</td>
+                          </tr>
+                        ) : (
+                          filteredPastReports.map((r, i) => renderReportRow(r, i, { actions: false }))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="px-5 py-3 text-xs text-slate-500 border-t border-slate-100">
+                    Total: <span className="font-semibold text-slate-700">{filteredPastReports.length}</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
       {(addReportOpen || editReport) && (
         <AddReportModal
@@ -5755,6 +7918,21 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
           states={REPORT_STATE_CODES}
           onClose={() => { setAddReportOpen(false); setEditReport(null) }}
           onSave={saveReport}
+        />
+      )}
+
+      {reportLicense && (
+        <LicenseReportModal
+          key={reportLicense.id}
+          license={reportLicense}
+          companyId={companyId}
+          onClose={() => setReportLicense(null)}
+          onSave={(data) => {
+            const nextId = Math.max(0, ...reportRows.map(r => r.id), ...pastReports.map(r => r.id)) + 1
+            setReportRows(prev => [{ id: nextId, ...data }, ...prev])
+            setReportLicense(null)
+            setSubTab('Reporting Summary')
+          }}
         />
       )}
 
@@ -5804,7 +7982,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
         <AddressModalShell maxWidth="max-w-sm" onClose={() => setDeleteReportId(null)}>
           <div className="px-5 py-5">
             <div className="flex items-start gap-3">
-              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-red-50 text-[#ea5054] shrink-0">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-danger-light text-[#bb5757] shrink-0">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 6h18" />
                   <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -5821,7 +7999,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
             <button type="button" onClick={() => setDeleteReportId(null)} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">
               Cancel
             </button>
-            <button type="button" onClick={() => removeReport(deleteReportId)} className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#ea5054] text-white hover:bg-[#d8464a] transition-colors">
+            <button type="button" onClick={() => removeReport(deleteReportId)} className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#bb5757] text-white hover:bg-[#a64a4a] transition-colors">
               Delete
             </button>
           </div>
@@ -5829,49 +8007,14 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
       )}
 
       {viewLicense && (
-        <AddressModalShell maxWidth="max-w-lg" onClose={() => setViewLicense(null)}>
-          <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">License Details</h3>
-              <p className="text-[11px] text-slate-500">{viewLicense.state} · {viewLicense.func}</p>
-            </div>
-            <button type="button" onClick={() => setViewLicense(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
-            </button>
-          </div>
-          <div className="px-5 py-5 grid grid-cols-2 gap-4">
-            {[
-              ['State', viewLicense.state],
-              ['Function', viewLicense.func],
-              ['Item', viewLicense.item || '—'],
-              ['Item Name', viewLicense.itemName || '—'],
-              ['License #', viewLicense.licenseNo || '—'],
-              ['City / County', viewLicense.cityCounty || '—'],
-              ['Renewal Due', viewLicense.renewalDue || '—'],
-              ['Expiration', viewLicense.expiration || '—'],
-              ['Action In', viewLicense.actionIn],
-              ['Status', viewLicense.status],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="text-[11px] font-medium text-slate-400 mb-0.5">{label}</p>
-                <p className="text-sm text-slate-800">{value}</p>
-              </div>
-            ))}
-            {viewLicense.comment && (
-              <div className="col-span-2">
-                <p className="text-[11px] font-medium text-slate-400 mb-0.5">Comment</p>
-                <p className="text-sm text-slate-800">{viewLicense.comment}</p>
-              </div>
-            )}
-          </div>
-          <div className="px-5 py-4 border-t border-slate-100 flex justify-end">
-            <button type="button" onClick={() => setViewLicense(null)} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">
-              Close
-            </button>
-          </div>
-        </AddressModalShell>
+        <ViewLicenseModal
+          license={viewLicense}
+          onClose={() => setViewLicense(null)}
+          onEdit={() => {
+            setEditLicense(viewLicense)
+            setViewLicense(null)
+          }}
+        />
       )}
 
       {deleteId != null && (
@@ -5891,6 +8034,14 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
           companyId={companyId}
           onClose={() => setAddOpen(false)}
           onSave={addLicense}
+        />
+      )}
+      {editLicense && (
+        <AddLicenseModal
+          companyId={companyId}
+          license={editLicense}
+          onClose={() => setEditLicense(null)}
+          onSave={(data) => updateLicense(data)}
         />
       )}
     </div>
@@ -5924,7 +8075,7 @@ function CredentialSensitiveCell({
   if (link && unlocked && value) {
     const href = value.startsWith('http') ? value : `https://${value}`
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#7563fb] hover:underline truncate block max-w-[180px]" title={value}>
+      <a href={href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#12518c] hover:underline truncate block max-w-[180px]" title={value}>
         {value}
       </a>
     )
@@ -5936,7 +8087,7 @@ function CredentialSensitiveCell({
         {display}
       </span>
       {canCopy && (
-        <button type="button" onClick={copy} className="p-1 rounded text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors flex-shrink-0" title="Copy">
+        <button type="button" onClick={copy} className="p-1 rounded text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors flex-shrink-0" title="Copy">
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
             <rect x="5.5" y="5.5" width="8" height="8" rx="1" />
             <path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5" />
@@ -5979,7 +8130,7 @@ function UnlockCredentialsModal({
     <AddressModalShell maxWidth="max-w-sm" onClose={onClose}>
       <div className="px-5 pt-5 pb-2">
         <div className="flex flex-col items-center text-center">
-          <span className="w-12 h-12 rounded-2xl bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center mb-3">
+          <span className="w-12 h-12 rounded-2xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center mb-3">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <rect x="5" y="11" width="14" height="10" rx="2" />
               <path d="M8 11V7a4 4 0 0 1 8 0v4" />
@@ -6002,7 +8153,7 @@ function UnlockCredentialsModal({
                 autoFocus
                 placeholder="Enter your password"
                 className={`w-full h-10 pl-3 pr-10 rounded-lg border text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 transition-colors ${
-                  error ? 'border-[#ea5054] focus:ring-[#ea5054]/20 focus:border-[#ea5054]' : 'border-slate-200 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
+                  error ? 'border-[#bb5757] focus:ring-[#bb5757]/20 focus:border-[#bb5757]' : 'border-slate-200 focus:ring-[#12518c]/25 focus:border-[#12518c]'
                 }`}
               />
               <button
@@ -6025,7 +8176,7 @@ function UnlockCredentialsModal({
             </div>
           </label>
           {error && (
-            <p className="mt-2 text-[11px] text-[#ea5054] flex items-center gap-1">
+            <p className="mt-2 text-[11px] text-[#bb5757] flex items-center gap-1">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <circle cx="8" cy="8" r="6" /><path d="M8 5.5v3M8 10.5h.01" />
               </svg>
@@ -6042,7 +8193,7 @@ function UnlockCredentialsModal({
           type="button"
           onClick={handleUnlock}
           disabled={submitting}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#7563fb] hover:bg-[#6352e8] transition-colors disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors disabled:opacity-60"
         >
           {submitting ? (
             <>
@@ -6075,7 +8226,6 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
   const [serviceTypeFilter, setServiceTypeFilter] = useState('')
   const [specialistFilter, setSpecialistFilter] = useState('')
   const [page, setPage] = useState(1)
-  const [notify, setNotify] = useState(true)
   const [shipCompliant, setShipCompliant] = useState(true)
   const [shipVersion, setShipVersion] = useState('Autofile')
   const [licenseType, setLicenseType] = useState('DTC')
@@ -6084,9 +8234,6 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
   const [editScope, setEditScope] = useState<ScopeRow | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<number | null>(null)
-
-  const filterSelectClass =
-    'h-9 min-w-[140px] px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
 
   const filtered = scopes.filter(s => {
     const q = search.toLowerCase()
@@ -6134,7 +8281,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
     switch (status) {
       case 'Active': return 'bg-emerald-50 text-emerald-700'
       case 'Prospect': return 'bg-sky-50 text-sky-700'
-      case 'Onboarding': return 'bg-amber-50 text-amber-700'
+      case 'Onboarding': return 'bg-[#e1c16e]/15 text-[#8a6d24]'
       case 'Offboarding': return 'bg-orange-50 text-orange-700'
       case 'Inactive': return 'bg-slate-100 text-slate-600'
       default: return 'bg-slate-100 text-slate-600'
@@ -6147,14 +8294,14 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
         <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+              <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#7563fb]">Service Scope</h2>
+                <h2 className="text-sm font-semibold text-[#12518c]">Service Scope</h2>
                 <p className="text-xs text-slate-500">Company ID {companyId} · departments, services, and specialists</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#7563fb]/10 text-[10px] font-semibold text-[#7563fb]">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12518c]/10 text-[10px] font-semibold text-[#12518c]">
                 OOS <span className="tabular-nums">{scopes.filter(s => s.department === 'OOS').length}</span>
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 text-[10px] font-semibold text-teal-700">
@@ -6175,20 +8322,20 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
 
           <div className="flex flex-wrap items-center justify-end gap-2">
             <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-            <select value={deptFilter} onChange={e => { setDeptFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+            <select value={deptFilter} onChange={e => { setDeptFilter(e.target.value); setPage(1) }} className={filterSelectClassName(deptFilter)}>
               <option value="">Department</option>
               {SCOPE_DEPARTMENTS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={serviceTypeFilter} onChange={e => { setServiceTypeFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+            <select value={serviceTypeFilter} onChange={e => { setServiceTypeFilter(e.target.value); setPage(1) }} className={filterSelectClassName(serviceTypeFilter)}>
               <option value="">Service Type</option>
               {SCOPE_SERVICE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={specialistFilter} onChange={e => { setSpecialistFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+            <select value={specialistFilter} onChange={e => { setSpecialistFilter(e.target.value); setPage(1) }} className={filterSelectClassName(specialistFilter)}>
               <option value="">Specialist</option>
               {SCOPE_SPECIALISTS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             {filtersActive && (
-              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors">
+              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                   <path d="M3 3l8 8M11 3l-8 8" />
                 </svg>
@@ -6247,7 +8394,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
                     <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{s.client || '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <button type="button" onClick={() => setViewScope(s)} className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors" title="View">
+                        <button type="button" onClick={() => setViewScope(s)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
                           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
                             <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
                             <circle cx="8" cy="8" r="1.75" />
@@ -6258,7 +8405,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
                             <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
                           </svg>
                         </button>
-                        <button type="button" onClick={() => setDeleteId(s.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#ea5054] hover:bg-red-50 transition-colors" title="Delete">
+                        <button type="button" onClick={() => setDeleteId(s.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 6h18" />
                             <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -6280,29 +8427,8 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
 
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
-          <h2 className="text-sm font-semibold text-[#7563fb]">Notifications</h2>
-        </div>
-        <div className="px-5 py-4">
-          <label className="inline-flex items-center gap-3 text-sm text-slate-700 cursor-pointer select-none">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={notify}
-              onClick={() => setNotify(n => !n)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${notify ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${notify ? 'translate-x-5' : ''}`} />
-            </button>
-            Enable Change Notification
-          </label>
-        </div>
-      </section>
-
-      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
-          <h2 className="text-sm font-semibold text-[#7563fb]">ShipCompliant</h2>
+          <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
+          <h2 className="text-sm font-semibold text-[#12518c]">ShipCompliant</h2>
         </div>
         <div className="px-5 py-5 space-y-5">
           <OwnershipRadioGroup
@@ -6350,7 +8476,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
         <AddressModalShell maxWidth="max-w-sm" onClose={() => setDeleteId(null)}>
           <div className="px-5 py-5">
             <div className="flex items-start gap-3">
-              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-red-50 text-[#ea5054] shrink-0">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-danger-light text-[#bb5757] shrink-0">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 6h18" />
                   <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -6367,7 +8493,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
             <button type="button" onClick={() => setDeleteId(null)} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">
               Cancel
             </button>
-            <button type="button" onClick={() => removeScope(deleteId)} className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#ea5054] text-white hover:bg-[#d8464a] transition-colors">
+            <button type="button" onClick={() => removeScope(deleteId)} className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#bb5757] text-white hover:bg-[#a64a4a] transition-colors">
               Delete
             </button>
           </div>
@@ -6403,7 +8529,7 @@ function ViewScopeModal({
     <AddressModalShell maxWidth="max-w-3xl" onClose={onClose}>
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M8 14s-5-3.2-5-7a3 3 0 0 1 5-2.2A3 3 0 0 1 13 7c0 3.8-5 7-5 7z" />
             </svg>
@@ -6521,7 +8647,7 @@ function AddScopeModal({
     <AddressModalShell maxWidth="max-w-3xl" onClose={onClose}>
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M8 14s-5-3.2-5-7a3 3 0 0 1 5-2.2A3 3 0 0 1 13 7c0 3.8-5 7-5 7z" />
             </svg>
@@ -6549,7 +8675,7 @@ function AddScopeModal({
               options={SCOPE_DEPARTMENTS}
               placeholder="Select…"
             />
-            {errors.department && <p className="mt-1 text-[11px] text-[#ea5054]">Department is required.</p>}
+            {errors.department && <p className="mt-1 text-[11px] text-[#bb5757]">Department is required.</p>}
           </div>
           <div>
             <OwnershipFormSelect
@@ -6560,7 +8686,7 @@ function AddScopeModal({
               options={SCOPE_SERVICE_TYPES}
               placeholder="Select…"
             />
-            {errors.serviceType && <p className="mt-1 text-[11px] text-[#ea5054]">Service Type is required.</p>}
+            {errors.serviceType && <p className="mt-1 text-[11px] text-[#bb5757]">Service Type is required.</p>}
           </div>
         </div>
 
@@ -6581,7 +8707,7 @@ function AddScopeModal({
               options={SCOPE_STATUSES}
               placeholder="Select…"
             />
-            {errors.status && <p className="mt-1 text-[11px] text-[#ea5054]">Status is required.</p>}
+            {errors.status && <p className="mt-1 text-[11px] text-[#bb5757]">Status is required.</p>}
           </div>
         </div>
 
@@ -6606,7 +8732,7 @@ function AddScopeModal({
           <button
             type="button"
             onClick={() => handleSave(true)}
-            className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#7563fb]/30 text-[#7563fb] bg-white hover:bg-[#7563fb]/5 transition-colors"
+            className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#12518c]/30 text-[#12518c] bg-white hover:bg-[#12518c]/5 transition-colors"
           >
             Save And Add New
           </button>
@@ -6638,10 +8764,8 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
   const [restoreEntry, setRestoreEntry] = useState<ChangeLogRow | null>(null)
   const [sortDesc, setSortDesc] = useState(true)
 
-  const filterSelectClass =
-    'h-9 min-w-[130px] px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
   const dateInputClass =
-    'h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
+    'h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]'
 
   const parseLogDate = (value: string) => {
     const match = value.match(/(\d{2})\/(\d{2})\/(\d{4})/)
@@ -6695,7 +8819,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
     switch (type) {
       case 'Add': return 'bg-emerald-50 text-emerald-700'
       case 'Update': return 'bg-sky-50 text-sky-700'
-      case 'Delete': return 'bg-red-50 text-[#ea5054]'
+      case 'Delete': return 'bg-danger-light text-[#bb5757]'
       default: return 'bg-slate-100 text-slate-600'
     }
   }
@@ -6723,24 +8847,24 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
         <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+              <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#7563fb]">Change Log</h2>
+                <h2 className="text-sm font-semibold text-[#12518c]">Change Log</h2>
                 <p className="text-xs text-slate-500">Company ID {companyId} · audit trail of record changes</p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
               <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-              <select value={tabFilter} onChange={e => { setTabFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={tabFilter} onChange={e => { setTabFilter(e.target.value); setPage(1) }} className={filterSelectClassName(tabFilter)}>
                 <option value="">Tab</option>
                 {CHANGE_LOG_TABS.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
-              <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className={filterSelectClassName(typeFilter)}>
                 <option value="">Change Type</option>
                 {CHANGE_LOG_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
-              <select value={requesterFilter} onChange={e => { setRequesterFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={requesterFilter} onChange={e => { setRequesterFilter(e.target.value); setPage(1) }} className={filterSelectClassName(requesterFilter)}>
                 <option value="">Requested By</option>
                 {CHANGE_LOG_REQUESTERS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
@@ -6753,7 +8877,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                 <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1) }} className={dateInputClass} />
               </label>
               {filtersActive && (
-                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors">
+                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
                   <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                     <path d="M3 3l8 8M11 3l-8 8" />
                   </svg>
@@ -6857,7 +8981,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                           <button
                             type="button"
                             onClick={() => setViewEntry(e)}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                             title="View change details"
                           >
                             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -6966,7 +9090,7 @@ function ViewChangeLogModal({
     switch (type) {
       case 'Add': return 'bg-emerald-50 text-emerald-700'
       case 'Update': return 'bg-sky-50 text-sky-700'
-      case 'Delete': return 'bg-red-50 text-[#ea5054]'
+      case 'Delete': return 'bg-danger-light text-[#bb5757]'
       default: return 'bg-slate-100 text-slate-600'
     }
   }
@@ -6975,7 +9099,7 @@ function ViewChangeLogModal({
     <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2.5 8a5.5 5.5 0 0 1 9.4-3.9" />
               <path d="M13.5 8a5.5 5.5 0 0 1-9.4 3.9" />
@@ -7046,9 +9170,6 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
   const [page, setPage] = useState(1)
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
-  const filterSelectClass =
-    'h-9 min-w-[140px] px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
-
   const filtered = rows.filter(r => {
     const q = search.toLowerCase()
     const matchesSearch =
@@ -7078,21 +9199,21 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
         <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+              <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#7563fb]">Work Stop</h2>
+                <h2 className="text-sm font-semibold text-[#12518c]">Work Stop</h2>
                 <p className="text-xs text-slate-500">Company ID {companyId} · pause history and day counts</p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
               <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
-                <option value="">Select Status</option>
+              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className={filterSelectClassName(statusFilter)}>
+                <option value="">Status</option>
                 {WORK_STOP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               {filtersActive && (
-                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors">
+                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
                   <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                     <path d="M3 3l8 8M11 3l-8 8" />
                   </svg>
@@ -7135,7 +9256,7 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
                   >
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        r.status === 'Work Stop' ? 'bg-red-50 text-[#ea5054]' : 'bg-amber-50 text-amber-700'
+                        r.status === 'Work Stop' ? 'bg-danger-light text-[#bb5757]' : 'bg-[#e1c16e]/15 text-[#8a6d24]'
                       }`}>
                         {r.status}
                       </span>
@@ -7148,7 +9269,7 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
                         <button
                           type="button"
                           onClick={() => setDeleteId(r.id)}
-                          className="p-1.5 rounded-md text-slate-400 hover:text-[#ea5054] hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                           title="Delete"
                         >
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -7174,7 +9295,7 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
         <AddressModalShell maxWidth="max-w-sm" onClose={() => setDeleteId(null)}>
           <div className="px-5 py-5">
             <div className="flex items-start gap-3">
-              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-red-50 text-[#ea5054] shrink-0">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-danger-light text-[#bb5757] shrink-0">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 6h18" />
                   <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -7191,7 +9312,7 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
             <button type="button" onClick={() => setDeleteId(null)} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">
               Cancel
             </button>
-            <button type="button" onClick={() => removeRow(deleteId)} className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#ea5054] text-white hover:bg-[#d8464a] transition-colors">
+            <button type="button" onClick={() => removeRow(deleteId)} className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#bb5757] text-white hover:bg-[#a64a4a] transition-colors">
               Delete
             </button>
           </div>
@@ -7219,9 +9340,6 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editActivity, setEditActivity] = useState<ActivityRow | null>(null)
-
-  const filterSelectClass =
-    'h-9 min-w-[120px] px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
 
   const parseActivityDate = (value: string) => {
     const parsed = new Date(value.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$1-$2'))
@@ -7291,8 +9409,8 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
   const flagClass = (flag: string) => {
     switch (flag) {
       case 'Green': return 'bg-emerald-50 text-emerald-700 ring-emerald-200/60'
-      case 'Yellow': return 'bg-amber-50 text-amber-700 ring-amber-200/60'
-      case 'Red': return 'bg-red-50 text-[#ea5054] ring-red-200/60'
+      case 'Yellow': return 'bg-[#e1c16e]/15 text-[#8a6d24] ring-[#e1c16e]/60'
+      case 'Red': return 'bg-danger-light text-[#bb5757] ring-danger-border/60'
       case 'Blue': return 'bg-sky-50 text-sky-700 ring-sky-200/60'
       default: return 'bg-slate-100 text-slate-600 ring-slate-200/60'
     }
@@ -7300,9 +9418,9 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
 
   const statusClass = (status: string) => {
     switch (status) {
-      case 'Open': return 'bg-[#7563fb]/10 text-[#7563fb]'
+      case 'Open': return 'bg-[#12518c]/10 text-[#12518c]'
       case 'In Progress': return 'bg-sky-50 text-sky-700'
-      case 'Pending': return 'bg-amber-50 text-amber-700'
+      case 'Pending': return 'bg-[#e1c16e]/15 text-[#8a6d24]'
       case 'Closed': return 'bg-slate-100 text-slate-600'
       default: return 'bg-slate-100 text-slate-600'
     }
@@ -7317,14 +9435,14 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
         <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+              <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#7563fb]">Account Activity</h2>
+                <h2 className="text-sm font-semibold text-[#12518c]">Account Activity</h2>
                 <p className="text-xs text-slate-500">Company ID {companyId} · issues, notes, and follow-ups</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#7563fb]/10 text-[10px] font-semibold text-[#7563fb]">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12518c]/10 text-[10px] font-semibold text-[#12518c]">
                 Open <span className="tabular-nums">{openCount}</span>
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[10px] font-semibold text-slate-600">
@@ -7345,23 +9463,23 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
 
           <div className="flex flex-wrap items-center justify-end gap-2">
             <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-            <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+            <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className={filterSelectClassName(typeFilter)}>
               <option value="">Type</option>
               {ACTIVITY_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className={filterSelectClassName(statusFilter)}>
               <option value="">Status</option>
               {ACTIVITY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={flagFilter} onChange={e => { setFlagFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+            <select value={flagFilter} onChange={e => { setFlagFilter(e.target.value); setPage(1) }} className={filterSelectClassName(flagFilter)}>
               <option value="">Flag</option>
               {ACTIVITY_FLAGS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+            <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1) }} className={filterSelectClassName(categoryFilter)}>
               <option value="">Category</option>
               {ACTIVITY_CATEGORIES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={authorFilter} onChange={e => { setAuthorFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+            <select value={authorFilter} onChange={e => { setAuthorFilter(e.target.value); setPage(1) }} className={filterSelectClassName(authorFilter)}>
               <option value="">Author</option>
               {ACTIVITY_AUTHORS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -7369,18 +9487,18 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
               type="date"
               value={dateFrom}
               onChange={e => { setDateFrom(e.target.value); setPage(1) }}
-              className={`${filterSelectClass} min-w-[130px]`}
+              className={filterSelectClassName(dateFrom, 'min-w-[130px]')}
               title="From date"
             />
             <input
               type="date"
               value={dateTo}
               onChange={e => { setDateTo(e.target.value); setPage(1) }}
-              className={`${filterSelectClass} min-w-[130px]`}
+              className={filterSelectClassName(dateTo, 'min-w-[130px]')}
               title="To date"
             />
             {filtersActive && (
-              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors">
+              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                   <path d="M3 3l8 8M11 3l-8 8" />
                 </svg>
@@ -7420,7 +9538,16 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                     key={a.id}
                     className={`border-b border-slate-100 hover:bg-slate-50/80 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-slate-800 max-w-[220px] truncate" title={a.subject}>{a.subject}</td>
+                    <td className="px-4 py-3 text-sm font-medium max-w-[220px]">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewActivity(a)}
+                        className="text-left text-[#12518c] hover:underline truncate max-w-full"
+                        title={a.subject}
+                      >
+                        {a.subject}
+                      </button>
+                    </td>
                     <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.date}</td>
                     <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.type}</td>
                     <td className="px-4 py-3">
@@ -7430,8 +9557,8 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ring-1 ring-inset ${flagClass(a.flag)}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
                           a.flag === 'Green' ? 'bg-emerald-500' :
-                          a.flag === 'Yellow' ? 'bg-amber-500' :
-                          a.flag === 'Red' ? 'bg-[#ea5054]' : 'bg-sky-500'
+                          a.flag === 'Yellow' ? 'bg-[#e1c16e]' :
+                          a.flag === 'Red' ? 'bg-[#bb5757]' : 'bg-sky-500'
                         }`} />
                         {a.flag}
                       </span>
@@ -7453,8 +9580,8 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                           onClick={() => toggleFollow(a.id)}
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-semibold transition-colors ${
                             a.following
-                              ? 'bg-[#7563fb]/10 text-[#7563fb] border border-[#7563fb]/20'
-                              : 'bg-white text-slate-600 border border-slate-200 hover:border-[#7563fb]/30 hover:text-[#7563fb]'
+                              ? 'bg-[#12518c]/10 text-[#12518c] border border-[#12518c]/20'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:border-[#12518c]/30 hover:text-[#12518c]'
                           }`}
                         >
                           <svg width="11" height="11" viewBox="0 0 16 16" fill={a.following ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.4">
@@ -7466,7 +9593,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1 flex-wrap">
-                        <button type="button" onClick={() => setViewActivity(a)} className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors" title="View">
+                        <button type="button" onClick={() => setViewActivity(a)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
                           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
                             <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
                             <circle cx="8" cy="8" r="1.75" />
@@ -7477,17 +9604,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                             <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
                           </svg>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setPreviewActivity(a)}
-                          className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors"
-                          title="Chat / details"
-                        >
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M2.5 3.5h8.5a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H7l-2.5 2v-2H4a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 4 3.5z" />
-                          </svg>
-                        </button>
-                        <button type="button" onClick={() => setDeleteId(a.id)} className="p-1 rounded-md text-slate-400 hover:text-[#ea5054] hover:bg-red-50 transition-colors" title="Delete">
+                        <button type="button" onClick={() => setDeleteId(a.id)} className="p-1 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 6h18" />
                             <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -7511,7 +9628,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
         <AddressModalShell maxWidth="max-w-3xl" onClose={() => setViewActivity(null)}>
           <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-9 h-9 rounded-xl bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+              <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M8 14s-5-3.2-5-7a3 3 0 0 1 5-2.2A3 3 0 0 1 13 7c0 3.8-5 7-5 7z" />
                 </svg>
@@ -7585,16 +9702,13 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
             setActivities(prev => prev.map(a => (a.id === previewActivity.id ? { ...a, status } : a)))
             setPreviewActivity(prev => (prev ? { ...prev, status } : prev))
           }}
-          onAddComment={(text) => {
+          onCommentsChange={(comments) => {
             setActivities(prev => prev.map(a => (
               a.id === previewActivity.id
-                ? { ...a, backgroundDetails: `${a.backgroundDetails}\n\n${text}` }
+                ? { ...a, comments, backgroundDetails: comments.find(c => c.parentId == null)?.text || a.backgroundDetails }
                 : a
             )))
-            setPreviewActivity(prev => prev
-              ? { ...prev, backgroundDetails: `${prev.backgroundDetails}\n\n${text}` }
-              : prev
-            )
+            setPreviewActivity(prev => (prev ? { ...prev, comments } : prev))
           }}
         />
       )}
@@ -7603,7 +9717,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
         <AddressModalShell maxWidth="max-w-sm" onClose={() => setDeleteId(null)}>
           <div className="px-5 py-5">
             <div className="flex items-start gap-3">
-              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-red-50 text-[#ea5054] shrink-0">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-danger-light text-[#bb5757] shrink-0">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 6h18" />
                   <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -7620,7 +9734,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
             <button type="button" onClick={() => setDeleteId(null)} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">
               Cancel
             </button>
-            <button type="button" onClick={() => removeActivity(deleteId)} className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#ea5054] text-white hover:bg-[#d8464a] transition-colors">
+            <button type="button" onClick={() => removeActivity(deleteId)} className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#bb5757] text-white hover:bg-[#a64a4a] transition-colors">
               Delete
             </button>
           </div>
@@ -7651,36 +9765,221 @@ function BackgroundDetailsModal({
   activity,
   onClose,
   onStatusChange,
-  onAddComment,
+  onCommentsChange,
 }: {
   companyName: string
   activity: (typeof COMPANY_ACCOUNT_ACTIVITY)[number]
   onClose: () => void
   onStatusChange: (status: string) => void
-  onAddComment: (text: string) => void
+  onCommentsChange: (comments: ActivityComment[]) => void
 }) {
-  const [reply, setReply] = useState('')
-  const authorCode = activity.authors[0] || 'AD'
-  const authorName = ACTIVITY_AUTHOR_NAMES[authorCode] || authorCode
+  const seedComments = (row: typeof activity): ActivityComment[] =>
+    row.comments?.length
+      ? row.comments
+      : row.backgroundDetails.trim()
+        ? [{ id: 1, author: row.authors[0] || 'AD', text: row.backgroundDetails.trim(), date: row.date, parentId: null }]
+        : []
+
+  const [comments, setComments] = useState<ActivityComment[]>(() => seedComments(activity))
+  const [newComment, setNewComment] = useState('')
+  const [replyingTo, setReplyingTo] = useState<number | null>(null)
+  const [replyText, setReplyText] = useState('')
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editText, setEditText] = useState('')
+
+  useEffect(() => {
+    setComments(seedComments(activity))
+  }, [activity.id, activity.comments, activity.backgroundDetails])
+
   const isOpen = activity.status !== 'Closed'
-  const comments = activity.backgroundDetails
-    .split(/\n\n+/)
-    .map(c => c.trim())
-    .filter(Boolean)
+  const nowLabel = () =>
+    new Date().toLocaleString('en-US', {
+      month: '2-digit', day: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+    })
+
+  const syncComments = (next: ActivityComment[]) => {
+    setComments(next)
+    onCommentsChange(next)
+  }
+
+  const nextCommentId = () => Math.max(0, ...comments.map(c => c.id)) + 1
 
   const handlePost = () => {
-    const text = reply.trim()
+    const text = newComment.trim()
     if (!text) return
-    onAddComment(text)
-    setReply('')
+    syncComments([
+      ...comments,
+      { id: nextCommentId(), author: 'AD', text, date: nowLabel(), parentId: null },
+    ])
+    setNewComment('')
+  }
+
+  const handleReply = (parentId: number) => {
+    const text = replyText.trim()
+    if (!text) return
+    syncComments([
+      ...comments,
+      { id: nextCommentId(), author: 'AD', text, date: nowLabel(), parentId },
+    ])
+    setReplyText('')
+    setReplyingTo(null)
+  }
+
+  const startEdit = (comment: ActivityComment) => {
+    setEditingId(comment.id)
+    setEditText(comment.text)
+    setReplyingTo(null)
+  }
+
+  const saveEdit = () => {
+    if (editingId == null) return
+    const text = editText.trim()
+    if (!text) return
+    syncComments(comments.map(c => (c.id === editingId ? { ...c, text } : c)))
+    setEditingId(null)
+    setEditText('')
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditText('')
+  }
+
+  const rootComments = comments.filter(c => c.parentId == null)
+  const repliesFor = (parentId: number) => comments.filter(c => c.parentId === parentId)
+
+  const flagClass = (flag: string) => {
+    switch (flag) {
+      case 'Green': return 'bg-emerald-50 text-emerald-700 ring-emerald-200/60'
+      case 'Yellow': return 'bg-[#e1c16e]/15 text-[#8a6d24] ring-[#e1c16e]/60'
+      case 'Red': return 'bg-danger-light text-[#bb5757] ring-danger-border/60'
+      case 'Blue': return 'bg-sky-50 text-sky-700 ring-sky-200/60'
+      default: return 'bg-slate-100 text-slate-600 ring-slate-200/60'
+    }
+  }
+
+  const renderComment = (comment: ActivityComment, isReply = false) => {
+    const authorName = ACTIVITY_AUTHOR_NAMES[comment.author] || comment.author
+    const isEditing = editingId === comment.id
+
+    return (
+      <div key={comment.id} className={isReply ? 'ml-10 mt-2' : ''}>
+        <div className={`rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 ${isReply ? 'bg-white' : ''}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <span className="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                {comment.author}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <p className="text-sm font-semibold text-slate-800">{authorName}</p>
+                  <p className="text-[11px] text-slate-400">{comment.date}</p>
+                </div>
+                {isEditing ? (
+                  <div className="mt-2 space-y-2">
+                    <textarea
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] resize-y"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={saveEdit}
+                        disabled={!editText.trim()}
+                        className="h-8 px-3 rounded-lg text-[11px] font-semibold text-white bg-slate-700 hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        className="h-8 px-3 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-1.5 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{comment.text}</p>
+                )}
+                {!isEditing && (
+                  <div className="mt-2 flex items-center gap-3">
+                    {!isReply && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReplyingTo(replyingTo === comment.id ? null : comment.id)
+                          setReplyText('')
+                          setEditingId(null)
+                        }}
+                        className="text-[11px] font-semibold text-[#12518c] hover:underline"
+                      >
+                        Reply
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => startEdit(comment)}
+                      className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 hover:underline"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {replyingTo === comment.id && (
+            <div className="mt-3 ml-11 flex items-start gap-2">
+              <textarea
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                rows={2}
+                placeholder={`Reply to ${authorName}…`}
+                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] resize-none"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleReply(comment.id)
+                  }
+                }}
+              />
+              <div className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleReply(comment.id)}
+                  disabled={!replyText.trim()}
+                  className="h-8 px-3 rounded-lg text-[11px] font-semibold text-white bg-slate-700 hover:bg-slate-800 disabled:opacity-50"
+                >
+                  Reply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setReplyingTo(null); setReplyText('') }}
+                  className="h-8 px-3 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {repliesFor(comment.id).map(reply => renderComment(reply, true))}
+      </div>
+    )
   }
 
   return (
-    <AddressModalShell maxWidth="max-w-xl" onClose={onClose}>
+    <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
       <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-slate-900 truncate">
-            Background &amp; Details — {companyName}
+            Activity Details — {companyName}
           </h3>
           <p className="text-[11px] text-slate-500 mt-0.5 truncate">{activity.subject}</p>
         </div>
@@ -7692,56 +9991,74 @@ function BackgroundDetailsModal({
       </div>
 
       <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
-        <div className="flex items-center gap-3">
-          <p className="text-[11px] font-medium text-slate-500">Status</p>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isOpen}
-            onClick={() => onStatusChange(isOpen ? 'Closed' : 'Open')}
-            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${isOpen ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isOpen ? 'translate-x-5' : ''}`} />
-          </button>
-          <span className={`text-sm font-medium ${isOpen ? 'text-[#7563fb]' : 'text-slate-500'}`}>
-            {isOpen ? 'Open' : 'Closed'}
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <p className="text-[11px] font-medium text-slate-500">Status</p>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isOpen}
+              onClick={() => onStatusChange(isOpen ? 'Closed' : 'Open')}
+              className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${isOpen ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isOpen ? 'translate-x-5' : ''}`} />
+            </button>
+            <span className={`text-sm font-medium ${isOpen ? 'text-[#12518c]' : 'text-slate-500'}`}>
+              {isOpen ? 'Open' : 'Closed'}
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-400">{activity.date}</p>
         </div>
 
-        <div className="space-y-3">
-          {comments.length === 0 ? (
-            <p className="text-sm text-slate-400 italic">No background details yet.</p>
-          ) : (
-            comments.map((comment, idx) => (
-              <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <span className="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                      {authorCode}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-800">{idx === 0 ? authorName : 'You'}</p>
-                      <p className="mt-1.5 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{comment}</p>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-slate-500 whitespace-nowrap pt-0.5">
-                    {idx === 0 ? activity.date : 'Just now'}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Type</p>
+            <p className="mt-1 text-sm font-medium text-slate-800">{activity.type}</p>
+          </div>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Flag</p>
+            <span className={`mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ring-1 ring-inset ${flagClass(activity.flag)}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                activity.flag === 'Green' ? 'bg-emerald-500' :
+                activity.flag === 'Yellow' ? 'bg-[#e1c16e]' :
+                activity.flag === 'Red' ? 'bg-[#bb5757]' : 'bg-sky-500'
+              }`} />
+              {activity.flag}
+            </span>
+          </div>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Category</p>
+            <p className="mt-1 text-sm font-medium text-slate-800">{activity.category}</p>
+          </div>
+          <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Department</p>
+            <p className="mt-1 text-sm font-medium text-slate-800">{activity.department || '—'}</p>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Comments</h4>
+            <span className="text-[11px] text-slate-400 tabular-nums">{comments.length}</span>
+          </div>
+          <div className="space-y-3">
+            {rootComments.length === 0 ? (
+              <p className="text-sm text-slate-400 italic">No comments yet. Be the first to post.</p>
+            ) : (
+              rootComments.map(comment => renderComment(comment))
+            )}
+          </div>
         </div>
       </div>
 
       <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/40">
-        <div className="flex items-center gap-2">
+        <div className="flex items-end gap-2">
           <textarea
-            value={reply}
-            onChange={e => setReply(e.target.value)}
+            value={newComment}
+            onChange={e => setNewComment(e.target.value)}
             rows={2}
-            placeholder="Add a comment…"
-            className="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb] resize-none"
+            placeholder="Post a new comment…"
+            className="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] resize-none"
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
@@ -7752,7 +10069,7 @@ function BackgroundDetailsModal({
           <button
             type="button"
             onClick={handlePost}
-            disabled={!reply.trim()}
+            disabled={!newComment.trim()}
             className="h-9 px-4 rounded-lg text-xs font-semibold text-white bg-slate-700 hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed self-center"
           >
             Post
@@ -7807,6 +10124,11 @@ function AddAccountActivityModal({
       month: '2-digit', day: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
     })
+    const details = form.backgroundDetails.trim()
+    const authors = initial?.authors ?? ['AD']
+    const comments = initial?.comments?.length
+      ? initial.comments
+      : [{ id: 1, author: authors[0] || 'AD', text: details, date, parentId: null as number | null }]
     onSave({
       date,
       subject: form.subject.trim() || form.type || 'Untitled note',
@@ -7815,9 +10137,10 @@ function AddAccountActivityModal({
       flag: form.flag || 'Green',
       category: form.category || '—',
       department: form.department,
-      backgroundDetails: form.backgroundDetails.trim(),
-      authors: initial?.authors ?? ['AD'],
+      backgroundDetails: details,
+      authors,
       following: initial?.following ?? false,
+      comments,
     })
   }
 
@@ -7825,7 +10148,7 @@ function AddAccountActivityModal({
     <AddressModalShell maxWidth="max-w-xl" onClose={onClose}>
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M8 14s-5-3.2-5-7a3 3 0 0 1 5-2.2A3 3 0 0 1 13 7c0 3.8-5 7-5 7z" />
             </svg>
@@ -7842,16 +10165,6 @@ function AddAccountActivityModal({
         </button>
       </div>
 
-      <div className="px-5 py-4 border-b border-slate-100 flex justify-end">
-        <button
-          type="button"
-          onClick={handleSave}
-          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-slate-700 hover:bg-slate-800 transition-colors"
-        >
-          Save
-        </button>
-      </div>
-
       <div className="px-5 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -7863,7 +10176,7 @@ function AddAccountActivityModal({
               options={ACTIVITY_TYPES}
               placeholder="Select…"
             />
-            {errors.type && <p className="mt-1 text-[11px] text-[#ea5054]">Type is required.</p>}
+            {errors.type && <p className="mt-1 text-[11px] text-[#bb5757]">Type is required.</p>}
           </div>
           <OwnershipFormSelect
             label="Status"
@@ -7912,11 +10225,11 @@ function AddAccountActivityModal({
             placeholder="Add a comment…"
             className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 resize-y min-h-[120px] ${
               errors.backgroundDetails
-                ? 'border-[#ea5054] focus:ring-[#ea5054]/20 focus:border-[#ea5054]'
-                : 'border-slate-200 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
+                ? 'border-[#bb5757] focus:ring-[#bb5757]/20 focus:border-[#bb5757]'
+                : 'border-slate-200 focus:ring-[#12518c]/25 focus:border-[#12518c]'
             }`}
           />
-          {errors.backgroundDetails && <p className="mt-1 text-[11px] text-[#ea5054]">Background and Details is required.</p>}
+          {errors.backgroundDetails && <p className="mt-1 text-[11px] text-[#bb5757]">Background and Details is required.</p>}
         </div>
       </div>
 
@@ -7960,9 +10273,6 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
   const [pastOpen, setPastOpen] = useState(true)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-
-  const filterSelectClass =
-    'h-9 min-w-[130px] px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
 
   const states = [...new Set(credentials.map(c => c.state))].sort()
   const funcs = [...new Set(credentials.map(c => c.func))].sort()
@@ -8054,13 +10364,13 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
               role="switch"
               aria-checked={c.active}
               disabled={!unlocked}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${c.active ? 'bg-[#7563fb]' : 'bg-slate-300'} ${!unlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${c.active ? 'bg-[#12518c]' : 'bg-slate-300'} ${!unlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
               title={unlocked ? (c.active ? 'Active' : 'Inactive') : 'Unlock to edit'}
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${c.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
             </button>
           ) : (
-            <span className={`relative inline-flex h-5 w-9 items-center rounded-full ${c.active ? 'bg-[#7563fb]/50' : 'bg-slate-300'}`}>
+            <span className={`relative inline-flex h-5 w-9 items-center rounded-full ${c.active ? 'bg-[#12518c]/50' : 'bg-slate-300'}`}>
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ${c.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
             </span>
           )}
@@ -8069,7 +10379,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
               type="button"
               onClick={() => unlocked && setDeleteId(c.id)}
               disabled={!unlocked}
-              className={`p-1 rounded-md transition-colors ${unlocked ? 'text-slate-400 hover:text-[#ea5054] hover:bg-red-50' : 'text-slate-300 cursor-not-allowed'}`}
+              className={`p-1 rounded-md transition-colors ${unlocked ? 'text-slate-400 hover:text-[#bb5757] hover:bg-danger-light' : 'text-slate-300 cursor-not-allowed'}`}
               title={unlocked ? 'Delete' : 'Unlock to delete'}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -8091,7 +10401,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4" strokeLinecap="round">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
               <path d="M3.5 3.5h9M3.5 6.5h9M3.5 9.5h6" />
             </svg>
             <span className="text-xs font-semibold text-slate-700">Credentials Note</span>
@@ -8100,7 +10410,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
             <button
               type="button"
               onClick={() => { setNotesDraft(notes); setNotesEditing(true) }}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
                 <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
@@ -8112,7 +10422,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
               <button type="button" onClick={() => setNotesEditing(false)} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                 Cancel
               </button>
-              <button type="button" onClick={saveNotes} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[#7563fb] text-white hover:bg-[#6352e8] transition-colors">
+              <button type="button" onClick={saveNotes} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors">
                 Save
               </button>
             </div>
@@ -8125,7 +10435,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
               onChange={e => setNotesDraft(e.target.value)}
               rows={3}
               placeholder="Add your note here…"
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb] resize-y"
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] resize-y"
             />
           ) : (
             <p className="text-sm text-slate-600 leading-relaxed">{notes || <span className="text-slate-400 italic">Add your note here…</span>}</p>
@@ -8137,11 +10447,11 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
       <div className={`rounded-2xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 transition-colors ${
         unlocked
           ? 'border-emerald-200 bg-emerald-50/60'
-          : 'border-amber-200 bg-amber-50/60'
+          : 'border-[#e1c16e]/60 bg-[#e1c16e]/10'
       }`}>
         <div className="flex items-start gap-3 min-w-0">
           <span className={`mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            unlocked ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+            unlocked ? 'bg-emerald-100 text-emerald-600' : 'bg-[#e1c16e]/30 text-[#a1802b]'
           }`}>
             {unlocked ? (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -8156,10 +10466,10 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
             )}
           </span>
           <div className="min-w-0">
-            <p className={`text-sm font-semibold ${unlocked ? 'text-emerald-800' : 'text-amber-900'}`}>
+            <p className={`text-sm font-semibold ${unlocked ? 'text-emerald-800' : 'text-[#5f491a]'}`}>
               {unlocked ? 'Credentials unlocked' : 'Login credentials hidden'}
             </p>
-            <p className={`text-xs mt-0.5 leading-relaxed ${unlocked ? 'text-emerald-700/80' : 'text-amber-800/80'}`}>
+            <p className={`text-xs mt-0.5 leading-relaxed ${unlocked ? 'text-emerald-700/80' : 'text-[#73591e]/80'}`}>
               {unlocked
                 ? 'Sensitive fields are visible. Lock when finished to protect this information.'
                 : 'Passwords, PINs, and secret answers are masked. Unlock with your account password to view or edit.'}
@@ -8172,7 +10482,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
           className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-colors flex-shrink-0 ${
             unlocked
               ? 'border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50'
-              : 'text-white bg-[#7563fb] hover:bg-[#6352e8] shadow-sm shadow-[#7563fb]/20'
+              : 'text-white bg-[#12518c] hover:bg-[#0e4173] shadow-sm shadow-[#12518c]/20'
           }`}
         >
           {unlocked ? (
@@ -8200,33 +10510,33 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
         <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+              <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#7563fb]">Current Credentials</h2>
+                <h2 className="text-sm font-semibold text-[#12518c]">Current Credentials</h2>
                 <p className="text-xs text-slate-500">Company ID {companyId} · active portal logins</p>
               </div>
-              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#7563fb]/10 text-[10px] font-bold text-[#7563fb]">{filtered.length}</span>
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#12518c]/10 text-[10px] font-bold text-[#12518c]">{filtered.length}</span>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-              <select value={stateFilter} onChange={e => { setStateFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={stateFilter} onChange={e => { setStateFilter(e.target.value); setPage(1) }} className={filterSelectClassName(stateFilter)}>
                 <option value="">State</option>
                 {states.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              <select value={funcFilter} onChange={e => { setFuncFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={funcFilter} onChange={e => { setFuncFilter(e.target.value); setPage(1) }} className={filterSelectClassName(funcFilter)}>
                 <option value="">Function</option>
                 {funcs.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              <select value={filingTypeFilter} onChange={e => { setFilingTypeFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={filingTypeFilter} onChange={e => { setFilingTypeFilter(e.target.value); setPage(1) }} className={filterSelectClassName(filingTypeFilter)}>
                 <option value="">Filing Type</option>
                 {filingTypes.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              <select value={loginTypeFilter} onChange={e => { setLoginTypeFilter(e.target.value); setPage(1) }} className={filterSelectClass}>
+              <select value={loginTypeFilter} onChange={e => { setLoginTypeFilter(e.target.value); setPage(1) }} className={filterSelectClassName(loginTypeFilter)}>
                 <option value="">Login Type</option>
                 {loginTypes.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               {filtersActive && (
-                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors">
+                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
                   <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                     <path d="M3 3l8 8M11 3l-8 8" />
                   </svg>
@@ -8293,9 +10603,9 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
             >
               <path d="M6 4l4 4-4 4" />
             </svg>
-            <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#7563fb]">Past Credentials</h2>
+              <h2 className="text-sm font-semibold text-[#12518c]">Past Credentials</h2>
               <p className="text-xs text-slate-500">Archived / inactive logins</p>
             </div>
             <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{pastCredentials.length}</span>
@@ -8348,7 +10658,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
         <AddressModalShell maxWidth="max-w-sm" onClose={() => setDeleteId(null)}>
           <div className="px-5 py-5">
             <div className="flex items-start gap-3">
-              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-red-50 text-[#ea5054] shrink-0">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-danger-light text-[#bb5757] shrink-0">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 6h18" />
                   <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -8365,7 +10675,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
             <button type="button" onClick={() => setDeleteId(null)} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">
               Cancel
             </button>
-            <button type="button" onClick={() => removeCredential(deleteId)} className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#ea5054] text-white hover:bg-[#d8464a] transition-colors">
+            <button type="button" onClick={() => removeCredential(deleteId)} className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#bb5757] text-white hover:bg-[#a64a4a] transition-colors">
               Delete
             </button>
           </div>
@@ -8391,11 +10701,15 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
 function AddCredentialModal({
   companyId,
   states,
+  initialState = '',
+  initialFunc = '',
   onClose,
   onSave,
 }: {
   companyId: number
   states: string[]
+  initialState?: string
+  initialFunc?: string
   onClose: () => void
   onSave: (data: Omit<(typeof COMPANY_CREDENTIALS)[number], 'id'>, addAnother: boolean) => void
 }) {
@@ -8404,8 +10718,8 @@ function AddCredentialModal({
     shared: false,
     sharedType: '',
     loginType: '',
-    state: '',
-    func: '',
+    state: initialState,
+    func: initialFunc,
     filingType: '',
     userName: '',
     loginEmail: '',
@@ -8496,7 +10810,7 @@ function AddCredentialModal({
       <button
         type="button"
         onClick={() => handleSave(true)}
-        className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#7563fb]/30 text-[#7563fb] bg-white hover:bg-[#7563fb]/5 transition-colors"
+        className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#12518c]/30 text-[#12518c] bg-white hover:bg-[#12518c]/5 transition-colors"
       >
         Save And Add New
       </button>
@@ -8514,7 +10828,7 @@ function AddCredentialModal({
     <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 21V7l9-4 9 4v14" />
               <path d="M9 21V12h6v9" />
@@ -8525,21 +10839,7 @@ function AddCredentialModal({
             <p className="text-[11px] text-slate-500">Company ID {companyId}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => handleSave(false)}
-            className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-slate-700 hover:bg-slate-800 transition-colors"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSave(true)}
-            className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-slate-700 hover:bg-slate-800 transition-colors"
-          >
-            Save And Add New
-          </button>
+        <div className="flex items-center">
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
               <path d="M3 3l8 8M11 3l-8 8" />
@@ -8551,12 +10851,12 @@ function AddCredentialModal({
       <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
         {/* Ownership */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#7563fb]/5 border-b border-[#7563fb]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4" strokeLinecap="round">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
               <circle cx="8" cy="5.5" r="2.5" />
               <path d="M3 13c0-2.5 2.2-4 5-4s5 1.5 5 4" />
             </svg>
-            <span className="text-xs font-semibold text-[#7563fb] uppercase tracking-wide">Ownership</span>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Ownership</span>
           </div>
           <div className="p-4 space-y-4 bg-white">
             <div>
@@ -8568,7 +10868,7 @@ function AddCredentialModal({
                 options={CREDENTIAL_LOGIN_OWNERS}
                 placeholder="Select…"
               />
-              {errors.loginOwner && <p className="mt-1 text-[11px] text-[#ea5054]">Login Owner is required.</p>}
+              {errors.loginOwner && <p className="mt-1 text-[11px] text-[#bb5757]">Login Owner is required.</p>}
             </div>
             <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3.5 py-3">
               <div>
@@ -8580,7 +10880,7 @@ function AddCredentialModal({
                 role="switch"
                 aria-checked={form.shared}
                 onClick={() => set('shared', !form.shared)}
-                className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${form.shared ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
+                className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${form.shared ? 'bg-[#12518c]' : 'bg-slate-300'}`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.shared ? 'translate-x-5' : ''}`} />
               </button>
@@ -8595,7 +10895,7 @@ function AddCredentialModal({
                   options={CREDENTIAL_SHARED_TYPES}
                   placeholder="Select…"
                 />
-                {errors.sharedType && <p className="mt-1 text-[11px] text-[#ea5054]">Shared Type is required.</p>}
+                {errors.sharedType && <p className="mt-1 text-[11px] text-[#bb5757]">Shared Type is required.</p>}
               </div>
             )}
             <div>
@@ -8607,19 +10907,19 @@ function AddCredentialModal({
                 options={CREDENTIAL_LOGIN_TYPES}
                 placeholder="Select…"
               />
-              {errors.loginType && <p className="mt-1 text-[11px] text-[#ea5054]">Login Type is required.</p>}
+              {errors.loginType && <p className="mt-1 text-[11px] text-[#bb5757]">Login Type is required.</p>}
             </div>
           </div>
         </div>
 
         {/* Jurisdiction */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#7563fb]/5 border-b border-[#7563fb]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4">
               <circle cx="8" cy="8" r="5.5" />
               <path d="M8 5.5v3M8 10.5h.01" strokeLinecap="round" />
             </svg>
-            <span className="text-xs font-semibold text-[#7563fb] uppercase tracking-wide">Jurisdiction</span>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Jurisdiction</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
             <div className="sm:col-span-2">
@@ -8631,7 +10931,7 @@ function AddCredentialModal({
                 options={states}
                 placeholder="Select…"
               />
-              {errors.state && <p className="mt-1 text-[11px] text-[#ea5054]">State is required.</p>}
+              {errors.state && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
             </div>
             <div>
               <OwnershipFormSelect
@@ -8642,7 +10942,7 @@ function AddCredentialModal({
                 options={CREDENTIAL_FUNCTIONS}
                 placeholder="Select…"
               />
-              {errors.func && <p className="mt-1 text-[11px] text-[#ea5054]">Function is required.</p>}
+              {errors.func && <p className="mt-1 text-[11px] text-[#bb5757]">Function is required.</p>}
             </div>
             <div>
               <OwnershipFormSelect
@@ -8653,19 +10953,19 @@ function AddCredentialModal({
                 options={CREDENTIAL_FILING_TYPES}
                 placeholder="Select…"
               />
-              {errors.filingType && <p className="mt-1 text-[11px] text-[#ea5054]">Filing Type is required.</p>}
+              {errors.filingType && <p className="mt-1 text-[11px] text-[#bb5757]">Filing Type is required.</p>}
             </div>
           </div>
         </div>
 
         {/* Access credentials */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#7563fb]/5 border-b border-[#7563fb]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="7" width="10" height="6.5" rx="1.2" />
               <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
             </svg>
-            <span className="text-xs font-semibold text-[#7563fb] uppercase tracking-wide">Access Credentials</span>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Access Credentials</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
             <div>
@@ -8676,7 +10976,7 @@ function AddCredentialModal({
                 onChange={v => set('userName', v)}
                 placeholder="Username / Login ID"
               />
-              {errors.userName && <p className="mt-1 text-[11px] text-[#ea5054]">Login ID is required.</p>}
+              {errors.userName && <p className="mt-1 text-[11px] text-[#bb5757]">Login ID is required.</p>}
             </div>
             <OwnershipFormField
               label="Login Email (MFA / Password Reset)"
@@ -8693,7 +10993,7 @@ function AddCredentialModal({
                   value={form.password}
                   onChange={e => set('password', e.target.value)}
                   placeholder="Enter password"
-                  className="w-full h-9 pl-3 pr-10 rounded-lg border border-slate-300 bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]"
+                  className="w-full h-9 pl-3 pr-10 rounded-lg border border-slate-300 bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]"
                 />
                 <button
                   type="button"
@@ -8713,7 +11013,7 @@ function AddCredentialModal({
                   )}
                 </button>
               </div>
-              {errors.password && <p className="mt-1 text-[11px] text-[#ea5054]">Password is required.</p>}
+              {errors.password && <p className="mt-1 text-[11px] text-[#bb5757]">Password is required.</p>}
             </div>
             <OwnershipFormField
               label="Secret?"
@@ -8738,11 +11038,11 @@ function AddCredentialModal({
 
         {/* Notes */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#7563fb]/5 border-b border-[#7563fb]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4" strokeLinecap="round">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
               <path d="M3.5 3.5h9M3.5 6.5h9M3.5 9.5h6" />
             </svg>
-            <span className="text-xs font-semibold text-[#7563fb] uppercase tracking-wide">Notes</span>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Notes</span>
           </div>
           <div className="p-4 space-y-4 bg-white">
             <div>
@@ -8752,7 +11052,7 @@ function AddCredentialModal({
                 onChange={e => set('reportingNotes', e.target.value)}
                 rows={3}
                 placeholder="Notes for reporting…"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb] resize-y"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] resize-y"
               />
             </div>
             <div>
@@ -8762,7 +11062,7 @@ function AddCredentialModal({
                 onChange={e => set('licensingNotes', e.target.value)}
                 rows={3}
                 placeholder="Notes for licensing…"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb] resize-y"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] resize-y"
               />
             </div>
           </div>
@@ -8776,12 +11076,24 @@ function AddCredentialModal({
   )
 }
 
+function licenseDateToInput(value: string) {
+  const match = value.match(/^(\d{2})-(\d{2})-(\d{4})$/)
+  return match ? `${match[3]}-${match[1]}-${match[2]}` : value
+}
+
+function licenseDateToDisplay(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  return match ? `${match[2]}-${match[3]}-${match[1]}` : value
+}
+
 function AddLicenseModal({
   companyId,
+  license,
   onClose,
   onSave,
 }: {
   companyId: number
+  license?: (typeof COMPANY_LICENSES)[number] | null
   onClose: () => void
   onSave: (
     data: {
@@ -8800,6 +11112,7 @@ function AddLicenseModal({
     addAnother: boolean
   ) => void
 }) {
+  const isEdit = Boolean(license)
   const STATE_CODES = [
     'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
     'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
@@ -8819,18 +11132,35 @@ function AddLicenseModal({
   ]
 
   const [errors, setErrors] = useState<Partial<Record<'licenseDept' | 'jurisdiction' | 'state' | 'func' | 'itemName' | 'renewalDue' | 'expiration', boolean>>>({})
-  const [form, setForm] = useState({
-    licenseDept: 'OPS',
-    jurisdiction: 'State',
-    state: '',
-    func: '',
-    itemName: '',
-    licenseNo: '',
-    doesNotExpire: false,
-    renewalDue: '',
-    expiration: '',
-    comment: '',
-  })
+  const [form, setForm] = useState(() =>
+    license
+      ? {
+          licenseDept: license.func === 'Operational' ? 'OPS' : 'OOS',
+          jurisdiction: license.state === 'TTB' ? 'Federal' : 'State',
+          state: license.state,
+          func: license.func,
+          itemName: license.itemName,
+          licenseNo: license.licenseNo,
+          doesNotExpire: !license.expiration,
+          renewalDue: licenseDateToInput(license.renewalDue),
+          expiration: licenseDateToInput(license.expiration),
+          status: license.status,
+          comment: license.comment,
+        }
+      : {
+          licenseDept: 'OPS',
+          jurisdiction: 'State',
+          state: '',
+          func: '',
+          itemName: '',
+          licenseNo: '',
+          doesNotExpire: false,
+          renewalDue: '',
+          expiration: '',
+          status: 'Active',
+          comment: '',
+        }
+  )
   const [secondaryIds, setSecondaryIds] = useState<{ id: number; label: string; value: string }[]>([])
 
   const set = (key: keyof typeof form, value: string | boolean) => {
@@ -8838,12 +11168,16 @@ function AddLicenseModal({
       const next = { ...prev, [key]: value }
       if (key === 'doesNotExpire' && value === true) {
         next.expiration = ''
+        next.renewalDue = ''
       }
       if (key === 'jurisdiction' && value === 'Federal') {
         next.state = 'TTB'
       }
       return next
     })
+    if (key === 'doesNotExpire' && value === true) {
+      setErrors(prev => ({ ...prev, renewalDue: false, expiration: false }))
+    }
     if (typeof key === 'string' && key in { licenseDept: 1, jurisdiction: 1, state: 1, func: 1, itemName: 1, renewalDue: 1, expiration: 1 }) {
       setErrors(prev => ({ ...prev, [key]: false }))
     }
@@ -8868,7 +11202,7 @@ function AddLicenseModal({
       state: !form.state.trim(),
       func: !form.func.trim(),
       itemName: !form.itemName.trim(),
-      renewalDue: !form.renewalDue.trim(),
+      renewalDue: !form.doesNotExpire && !form.renewalDue.trim(),
       expiration: !form.doesNotExpire && !form.expiration.trim(),
     }
     setErrors(next)
@@ -8885,15 +11219,15 @@ function AddLicenseModal({
           : form.itemName
     return {
       state: form.state,
-      cityCounty: '',
+      cityCounty: license?.cityCounty ?? '',
       func: form.func,
       item,
       itemName: form.itemName,
       licenseNo: form.licenseNo || secondaryIds.map(s => s.value).filter(Boolean).join(', '),
-      renewalDue: form.renewalDue,
-      expiration: form.doesNotExpire ? '' : form.expiration,
-      actionIn: form.doesNotExpire ? '—' : 'Expired',
-      status: 'Active',
+      renewalDue: licenseDateToDisplay(form.renewalDue),
+      expiration: form.doesNotExpire ? '' : licenseDateToDisplay(form.expiration),
+      actionIn: form.doesNotExpire ? '—' : (license?.actionIn ?? 'Expired'),
+      status: form.status,
       comment: form.comment.trim(),
     }
   }
@@ -8912,6 +11246,7 @@ function AddLicenseModal({
         doesNotExpire: false,
         renewalDue: '',
         expiration: '',
+        status: 'Active',
         comment: '',
       })
       setSecondaryIds([])
@@ -8923,15 +11258,17 @@ function AddLicenseModal({
     <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
               <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
               <path d="M9.5 2.5V6H13" />
             </svg>
           </span>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-slate-900">Company — Add License</h3>
-            <p className="text-[11px] text-slate-500">Company ID {companyId}</p>
+            <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'Company — Update License' : 'Company — Add License'}</h3>
+            <p className="text-[11px] text-slate-500 truncate">
+              {isEdit && license ? `${license.state} · ${license.func}${license.licenseNo ? ` · ${license.licenseNo}` : ''}` : `Company ID ${companyId}`}
+            </p>
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
@@ -8968,12 +11305,12 @@ function AddLicenseModal({
 
         {/* License Setup */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#7563fb]/5 border-b border-[#7563fb]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4">
               <circle cx="8" cy="8" r="5.5" />
               <path d="M8 5.5v3M8 10.5h.01" strokeLinecap="round" />
             </svg>
-            <span className="text-xs font-semibold text-[#7563fb] uppercase tracking-wide">License Setup</span>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">License Setup</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
             <div>
@@ -8986,7 +11323,7 @@ function AddLicenseModal({
                 placeholder="Select…"
                 readOnly={form.jurisdiction === 'Federal'}
               />
-              {errors.state && <p className="mt-1 text-[11px] text-[#ea5054]">State is required.</p>}
+              {errors.state && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
             </div>
             <div>
               <OwnershipFormSelect
@@ -8994,22 +11331,32 @@ function AddLicenseModal({
                 required
                 value={form.func}
                 onChange={v => set('func', v)}
-                options={FUNCTIONS}
+                options={FUNCTIONS.includes(form.func) || !form.func ? FUNCTIONS : [form.func, ...FUNCTIONS]}
                 placeholder="Select…"
               />
-              {errors.func && <p className="mt-1 text-[11px] text-[#ea5054]">Function is required.</p>}
+              {errors.func && <p className="mt-1 text-[11px] text-[#bb5757]">Function is required.</p>}
             </div>
+            {isEdit && (
+              <OwnershipFormSelect
+                label="Status"
+                required
+                value={form.status}
+                onChange={v => set('status', v)}
+                options={['Active', 'Inactive']}
+                placeholder="Select…"
+              />
+            )}
           </div>
         </div>
 
         {/* License Information */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#7563fb]/5 border-b border-[#7563fb]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4" strokeLinecap="round">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
               <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
               <path d="M9.5 2.5V6H13" />
             </svg>
-            <span className="text-xs font-semibold text-[#7563fb] uppercase tracking-wide">License Information</span>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">License Information</span>
           </div>
           <div className="p-4 space-y-4 bg-white">
             <div>
@@ -9018,10 +11365,10 @@ function AddLicenseModal({
                 required
                 value={form.itemName}
                 onChange={v => set('itemName', v)}
-                options={ITEM_NAMES}
+                options={ITEM_NAMES.includes(form.itemName) || !form.itemName ? ITEM_NAMES : [form.itemName, ...ITEM_NAMES]}
                 placeholder="Select…"
               />
-              {errors.itemName && <p className="mt-1 text-[11px] text-[#ea5054]">Item Name is required.</p>}
+              {errors.itemName && <p className="mt-1 text-[11px] text-[#bb5757]">Item Name is required.</p>}
             </div>
             <OwnershipFormField
               label="License / Permit Number"
@@ -9038,7 +11385,7 @@ function AddLicenseModal({
                   <button
                     type="button"
                     onClick={() => removeSecondary(s.id)}
-                    className="h-9 px-3 mb-0.5 rounded-lg text-xs font-semibold text-[#ea5054] border border-red-100 hover:bg-red-50 transition-colors"
+                    className="h-9 px-3 mb-0.5 rounded-lg text-xs font-semibold text-[#bb5757] border border-danger-border hover:bg-danger-light transition-colors"
                   >
                     Remove
                   </button>
@@ -9063,12 +11410,12 @@ function AddLicenseModal({
 
         {/* Dates */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#7563fb]/5 border-b border-[#7563fb]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4" strokeLinecap="round">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
               <rect x="2.5" y="3.5" width="11" height="10" rx="1.2" />
               <path d="M2.5 6.5h11M5.5 2.5v2M10.5 2.5v2" />
             </svg>
-            <span className="text-xs font-semibold text-[#7563fb] uppercase tracking-wide">Dates</span>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Dates</span>
           </div>
           <div className="p-4 space-y-4 bg-white">
             <label className="flex items-center gap-3">
@@ -9077,7 +11424,7 @@ function AddLicenseModal({
                 role="switch"
                 aria-checked={form.doesNotExpire}
                 onClick={() => set('doesNotExpire', !form.doesNotExpire)}
-                className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${form.doesNotExpire ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
+                className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${form.doesNotExpire ? 'bg-[#12518c]' : 'bg-slate-300'}`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.doesNotExpire ? 'translate-x-5' : ''}`} />
               </button>
@@ -9087,12 +11434,13 @@ function AddLicenseModal({
               <div>
                 <OwnershipFormField
                   label="Renewal Due Date"
-                  required
+                  required={!form.doesNotExpire}
                   type="date"
                   value={form.renewalDue}
                   onChange={v => set('renewalDue', v)}
+                  readOnly={form.doesNotExpire}
                 />
-                {errors.renewalDue && <p className="mt-1 text-[11px] text-[#ea5054]">Renewal Due Date is required.</p>}
+                {errors.renewalDue && <p className="mt-1 text-[11px] text-[#bb5757]">Renewal Due Date is required.</p>}
               </div>
               <div>
                 <OwnershipFormField
@@ -9103,7 +11451,7 @@ function AddLicenseModal({
                   onChange={v => set('expiration', v)}
                   readOnly={form.doesNotExpire}
                 />
-                {errors.expiration && <p className="mt-1 text-[11px] text-[#ea5054]">Expiration Date is required.</p>}
+                {errors.expiration && <p className="mt-1 text-[11px] text-[#bb5757]">Expiration Date is required.</p>}
               </div>
             </div>
           </div>
@@ -9140,21 +11488,544 @@ function AddLicenseModal({
         >
           Cancel
         </button>
-        <button
-          type="button"
-          onClick={() => handleSave(true)}
-          className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#7563fb]/30 text-[#7563fb] bg-white hover:bg-[#7563fb]/5 transition-colors"
-        >
-          Save And Add New
-        </button>
+        {!isEdit && (
+          <button
+            type="button"
+            onClick={() => handleSave(true)}
+            className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#12518c]/30 text-[#12518c] bg-white hover:bg-[#12518c]/5 transition-colors"
+          >
+            Save And Add New
+          </button>
+        )}
         <button
           type="button"
           onClick={() => handleSave(false)}
-          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#7563fb] hover:bg-[#6352e8] transition-colors"
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+        >
+          {isEdit ? 'Update License' : 'Save'}
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function ReportToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 cursor-pointer select-none">
+      <span className="text-xs font-medium text-slate-700">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${checked ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+      >
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
+      </button>
+    </label>
+  )
+}
+
+function ViewSectionHeader({ icon, title }: { icon: ReactNode; title: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-t-xl border-b border-[#12518c]/10 bg-[#12518c]/5 px-4 py-2.5">
+      <span className="text-[#12518c]">{icon}</span>
+      <h4 className="text-xs font-semibold text-slate-800">{title}</h4>
+    </div>
+  )
+}
+
+function ViewField({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <p className="mb-1 text-[11px] font-medium text-slate-500">{label}</p>
+      <p className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 truncate" title={value}>
+        {value || '—'}
+      </p>
+    </div>
+  )
+}
+
+function ViewRadioGroup({ label, options, selected }: { label: string; options: string[]; selected: string }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[11px] font-medium text-slate-500">{label}</p>
+      <div className="flex items-center gap-4">
+        {options.map(option => (
+          <span key={option} className={`inline-flex items-center gap-1.5 text-sm ${option === selected ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>
+            <span className={`h-3.5 w-3.5 rounded-full border-4 ${option === selected ? 'border-[#12518c]' : 'border-slate-300'}`} />
+            {option}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ViewToggle({ label, on }: { label: string; on: boolean }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-sm text-slate-700">{label}</span>
+      <span className={`relative inline-flex h-5 w-9 items-center rounded-full ${on ? 'bg-[#12518c]' : 'bg-slate-300'}`}>
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
+      </span>
+      <span className={`text-xs font-medium ${on ? 'text-[#12518c]' : 'text-slate-400'}`}>{on ? 'Yes' : 'No'}</span>
+    </div>
+  )
+}
+
+function ViewLicenseModal({
+  license,
+  onClose,
+  onEdit,
+}: {
+  license: (typeof COMPANY_LICENSES)[number]
+  onClose: () => void
+  onEdit: () => void
+}) {
+  const isFederal = license.state === 'TTB'
+  const noLicenseNumber = !license.licenseNo
+  const doesNotExpire = !license.expiration
+
+  return (
+    <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+              <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
+              <path d="M9.5 2.5V6H13" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900 truncate">Company — View License</h3>
+            <p className="text-[11px] text-slate-500 truncate">
+              {license.state} · {license.func} · {license.licenseNo || 'N/A'}
+            </p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <ViewRadioGroup label="Type of License" options={['OPS', 'OOS']} selected={license.func === 'Operational' ? 'OPS' : 'OOS'} />
+          <ViewRadioGroup label="Type" options={['Federal', 'State']} selected={isFederal ? 'Federal' : 'State'} />
+        </div>
+
+        <section className="rounded-xl border border-slate-200 overflow-hidden">
+          <ViewSectionHeader
+            title="License Setup"
+            icon={
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                <path d="M2.5 5h11M2.5 8h11M2.5 11h7" />
+              </svg>
+            }
+          />
+          <div className="p-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ViewField label="State" value={license.state} />
+              <ViewField label="Function" value={license.func} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-700 mb-2.5">Item Details</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <ViewField label="Item" value={license.item} />
+                <div>
+                  <p className="mb-1 text-[11px] font-medium text-slate-500">Status</p>
+                  <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                    license.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {license.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ViewField label="Shipping Setup" value="Client License" />
+              <ViewField label="City / County" value={license.cityCounty} />
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 overflow-hidden">
+          <ViewSectionHeader
+            title="License Information"
+            icon={
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <path d="M5.5 6.5h5M5.5 9.5h3" />
+              </svg>
+            }
+          />
+          <div className="p-4 space-y-4">
+            <ViewField label="Item Name" value={license.itemName} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+              <div>
+                <p className="mb-1.5 text-[11px] font-medium text-slate-500">License Number</p>
+                <ViewToggle label="No License Number" on={noLicenseNumber} />
+              </div>
+              {!noLicenseNumber && (
+                <ViewField label="License / Permit Number" value={license.licenseNo} />
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 overflow-hidden">
+          <ViewSectionHeader
+            title="Dates"
+            icon={
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                <rect x="2.5" y="3.5" width="11" height="9.5" rx="1.5" />
+                <path d="M2.5 6.5h11M5.5 2v2.5M10.5 2v2.5" />
+              </svg>
+            }
+          />
+          <div className="p-4 space-y-4">
+            <ViewToggle label="Does Not Expire" on={doesNotExpire} />
+            {!doesNotExpire && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <ViewField label="Renewal Due" value={license.renewalDue} />
+                <ViewField label="Expiration" value={license.expiration} />
+                <div>
+                  <p className="mb-1 text-[11px] font-medium text-slate-500">Action In</p>
+                  {license.actionIn === 'Expired' ? (
+                    <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#bb5757] text-white">Expired</span>
+                  ) : (
+                    <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">{license.actionIn} days</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {doesNotExpire && license.actionIn === 'Expired' && (
+              <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#bb5757] text-white">Expired</span>
+            )}
+          </div>
+        </section>
+
+        {license.comment && (
+          <section className="rounded-xl border border-slate-200 overflow-hidden">
+            <ViewSectionHeader
+              title="Comment"
+              icon={
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2.5 3.5h11v7h-6l-2.5 2v-2h-2.5v-7z" />
+                </svg>
+              }
+            />
+            <div className="p-4">
+              <p className="text-sm text-slate-700 leading-relaxed">{license.comment}</p>
+            </div>
+          </section>
+        )}
+      </div>
+
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+        <button type="button" onClick={onEdit} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
+          </svg>
+          Edit
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+const REPORT_NAME_OPTIONS = [
+  'Direct Shipper Report',
+  'Excise Tax Return',
+  'Sales & Use Tax Return',
+  'Operations Report',
+  'Bottle Bill Report',
+]
+
+function LicenseReportModal({
+  license,
+  companyId,
+  onClose,
+  onSave,
+}: {
+  license: (typeof COMPANY_LICENSES)[number]
+  companyId: number
+  onClose: () => void
+  onSave: (data: Omit<(typeof COMPANY_REPORTING)[number], 'id'>) => void
+}) {
+  type Identifier = { id: number; description: string; number: string }
+
+  const [errors, setErrors] = useState<Partial<Record<'reportName' | 'type' | 'filingFrequency' | 'filingType' | 'credential', boolean>>>({})
+  const [manualClient, setManualClient] = useState(false)
+  const [shipDateBased, setShipDateBased] = useState(false)
+  const [futureFrequency, setFutureFrequency] = useState(false)
+  const [addCredentialOpen, setAddCredentialOpen] = useState(false)
+  const [customCredentials, setCustomCredentials] = useState<string[]>([])
+  const [credentialJustAdded, setCredentialJustAdded] = useState(false)
+  const [identifiers, setIdentifiers] = useState<Identifier[]>([])
+  const [form, setForm] = useState({
+    reportName: '',
+    reportType: '',
+    filingFrequency: '',
+    filingType: '',
+    accountNo: '',
+    effectiveDate: '',
+    filingNotes: '',
+    futureFilingFrequency: '',
+    futureEffectiveDate: '',
+    credential: '',
+  })
+
+  const credentialOptions = [...CREDENTIAL_LOGIN_OWNERS, ...customCredentials]
+
+  const set = (key: keyof typeof form, value: string) => {
+    setForm(prev => ({ ...prev, [key]: value }))
+    if (key === 'reportName' || key === 'filingFrequency' || key === 'filingType' || key === 'credential') {
+      setErrors(prev => ({ ...prev, [key === 'reportName' ? 'reportName' : key]: false }))
+    }
+    if (key === 'reportType') setErrors(prev => ({ ...prev, type: false }))
+  }
+
+  const nickname = form.reportName
+    ? `${license.state} ${form.reportName}${form.filingFrequency ? ` (${form.filingFrequency})` : ''}`
+    : ''
+
+  const addIdentifier = () => {
+    setIdentifiers(prev => [...prev, { id: Math.max(0, ...prev.map(x => x.id)) + 1, description: '', number: '' }])
+  }
+
+  const setIdentifier = (id: number, key: 'description' | 'number', value: string) => {
+    setIdentifiers(prev => prev.map(x => (x.id === id ? { ...x, [key]: value } : x)))
+  }
+
+  const removeIdentifier = (id: number) => {
+    setIdentifiers(prev => prev.filter(x => x.id !== id))
+  }
+
+  const handleSave = () => {
+    const next = {
+      reportName: !form.reportName,
+      type: !form.reportType,
+      filingFrequency: !form.filingFrequency,
+      filingType: !form.filingType,
+      credential: !form.credential,
+    }
+    setErrors(next)
+    if (Object.values(next).some(Boolean)) return
+
+    onSave({
+      state: license.state,
+      func: license.func,
+      filingFrequency: form.filingFrequency,
+      type: form.reportType,
+      filingType: form.filingType,
+      accountNo: form.accountNo.trim(),
+      dueDate: '',
+      login: form.credential,
+      password: '••••••••',
+      pin: '',
+      reportingNotes: form.reportName,
+      filingNotes: form.filingNotes.trim(),
+      active: true,
+    })
+  }
+
+  return (
+    <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+              <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
+              <path d="M9.5 2.5V6H13" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900 truncate">
+              Company — Add Report
+            </h3>
+            <p className="text-[11px] text-slate-500 truncate">
+              {license.state} · {license.func} · {license.licenseNo || 'N/A'}
+            </p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="flex items-start gap-2.5 rounded-xl border border-[#e1c16e]/60 bg-[#e1c16e]/15 px-3.5 py-2.5">
+          <svg className="mt-0.5 flex-shrink-0 text-[#e1c16e]" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="8" cy="8" r="6.5" />
+            <path d="M8 5v3.5M8 11h.01" />
+          </svg>
+          <p className="text-xs text-[#73591e]">Some values are pulled from existing Licensing/Reporting data.</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ReportToggle label="Manual Client" checked={manualClient} onChange={setManualClient} />
+          <ReportToggle label="Sends data based on Ship date" checked={shipDateBased} onChange={setShipDateBased} />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <OwnershipFormSelect label="Report Name" required value={form.reportName} onChange={v => set('reportName', v)} options={REPORT_NAME_OPTIONS} placeholder="Select…" />
+            {errors.reportName && <p className="mt-1 text-[11px] text-[#bb5757]">Report name is required.</p>}
+          </div>
+          <OwnershipFormField label="Report Nickname" value={nickname} onChange={() => {}} readOnly placeholder="Generated from report name" />
+          <div>
+            <OwnershipFormSelect label="Report Type" required value={form.reportType} onChange={v => set('reportType', v)} options={REPORT_TYPES} placeholder="Select…" />
+            {errors.type && <p className="mt-1 text-[11px] text-[#bb5757]">Report type is required.</p>}
+          </div>
+          <div>
+            <OwnershipFormSelect label="Filing Frequency" required value={form.filingFrequency} onChange={v => set('filingFrequency', v)} options={REPORT_FREQUENCIES} placeholder="Select…" />
+            {errors.filingFrequency && <p className="mt-1 text-[11px] text-[#bb5757]">Filing frequency is required.</p>}
+          </div>
+          <div>
+            <OwnershipFormSelect label="Filing Type" required value={form.filingType} onChange={v => set('filingType', v)} options={REPORT_FILING_TYPES} placeholder="Select…" />
+            {errors.filingType && <p className="mt-1 text-[11px] text-[#bb5757]">Filing type is required.</p>}
+          </div>
+          <OwnershipFormField label="Account Number" value={form.accountNo} onChange={v => set('accountNo', v)} placeholder="Enter account number" />
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold text-slate-700">Secondary Identifiers</p>
+              <p className="text-[11px] text-slate-500">Optional — account ID, letter #, or other assigned identifiers</p>
+            </div>
+            <button
+              type="button"
+              onClick={addIdentifier}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+            >
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M6 2.5v7M2.5 6h7" />
+              </svg>
+              Add Identifier
+            </button>
+          </div>
+          {identifiers.length > 0 && (
+            <div className="space-y-2">
+              {identifiers.map(identifier => (
+                <div key={identifier.id} className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <OwnershipFormField label="Identifier Description" value={identifier.description} onChange={v => setIdentifier(identifier.id, 'description', v)} placeholder="Account ID, Letter #, etc." />
+                  </div>
+                  <div className="flex-1">
+                    <OwnershipFormField label="Identifier #" value={identifier.number} onChange={v => setIdentifier(identifier.id, 'number', v)} placeholder="Enter identifier number" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeIdentifier(identifier.id)}
+                    className="mb-1 p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors flex-shrink-0"
+                    title="Remove identifier"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                      <path d="M3 3l8 8M11 3l-8 8" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <OwnershipFormField label="Reporting Effective Date" type="date" value={form.effectiveDate} onChange={v => set('effectiveDate', v)} />
+          <OwnershipFormField label="Filing Notes" value={form.filingNotes} onChange={v => set('filingNotes', v)} placeholder="Optional notes" />
+        </div>
+
+        <div className="space-y-3">
+          <ReportToggle label="Add Future Filing Frequency" checked={futureFrequency} onChange={setFutureFrequency} />
+          {futureFrequency && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <OwnershipFormSelect label="Future Filing Frequency" value={form.futureFilingFrequency} onChange={v => set('futureFilingFrequency', v)} options={REPORT_FREQUENCIES} placeholder="Select…" />
+              <OwnershipFormField label="Effective From" type="date" value={form.futureEffectiveDate} onChange={v => set('futureEffectiveDate', v)} />
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold text-slate-700">Credential <span className="text-[#bb5757]">*</span></p>
+              <p className="text-[11px] text-slate-500">Link an existing login or create a new one for this report</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAddCredentialOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+            >
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M6 2.5v7M2.5 6h7" />
+              </svg>
+              Add New Credential
+            </button>
+          </div>
+          <div>
+            <OwnershipFormSelect label="Credential" required value={form.credential} onChange={v => set('credential', v)} options={credentialOptions} placeholder="Select…" />
+            {errors.credential && <p className="mt-1 text-[11px] text-[#bb5757]">Select a credential or add a new one.</p>}
+            {credentialJustAdded && form.credential && (
+              <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600">
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="M2 6.5l2.5 2.5L10 3" />
+                </svg>
+                New credential created and selected
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-2.5">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-slate-700 hover:bg-slate-800 transition-colors"
         >
           Save
         </button>
       </div>
+
+      {addCredentialOpen && (
+        <AddCredentialModal
+          companyId={companyId}
+          states={REPORT_STATE_CODES}
+          initialState={license.state}
+          initialFunc={license.func}
+          onClose={() => setAddCredentialOpen(false)}
+          onSave={(data) => {
+            const label = data.loginOwner || data.userName
+            setCustomCredentials(prev => (prev.includes(label) ? prev : [...prev, label]))
+            setForm(prev => ({ ...prev, credential: label }))
+            setErrors(prev => ({ ...prev, credential: false }))
+            setCredentialJustAdded(true)
+            setAddCredentialOpen(false)
+          }}
+        />
+      )}
     </AddressModalShell>
   )
 }
@@ -9234,7 +12105,7 @@ function AddReportModal({
     <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
               <path d="M9.5 2.5V6H13M6 8.5h4M6 11h4" />
@@ -9255,29 +12126,29 @@ function AddReportModal({
       <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
         {/* Report Setup */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#7563fb]/5 border-b border-[#7563fb]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4" strokeLinecap="round">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
               <circle cx="8" cy="8" r="5.5" />
               <path d="M8 5.5v3M8 10.5h.01" />
             </svg>
-            <span className="text-xs font-semibold text-[#7563fb] uppercase tracking-wide">Report Setup</span>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Report Setup</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
             <div>
               <OwnershipFormSelect label="State" required value={form.state} onChange={v => set('state', v)} options={states} placeholder="Select…" />
-              {errors.state && <p className="mt-1 text-[11px] text-[#ea5054]">State is required.</p>}
+              {errors.state && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
             </div>
             <div>
               <OwnershipFormSelect label="Function" required value={form.func} onChange={v => set('func', v)} options={REPORT_FUNCTIONS} placeholder="Select…" />
-              {errors.func && <p className="mt-1 text-[11px] text-[#ea5054]">Function is required.</p>}
+              {errors.func && <p className="mt-1 text-[11px] text-[#bb5757]">Function is required.</p>}
             </div>
             <div>
               <OwnershipFormSelect label="Type" required value={form.type} onChange={v => set('type', v)} options={REPORT_TYPES} placeholder="Select…" />
-              {errors.type && <p className="mt-1 text-[11px] text-[#ea5054]">Type is required.</p>}
+              {errors.type && <p className="mt-1 text-[11px] text-[#bb5757]">Type is required.</p>}
             </div>
             <div>
               <OwnershipFormSelect label="Filing Frequency" required value={form.filingFrequency} onChange={v => set('filingFrequency', v)} options={REPORT_FREQUENCIES} placeholder="Select…" />
-              {errors.filingFrequency && <p className="mt-1 text-[11px] text-[#ea5054]">Filing Frequency is required.</p>}
+              {errors.filingFrequency && <p className="mt-1 text-[11px] text-[#bb5757]">Filing Frequency is required.</p>}
             </div>
             <div className="sm:col-span-2">
               <OwnershipRadioGroup
@@ -9287,7 +12158,7 @@ function AddReportModal({
                 onChange={v => set('filingType', v)}
                 options={REPORT_FILING_TYPES.map(t => ({ value: t, label: t }))}
               />
-              {errors.filingType && <p className="mt-1 text-[11px] text-[#ea5054]">Filing Type is required.</p>}
+              {errors.filingType && <p className="mt-1 text-[11px] text-[#bb5757]">Filing Type is required.</p>}
             </div>
             <OwnershipFormField label="Due Date" value={form.dueDate} onChange={v => set('dueDate', v)} placeholder="e.g. 20th, 31st" />
           </div>
@@ -9295,12 +12166,12 @@ function AddReportModal({
 
         {/* Access & Credentials */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#7563fb]/5 border-b border-[#7563fb]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="7" width="10" height="6.5" rx="1.2" />
               <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
             </svg>
-            <span className="text-xs font-semibold text-[#7563fb] uppercase tracking-wide">Access &amp; Credentials</span>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Access &amp; Credentials</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
             <OwnershipFormField label="Account No" value={form.accountNo} onChange={v => set('accountNo', v)} placeholder="Account number" />
@@ -9312,11 +12183,11 @@ function AddReportModal({
 
         {/* Notes */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#7563fb]/5 border-b border-[#7563fb]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7563fb" strokeWidth="1.4" strokeLinecap="round">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
               <path d="M3.5 3.5h9M3.5 6.5h9M3.5 9.5h6" />
             </svg>
-            <span className="text-xs font-semibold text-[#7563fb] uppercase tracking-wide">Notes</span>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Notes</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
             <div>
@@ -9326,7 +12197,7 @@ function AddReportModal({
                 onChange={e => set('reportingNotes', e.target.value)}
                 rows={3}
                 placeholder="Internal reporting notes…"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb] resize-y"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] resize-y"
               />
             </div>
             <div>
@@ -9336,7 +12207,7 @@ function AddReportModal({
                 onChange={e => set('filingNotes', e.target.value)}
                 rows={3}
                 placeholder="Filing instructions…"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb] resize-y"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] resize-y"
               />
             </div>
           </div>
@@ -9349,7 +12220,7 @@ function AddReportModal({
             role="switch"
             aria-checked={form.active}
             onClick={() => set('active', !form.active)}
-            className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${form.active ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
+            className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${form.active ? 'bg-[#12518c]' : 'bg-slate-300'}`}
           >
             <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.active ? 'translate-x-5' : ''}`} />
           </button>
@@ -9369,7 +12240,7 @@ function AddReportModal({
           <button
             type="button"
             onClick={() => handleSave(true)}
-            className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#7563fb]/30 text-[#7563fb] bg-white hover:bg-[#7563fb]/5 transition-colors"
+            className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#12518c]/30 text-[#12518c] bg-white hover:bg-[#12518c]/5 transition-colors"
           >
             Save And Add New
           </button>
@@ -9377,7 +12248,7 @@ function AddReportModal({
         <button
           type="button"
           onClick={() => handleSave(false)}
-          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#7563fb] hover:bg-[#6352e8] transition-colors"
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
         >
           Save
         </button>
@@ -9496,9 +12367,9 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#7563fb]">Current Addresses</h2>
+              <h2 className="text-sm font-semibold text-[#12518c]">Current Addresses</h2>
               <p className="text-xs text-slate-500">Active locations for this company</p>
             </div>
           </div>
@@ -9576,7 +12447,7 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
                         <button
                           type="button"
                           onClick={() => openView(a)}
-                          className="p-1.5 rounded-md text-slate-400 hover:text-[#7563fb] hover:bg-[#7563fb]/10 transition-colors"
+                          className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                           title="View"
                         >
                           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -9597,7 +12468,7 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
                         <button
                           type="button"
                           onClick={() => setDeleteConfirmId(a.id)}
-                          className="p-1.5 rounded-md text-slate-400 hover:text-[#ea5054] hover:bg-red-50 transition-colors"
+                          className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                           title="Delete"
                         >
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -9627,9 +12498,9 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#7563fb]">Past Addresses</h2>
+              <h2 className="text-sm font-semibold text-[#12518c]">Past Addresses</h2>
               <p className="text-xs text-slate-500">Historical locations no longer in use</p>
             </div>
           </div>
@@ -9640,7 +12511,7 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
           <table className="w-full min-w-[720px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
-                {['Location Name', 'Address', 'City', 'State', 'Zip Code', 'Country', 'Active/Inactive'].map((h, i) => (
+                {['Location Name', 'Street', 'City', 'State', 'Zip Code', 'Country', 'Active/Inactive'].map((h, i) => (
                   <th
                     key={h}
                     className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
@@ -9769,7 +12640,7 @@ function AddressConfirmInactiveModal({
     <AddressModalShell onClose={onClose}>
       <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
         <div className="flex items-start gap-3 min-w-0">
-          <span className="mt-0.5 w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+          <span className="mt-0.5 w-9 h-9 rounded-xl bg-[#e1c16e]/15 text-[#a1802b] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
               <circle cx="8" cy="8" r="6" />
               <path d="M8 5v4M8 11.2h.01" />
@@ -9838,7 +12709,7 @@ function AddressReasonModal({
     <AddressModalShell maxWidth="max-w-lg" onClose={onCancel}>
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-1 h-4 rounded-full bg-[#7563fb]" aria-hidden />
+          <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
           <h3 className="text-sm font-semibold text-slate-900 tracking-wide uppercase">Reason for Change</h3>
         </div>
         <button
@@ -9855,21 +12726,21 @@ function AddressReasonModal({
       <div className="px-5 py-5">
         <label className="block text-xs text-slate-600 mb-1.5 leading-relaxed">
           {companyId} Notes ({notesHint}){' '}
-          <span className="text-[#ea5054]">*</span>
+          <span className="text-[#bb5757]">*</span>
         </label>
         <p className="text-[11px] text-slate-400 mb-2.5">{entityLabel}: {locationName}</p>
         <input
           type="text"
           value={note}
           onChange={e => onNoteChange(e.target.value)}
-          className={`w-full h-10 px-3.5 rounded-lg border text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb] transition-colors ${
-            error ? 'border-[#ea5054] bg-red-50/40' : 'border-slate-200 bg-white'
+          className={`w-full h-10 px-3.5 rounded-lg border text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] transition-colors ${
+            error ? 'border-[#bb5757] bg-danger-light/40' : 'border-slate-200 bg-white'
           }`}
           placeholder="Enter reason for change"
           autoFocus
         />
         {error && (
-          <p className="mt-1.5 text-[11px] text-[#ea5054]">Please enter a reason before submitting.</p>
+          <p className="mt-1.5 text-[11px] text-[#bb5757]">Please enter a reason before submitting.</p>
         )}
       </div>
       <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
@@ -9883,7 +12754,7 @@ function AddressReasonModal({
         <button
           type="button"
           onClick={onSubmit}
-          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#7563fb] hover:bg-[#6352e8] transition-colors"
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
         >
           Submit
         </button>
@@ -10006,11 +12877,11 @@ function AddressFormModal({
   }
 
   const fieldClass = (hasError?: boolean) =>
-    `w-full h-10 px-3 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb] ${
+    `w-full h-10 px-3 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] ${
       readOnly
         ? 'bg-slate-50 border-slate-200 text-slate-700 cursor-default'
         : hasError
-          ? 'bg-white border-[#ea5054] text-slate-900'
+          ? 'bg-white border-[#bb5757] text-slate-900'
           : 'bg-white border-slate-200 text-slate-900'
     }`
 
@@ -10018,7 +12889,7 @@ function AddressFormModal({
     <AddressModalShell maxWidth="max-w-xl" onClose={onClose}>
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-8 h-8 rounded-lg bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M8 14s5-3.8 5-7.2A5 5 0 0 0 3 6.8C3 10.2 8 14 8 14z" />
               <circle cx="8" cy="6.8" r="1.6" />
@@ -10044,7 +12915,7 @@ function AddressFormModal({
       <div className="px-5 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
         <label className="block">
           <span className="block text-xs font-medium text-slate-600 mb-1.5">
-            Location Name <span className="text-[#ea5054]">*</span>
+            Location Name <span className="text-[#bb5757]">*</span>
           </span>
           <select
             value={form.label}
@@ -10062,13 +12933,13 @@ function AddressFormModal({
               <option key={opt} value={opt}>{opt}</option>
             ))}
           </select>
-          {errors.label && <p className="mt-1 text-[11px] text-[#ea5054]">Location name is required.</p>}
+          {errors.label && <p className="mt-1 text-[11px] text-[#bb5757]">Location name is required.</p>}
         </label>
 
         <div>
           <label className="block">
             <span className="block text-xs font-medium text-slate-600 mb-1.5">
-              Street <span className="text-[#ea5054]">*</span>
+              Street <span className="text-[#bb5757]">*</span>
             </span>
             <input
               type="text"
@@ -10078,7 +12949,7 @@ function AddressFormModal({
               className={fieldClass(errors.street)}
               placeholder="Enter street address"
             />
-            {errors.street && <p className="mt-1 text-[11px] text-[#ea5054]">Street is required.</p>}
+            {errors.street && <p className="mt-1 text-[11px] text-[#bb5757]">Street is required.</p>}
           </label>
           {!readOnly && (
             <div className="flex justify-end mt-2">
@@ -10087,7 +12958,7 @@ function AddressFormModal({
                 onClick={() => setShowStreetVariation(v => !v)}
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
                   showStreetVariation
-                    ? 'bg-[#7563fb]/10 text-[#7563fb]'
+                    ? 'bg-[#12518c]/10 text-[#12518c]'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                 }`}
               >
@@ -10140,7 +13011,7 @@ function AddressFormModal({
           </label>
           <label className="block">
             <span className="block text-xs font-medium text-slate-600 mb-1.5">
-              State <span className="text-[#ea5054]">*</span>
+              State <span className="text-[#bb5757]">*</span>
             </span>
             <select
               value={form.state}
@@ -10158,7 +13029,7 @@ function AddressFormModal({
                 <option key={opt} value={opt}>{opt}</option>
               ))}
             </select>
-            {errors.state && <p className="mt-1 text-[11px] text-[#ea5054]">State is required.</p>}
+            {errors.state && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
           </label>
         </div>
 
@@ -10176,7 +13047,7 @@ function AddressFormModal({
           </label>
           <label className="block">
             <span className="block text-xs font-medium text-slate-600 mb-1.5">
-              Country <span className="text-[#ea5054]">*</span>
+              Country <span className="text-[#bb5757]">*</span>
             </span>
             <div className="relative">
               <select
@@ -10208,7 +13079,7 @@ function AddressFormModal({
                 </button>
               )}
             </div>
-            {errors.country && <p className="mt-1 text-[11px] text-[#ea5054]">Country is required.</p>}
+            {errors.country && <p className="mt-1 text-[11px] text-[#bb5757]">Country is required.</p>}
           </label>
         </div>
       </div>
@@ -10243,7 +13114,7 @@ function AddressFormModal({
             <button
               type="button"
               onClick={validateAndSave}
-              className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#7563fb] hover:bg-[#6352e8] transition-colors"
+              className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
             >
               Save
             </button>
@@ -10269,7 +13140,7 @@ function AddressDeleteConfirmModal({
     <AddressModalShell onClose={onCancel}>
       <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
         <div className="flex items-start gap-3 min-w-0">
-          <span className="mt-0.5 w-9 h-9 rounded-xl bg-red-50 text-[#ea5054] flex items-center justify-center flex-shrink-0">
+          <span className="mt-0.5 w-9 h-9 rounded-xl bg-danger-light text-[#bb5757] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 6h18" />
               <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -10305,7 +13176,7 @@ function AddressDeleteConfirmModal({
         <button
           type="button"
           onClick={onConfirm}
-          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#ea5054] hover:bg-[#d64549] transition-colors"
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#bb5757] hover:bg-[#d64549] transition-colors"
         >
           Delete
         </button>
@@ -10377,11 +13248,11 @@ function ContactFormModal({
   }
 
   const fieldClass = (hasError?: boolean) =>
-    `w-full h-10 px-3 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb] ${
+    `w-full h-10 px-3 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] ${
       readOnly
         ? 'bg-slate-50 border-slate-200 text-slate-700 cursor-default'
         : hasError
-          ? 'bg-white border-[#ea5054] text-slate-900'
+          ? 'bg-white border-[#bb5757] text-slate-900'
           : 'bg-white border-slate-200 text-slate-900'
     }`
 
@@ -10389,7 +13260,7 @@ function ContactFormModal({
     <AddressModalShell maxWidth="max-w-xl" onClose={onClose}>
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-8 h-8 rounded-lg bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <circle cx="8" cy="5.5" r="2.5" />
               <path d="M3 13.5c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5" />
@@ -10415,20 +13286,20 @@ function ContactFormModal({
           </label>
           <label className="block">
             <span className="block text-xs font-medium text-slate-600 mb-1.5">
-              Role <span className="text-[#ea5054]">*</span>
+              Role <span className="text-[#bb5757]">*</span>
             </span>
             <input type="text" value={form.role} readOnly={readOnly} onChange={e => set('role', e.target.value)} className={fieldClass(errors.role)} placeholder="Role" />
-            {errors.role && <p className="mt-1 text-[11px] text-[#ea5054]">Role is required.</p>}
+            {errors.role && <p className="mt-1 text-[11px] text-[#bb5757]">Role is required.</p>}
           </label>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <label className="block">
             <span className="block text-xs font-medium text-slate-600 mb-1.5">
-              Email <span className="text-[#ea5054]">*</span>
+              Email <span className="text-[#bb5757]">*</span>
             </span>
             <input type="email" value={form.email} readOnly={readOnly} onChange={e => set('email', e.target.value)} className={fieldClass(errors.email)} placeholder="email@example.com" />
-            {errors.email && <p className="mt-1 text-[11px] text-[#ea5054]">Email is required.</p>}
+            {errors.email && <p className="mt-1 text-[11px] text-[#bb5757]">Email is required.</p>}
           </label>
           <label className="block">
             <span className="block text-xs font-medium text-slate-600 mb-1.5">Work Phone</span>
@@ -10505,7 +13376,7 @@ function ContactFormModal({
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">
               Cancel
             </button>
-            <button type="button" onClick={validateAndSave} className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#7563fb] hover:bg-[#6352e8] transition-colors">
+            <button type="button" onClick={validateAndSave} className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
               Save
             </button>
           </>
@@ -10518,12 +13389,16 @@ function ContactFormModal({
 function AddressSearchInput({
   value,
   onChange,
+  placeholder = 'Search Here',
+  className = 'w-72',
 }: {
   value: string
   onChange: (v: string) => void
+  placeholder?: string
+  className?: string
 }) {
   return (
-    <div className="relative max-w-xs">
+    <div className={`relative ${className}`}>
       <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
         <circle cx="5" cy="5" r="3.5" />
         <path d="M8 8l2.5 2.5" strokeLinecap="round" />
@@ -10532,8 +13407,8 @@ function AddressSearchInput({
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder="Search Here"
-        className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb] transition-all"
+        placeholder={placeholder}
+        className="h-9 w-full pl-8 pr-3 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] transition-all"
       />
     </div>
   )
@@ -10552,7 +13427,7 @@ function AddressActiveToggle({
       role="switch"
       aria-checked={active}
       onClick={onChange}
-      className={`relative w-10 h-5 rounded-full transition-colors ${active ? 'bg-[#7563fb]' : 'bg-slate-300'}`}
+      className={`relative w-10 h-5 rounded-full transition-colors ${active ? 'bg-[#12518c]' : 'bg-slate-300'}`}
       title={active ? 'Active' : 'Inactive'}
     >
       <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${active ? 'translate-x-5' : ''}`} />
@@ -10587,7 +13462,7 @@ function AddressTableFooter({
         </button>
         <button
           type="button"
-          className="min-w-8 h-8 px-2.5 flex items-center justify-center rounded-lg text-sm font-semibold bg-[#7563fb] text-white"
+          className="min-w-8 h-8 px-2.5 flex items-center justify-center rounded-lg text-sm font-semibold bg-[#12518c] text-white"
         >
           {page}
         </button>
@@ -10608,11 +13483,13 @@ function AddressTableFooter({
 function CompanyDetailPage({
   company,
   companyId,
+  editRequest = 0,
 }: {
   company: CompanyRow
   companyId: number
+  editRequest?: number
 }) {
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(editRequest > 0)
   const [openSection, setOpenSection] = useState('Company Information')
   const [showEinVariations, setShowEinVariations] = useState(false)
   const initialForm = {
@@ -10655,6 +13532,13 @@ function CompanyDetailPage({
   const [form, setForm] = useState(initialForm)
   const [formSnapshot, setFormSnapshot] = useState(initialForm)
 
+  useEffect(() => {
+    if (editRequest > 0) {
+      setFormSnapshot(form)
+      setEditing(true)
+    }
+  }, [editRequest])
+
   const set = (key: keyof typeof form, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }))
   }
@@ -10678,7 +13562,7 @@ function CompanyDetailPage({
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-8 h-8 rounded-lg bg-[#7563fb]/10 text-[#7563fb] flex items-center justify-center flex-shrink-0">
+          <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M2 4.5h12M2 8h12M2 11.5h8" strokeLinecap="round" />
             </svg>
@@ -10854,24 +13738,24 @@ function DetailSection({
 }) {
   return (
     <section className={`rounded-xl border overflow-hidden transition-colors ${
-      open ? 'border-[#7563fb]/30' : 'border-slate-200/80'
+      open ? 'border-[#12518c]/30' : 'border-slate-200/80'
     }`}>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
         className={`w-full flex items-center gap-2.5 px-4 py-3 text-left transition-colors ${
-          open ? 'bg-[#7563fb]/5 border-b border-[#7563fb]/15' : 'bg-slate-50 hover:bg-slate-100/80'
+          open ? 'bg-[#12518c]/5 border-b border-[#12518c]/15' : 'bg-slate-50 hover:bg-slate-100/80'
         }`}
       >
         <span
           className={`w-1 h-4 rounded-full flex-shrink-0 transition-colors ${
-            open ? 'bg-[#7563fb]' : 'bg-slate-300'
+            open ? 'bg-[#12518c]' : 'bg-slate-300'
           }`}
           aria-hidden
         />
         <h3 className={`flex-1 text-xs font-semibold tracking-wide uppercase transition-colors ${
-          open ? 'text-[#7563fb]' : 'text-slate-500'
+          open ? 'text-[#12518c]' : 'text-slate-500'
         }`}>
           {title}
         </h3>
@@ -10885,7 +13769,7 @@ function DetailSection({
           strokeLinecap="round"
           strokeLinejoin="round"
           className={`flex-shrink-0 transition-transform duration-200 ${
-            open ? 'rotate-180 text-[#7563fb]' : 'text-slate-400'
+            open ? 'rotate-180 text-[#12518c]' : 'text-slate-400'
           }`}
           aria-hidden
         >
@@ -10910,8 +13794,8 @@ function VariationButton({
       onClick={onClick}
       className={`text-[11px] font-semibold transition-colors ${
         active
-          ? 'text-[#5b4ae0]'
-          : 'text-[#7563fb] hover:text-[#5b4ae0]'
+          ? 'text-[#0e4173]'
+          : 'text-[#12518c] hover:text-[#0e4173]'
       }`}
     >
       Variation
@@ -10920,7 +13804,7 @@ function VariationButton({
 }
 
 const detailControlClass =
-  'w-full h-9 px-3 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#7563fb]/25 focus:border-[#7563fb]'
+  'w-full h-9 px-3 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]'
 
 function DetailField({
   label,
@@ -11038,13 +13922,13 @@ function SummaryCard({
 function CompanyStatusBadge({ status, alert }: { status: 'Archived' | 'Active' | 'Inactive'; alert?: boolean }) {
   if (alert) {
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-red-50 text-red-600 border-red-200">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-danger-light text-danger border-danger-border">
         {status}
       </span>
     )
   }
   const map = {
-    Archived: 'bg-[#ea5054] text-white border-transparent',
+    Archived: 'bg-[#bb5757] text-white border-transparent',
     Active: 'bg-teal-500 text-white border-transparent',
     Inactive: 'bg-slate-400 text-white border-transparent',
   }
@@ -11055,12 +13939,40 @@ function CompanyStatusBadge({ status, alert }: { status: 'Archived' | 'Active' |
   )
 }
 
+function useTableColumns<T extends string>(columnDefs: readonly { key: T; label: string }[]) {
+  const [visible, setVisible] = useState(() =>
+    Object.fromEntries(columnDefs.map(c => [c.key, true])) as Record<T, boolean>
+  )
+
+  const toggle = (key: string) => {
+    setVisible(prev => {
+      const k = key as T
+      const nextVisible = !prev[k]
+      if (!nextVisible && Object.values(prev).filter(Boolean).length <= 1) return prev
+      return { ...prev, [k]: nextVisible }
+    })
+  }
+
+  const visibleCount = columnDefs.filter(c => visible[c.key]).length
+
+  return {
+    show: (key: T) => visible[key],
+    visibleCount,
+    dropdownProps: {
+      columns: columnDefs.map(c => ({ key: c.key, label: c.label, visible: visible[c.key] })),
+      onToggle: toggle,
+    },
+  }
+}
+
 function ColumnSettingsDropdown({
   columns,
   onToggle,
+  buttonClassName = 'p-2 rounded-lg transition-all duration-200',
 }: {
   columns: { key: string; label: string; visible: boolean }[]
   onToggle: (key: string) => void
+  buttonClassName?: string
 }) {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -11090,7 +14002,7 @@ function ColumnSettingsDropdown({
         title="Column settings"
         aria-expanded={open}
         aria-haspopup="menu"
-        className={`p-2 rounded-lg transition-all duration-200 ${
+        className={`${buttonClassName} ${
           open
             ? 'bg-slate-100 text-slate-700'
             : 'hover:bg-slate-100 text-slate-500'
@@ -11181,9 +14093,9 @@ function AlertDropdown({ status, onChange }: { status: AlertStatus; onChange: (s
 
   const badge =
     status === 'Pending'
-      ? { label: 'Pending', bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', dot: 'bg-amber-400' }
+      ? { label: 'Pending', bg: 'bg-[#e1c16e]/15', text: 'text-[#a1802b]', border: 'border-[#e1c16e]/60', dot: 'bg-[#e1c16e]' }
       : status === 'Work Stop'
-      ? { label: 'Work Stop', bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200', dot: 'bg-red-500' }
+      ? { label: 'Work Stop', bg: 'bg-danger-light', text: 'text-danger', border: 'border-danger-border', dot: 'bg-danger' }
       : { label: 'No Alert', bg: 'bg-slate-50', text: 'text-slate-400', border: 'border-slate-200', dot: 'bg-slate-300' }
 
   const menu = open && menuPos && createPortal(
@@ -11198,8 +14110,8 @@ function AlertDropdown({ status, onChange }: { status: AlertStatus; onChange: (s
       >
         <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="6" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 2" />
-            <circle cx="7" cy="7" r="2" fill="#f59e0b" />
+            <circle cx="7" cy="7" r="6" stroke="#e1c16e" strokeWidth="1.5" strokeDasharray="3 2" />
+            <circle cx="7" cy="7" r="2" fill="#e1c16e" />
           </svg>
         </span>
         Set to Pending
@@ -11255,10 +14167,10 @@ function StatusBadge({ status, alert }: { status: string; alert?: boolean }) {
   const map: Record<string, string> = {
     Archived: 'bg-slate-100 text-slate-600 border-slate-200',
     Active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    Expired: 'bg-red-50 text-red-600 border-red-100',
+    Expired: 'bg-danger-light text-danger border-danger-border',
   }
   const classes = alert
-    ? 'bg-red-50 text-red-600 border-red-200'
+    ? 'bg-danger-light text-danger border-danger-border'
     : (map[status] ?? 'bg-slate-100 text-slate-600')
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${classes}`}>
@@ -11277,17 +14189,74 @@ function SearchInput({ placeholder }: { placeholder: string }) {
       <input
         type="text"
         placeholder={placeholder}
-        className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 w-36 transition-all"
+        className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/30 focus:border-[#12518c] w-36 transition-all"
       />
     </div>
   )
 }
 
-function Select({ placeholder }: { placeholder: string }) {
+function filterSelectClassName(value: string, extra = '') {
+  const active = !!value
+  return `h-9 min-w-[140px] px-2.5 rounded-lg border bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] transition-colors cursor-pointer ${extra} ${
+    active
+      ? 'border-[#12518c] ring-1 ring-[#12518c]/20 text-slate-800 font-medium'
+      : 'border-slate-200 text-slate-500'
+  }`
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options = [],
+  className,
+  'aria-label': ariaLabel,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options?: readonly string[] | string[]
+  className?: string
+  'aria-label'?: string
+}) {
   return (
-    <select className="text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-500 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer">
-      <option value="">{placeholder}</option>
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      aria-label={ariaLabel ?? label}
+      className={className ?? filterSelectClassName(value)}
+    >
+      <option value="">{label}</option>
+      {options.filter(o => o !== 'All').map(option => (
+        <option key={option} value={option}>{option}</option>
+      ))}
     </select>
+  )
+}
+
+function Select({
+  placeholder,
+  options = [],
+  value: controlledValue,
+  onChange,
+}: {
+  placeholder: string
+  options?: string[]
+  value?: string
+  onChange?: (value: string) => void
+}) {
+  const [internalValue, setInternalValue] = useState('')
+  const value = controlledValue ?? internalValue
+  const handleChange = onChange ?? setInternalValue
+
+  return (
+    <FilterSelect
+      label={placeholder}
+      value={value}
+      onChange={handleChange}
+      options={options}
+      className={filterSelectClassName(value, 'py-1.5 bg-slate-50')}
+    />
   )
 }
 
@@ -11306,7 +14275,7 @@ function GridViewIcon() {
 
 function GridIcon({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill={active ? '#818cf8' : 'currentColor'} className="flex-shrink-0">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill={active ? '#12518c' : 'currentColor'} className="flex-shrink-0">
       <rect x="1" y="1" width="6" height="6" rx="1.5" />
       <rect x="9" y="1" width="6" height="6" rx="1.5" />
       <rect x="1" y="9" width="6" height="6" rx="1.5" />
@@ -11317,7 +14286,7 @@ function GridIcon({ active }: { active: boolean }) {
 
 function WineIcon({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#818cf8' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
       <path d="M5 2h6l-1 5a3 3 0 0 1-4 0L5 2z" />
       <path d="M8 7v7M5.5 14h5" />
     </svg>
@@ -11326,7 +14295,7 @@ function WineIcon({ active }: { active: boolean }) {
 
 function BuildingIcon({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#818cf8' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
       <rect x="2" y="4" width="12" height="10" rx="1" />
       <path d="M5 14V8h6v6M8 4V2" />
     </svg>
@@ -11335,7 +14304,7 @@ function BuildingIcon({ active }: { active: boolean }) {
 
 function PeopleIcon({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#818cf8' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
       <circle cx="6" cy="5" r="2.5" />
       <path d="M1 14c0-3 2-4.5 5-4.5s5 1.5 5 4.5" />
       <path d="M11 3a2.5 2.5 0 0 1 0 5M15 14c0-2.5-1.5-4-4-4" />
@@ -11345,7 +14314,7 @@ function PeopleIcon({ active }: { active: boolean }) {
 
 function AgencyIcon({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#818cf8' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
       <path d="M2 14V7l6-5 6 5v7H2z" />
       <rect x="6" y="10" width="4" height="4" />
     </svg>
@@ -11354,7 +14323,7 @@ function AgencyIcon({ active }: { active: boolean }) {
 
 function QueryIcon({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#818cf8' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
       <circle cx="7" cy="7" r="5" />
       <path d="M12.5 12.5L15 15" />
     </svg>
@@ -11363,7 +14332,7 @@ function QueryIcon({ active }: { active: boolean }) {
 
 function LicenseIcon({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#818cf8' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
       <rect x="3" y="2" width="10" height="12" rx="1.5" />
       <path d="M6 6h4M6 9h4M6 12h2" />
     </svg>
@@ -11372,7 +14341,7 @@ function LicenseIcon({ active }: { active: boolean }) {
 
 function ReportIcon({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#818cf8' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
       <path d="M2 12V4l4 4 3-4 5 6" />
     </svg>
   )
@@ -11380,7 +14349,7 @@ function ReportIcon({ active }: { active: boolean }) {
 
 function BulkIcon({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#818cf8' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
       <path d="M2 4h12M2 8h12M2 12h8" />
     </svg>
   )
@@ -11388,7 +14357,7 @@ function BulkIcon({ active }: { active: boolean }) {
 
 function UsersIcon({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#818cf8' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
       <circle cx="8" cy="5" r="3" />
       <path d="M2 15c0-3.5 2.5-5.5 6-5.5s6 2 6 5.5" />
     </svg>

@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-danger: #bb5757;
+  --color-danger-hover: #a64a4a;
+  --color-danger-light: #f8efef;
+  --color-danger-lighter: #f3e4e4;
+  --color-danger-muted: #c98989;
+  --color-danger-border: #e5c0c0;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
