@@ -27,7 +27,7 @@ function AuthShell({ children }: { children: ReactNode }) {
             <div className="relative">
               <p className="text-xs text-blue-100/80 mb-3 tracking-wide">You can easily</p>
               <h1 className="text-[30px] leading-tight font-semibold">
-                Manage all your compliance in one place
+                Manage your compliance in one place
               </h1>
               <p className="text-sm text-blue-100/90 mt-4">
                 Total Compliance Service Provider — please use your credentials to login.
@@ -36,7 +36,7 @@ function AuthShell({ children }: { children: ReactNode }) {
 
             <div className="relative">
               <p className="text-xs text-blue-200/80">Powered by</p>
-              <p className="text-sm font-semibold text-white/90 mt-1">dh wine compliance</p>
+              <p className="text-sm font-semibold text-white/90 mt-1">DH Wine Compliance</p>
               <p className="text-[11px] text-blue-200/70 mt-1">www.dhwinecompliance.com</p>
             </div>
           </div>

@@ -6,7 +6,7 @@ import LoginPage from './LoginPage'
 
 type AlertStatus = 'Pending' | 'Work Stop' | null
 
-const REDESIGNED_NAV_ITEMS = new Set(['Dashboard', 'The Cellar', 'Companies', 'People'])
+const REDESIGNED_NAV_ITEMS = new Set(['Dashboard', 'The Cellar', 'Companies', 'People', 'Agencies'])
 
 const NAV_ITEMS = [
   { icon: GridIcon, label: 'Dashboard', active: true },
@@ -186,6 +186,8 @@ const COMPANY_DETAIL_TABS = [
 ] as const
 
 const PERSON_DETAIL_TABS = ['Summary', 'Detail', 'Business Addresses', 'Change Log', 'Notes'] as const
+
+const AGENCY_DETAIL_TABS = ['Summary', 'Addresses', 'Contacts', 'License Types'] as const
 
 const PERSON_NOTE_TYPES = ['Flag', 'Note', 'Task'] as const
 
@@ -586,6 +588,392 @@ const US_STATES = [
   'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming',
 ]
 
+const US_STATE_CODE_ENTRIES: { code: string; name: string }[] = [
+  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' }, { code: 'AR', name: 'Arkansas' },
+  { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' }, { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' },
+  { code: 'DC', name: 'District of Columbia' }, { code: 'FL', name: 'Florida' }, { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' },
+  { code: 'ID', name: 'Idaho' }, { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' }, { code: 'IA', name: 'Iowa' },
+  { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' }, { code: 'LA', name: 'Louisiana' }, { code: 'ME', name: 'Maine' },
+  { code: 'MD', name: 'Maryland' }, { code: 'MA', name: 'Massachusetts' }, { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' },
+  { code: 'MS', name: 'Mississippi' }, { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' }, { code: 'NE', name: 'Nebraska' },
+  { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' }, { code: 'NJ', name: 'New Jersey' }, { code: 'NM', name: 'New Mexico' },
+  { code: 'NY', name: 'New York' }, { code: 'NC', name: 'North Carolina' }, { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' },
+  { code: 'OK', name: 'Oklahoma' }, { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' }, { code: 'RI', name: 'Rhode Island' },
+  { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' }, { code: 'TX', name: 'Texas' },
+  { code: 'UT', name: 'Utah' }, { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' },
+  { code: 'WV', name: 'West Virginia' }, { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' },
+]
+
+const US_STATE_NAME_TO_CODE = Object.fromEntries(US_STATE_CODE_ENTRIES.map(e => [e.name, e.code]))
+const US_STATE_CODES = US_STATE_CODE_ENTRIES.map(e => e.code)
+
+const COUNTRY_OPTIONS = ['United States', 'Canada', 'Mexico']
+
+type AgencyRow = {
+  id: number
+  stateCode: string
+  cityCounty: string
+  name: string
+  jurisdiction: 'Federal' | 'State'
+  website: string
+}
+
+const AGENCY_STATE_CODES = [
+  ...US_STATE_CODES,
+  'TTB',
+]
+
+/** Capitals / common cities by state code (plus TTB). */
+const US_CITIES_BY_STATE: Record<string, string[]> = {
+  AL: ['Montgomery', 'Birmingham', 'Huntsville', 'Mobile'],
+  AK: ['Juneau', 'Anchorage', 'Fairbanks'],
+  AZ: ['Phoenix', 'Tucson', 'Flagstaff', 'Scottsdale'],
+  AR: ['Little Rock', 'Fayetteville', 'Fort Smith'],
+  CA: ['Sacramento', 'Los Angeles', 'Los Angeles County', 'San Francisco', 'San Diego', 'Napa'],
+  CO: ['Denver', 'Colorado Springs', 'Boulder'],
+  CT: ['Hartford', 'New Haven', 'Stamford'],
+  DE: ['Dover', 'Wilmington', 'Newark'],
+  DC: ['Washington', 'Washington, D.C.'],
+  FL: ['Tallahassee', 'Miami', 'Orlando', 'Tampa', 'Jacksonville'],
+  GA: ['Atlanta', 'Savannah', 'Augusta'],
+  HI: ['Honolulu', 'Hilo', 'Kailua'],
+  ID: ['Boise', 'Idaho Falls', 'Coeur d\'Alene'],
+  IL: ['Springfield', 'Chicago', 'Naperville'],
+  IN: ['Indianapolis', 'Fort Wayne', 'Evansville'],
+  IA: ['Des Moines', 'Cedar Rapids', 'Iowa City'],
+  KS: ['Topeka', 'Wichita', 'Kansas City'],
+  KY: ['Frankfort', 'Louisville', 'Lexington'],
+  LA: ['Baton Rouge', 'New Orleans', 'Shreveport'],
+  ME: ['Augusta', 'Portland', 'Bangor'],
+  MD: ['Annapolis', 'Baltimore', 'Baltimore County', 'Rockville'],
+  MA: ['Boston', 'Worcester', 'Cambridge'],
+  MI: ['Lansing', 'Detroit', 'Grand Rapids'],
+  MN: ['St. Paul', 'Minneapolis', 'Duluth'],
+  MS: ['Jackson', 'Gulfport', 'Biloxi'],
+  MO: ['Jefferson City', 'Kansas City', 'St. Louis'],
+  MT: ['Helena', 'Billings', 'Missoula'],
+  NE: ['Lincoln', 'Omaha', 'Grand Island'],
+  NV: ['Carson City', 'Las Vegas', 'Reno'],
+  NH: ['Concord', 'Manchester', 'Nashua'],
+  NJ: ['Trenton', 'Newark', 'Jersey City'],
+  NM: ['Santa Fe', 'Albuquerque', 'Las Cruces'],
+  NY: ['Albany', 'New York', 'New York County', 'Buffalo', 'Rochester'],
+  NC: ['Raleigh', 'Charlotte', 'Durham'],
+  ND: ['Bismarck', 'Fargo', 'Grand Forks'],
+  OH: ['Columbus', 'Cleveland', 'Cincinnati'],
+  OK: ['Oklahoma City', 'Tulsa', 'Norman'],
+  OR: ['Salem', 'Portland', 'Eugene'],
+  PA: ['Harrisburg', 'Philadelphia', 'Pittsburgh'],
+  RI: ['Providence', 'Warwick', 'Cranston'],
+  SC: ['Columbia', 'Charleston', 'Greenville'],
+  SD: ['Pierre', 'Sioux Falls', 'Rapid City'],
+  TN: ['Nashville', 'Memphis', 'Knoxville'],
+  TX: ['Austin', 'Houston', 'Dallas', 'San Antonio'],
+  UT: ['Salt Lake City', 'Provo', 'Ogden'],
+  VT: ['Montpelier', 'Burlington', 'Rutland'],
+  VA: ['Richmond', 'Virginia Beach', 'Norfolk'],
+  WA: ['Olympia', 'Seattle', 'Spokane', 'Tacoma'],
+  WV: ['Charleston', 'Huntington', 'Morgantown'],
+  WI: ['Madison', 'Milwaukee', 'Green Bay'],
+  WY: ['Cheyenne', 'Casper', 'Laramie'],
+  TTB: ['Washington, D.C.', 'Washington'],
+}
+
+/** Resolve a state code from either a 2-letter code or full state name. */
+function toStateCode(stateOrCode: string): string {
+  const raw = stateOrCode.trim()
+  if (!raw) return ''
+  if (raw.length <= 3) return raw.toUpperCase()
+  return US_STATE_NAME_TO_CODE[raw] ?? ''
+}
+
+/** Cities for a state (code or full name). Preserves currentCity if not in list. */
+function citiesForState(stateOrCode: string, currentCity?: string): string[] {
+  const code = toStateCode(stateOrCode)
+  const base = code ? (US_CITIES_BY_STATE[code] ?? []) : []
+  if (currentCity && currentCity.trim() && !base.includes(currentCity)) {
+    return [currentCity, ...base]
+  }
+  return base
+}
+
+/** @deprecated use citiesForState */
+function agencyCityOptions(stateCode: string, currentCity?: string): string[] {
+  return citiesForState(stateCode, currentCity)
+}
+
+const AGENCIES_INIT: AgencyRow[] = [
+  { id: 1, stateCode: 'AL', cityCounty: 'Montgomery', name: 'Alabama Alcoholic Beverage Control Board', jurisdiction: 'State', website: 'https://alabcboard.gov/' },
+  { id: 2, stateCode: 'AK', cityCounty: 'Juneau', name: 'Alcoholic Beverage Control Board', jurisdiction: 'State', website: 'https://www.commerce.alaska.gov/web/amco' },
+  { id: 3, stateCode: 'AZ', cityCounty: 'Phoenix', name: 'Arizona Department of Liquor Licenses and Control', jurisdiction: 'State', website: 'https://azliquor.gov/' },
+  { id: 4, stateCode: 'AR', cityCounty: 'Little Rock', name: 'Alcoholic Beverage Control Division', jurisdiction: 'State', website: 'https://www.dfa.arkansas.gov/alcoholic-beverage-control' },
+  { id: 5, stateCode: 'CA', cityCounty: 'Sacramento', name: 'California Department of Alcoholic Beverage Control', jurisdiction: 'State', website: 'https://www.abc.ca.gov/' },
+  { id: 6, stateCode: 'CO', cityCounty: 'Denver', name: 'Colorado Liquor Enforcement Division', jurisdiction: 'State', website: 'https://sbg.colorado.gov/liquor-enforcement-division' },
+  { id: 7, stateCode: 'CT', cityCounty: 'Hartford', name: 'Connecticut Department of Consumer Protection', jurisdiction: 'State', website: 'https://portal.ct.gov/DCP/Liquor-Control-Division' },
+  { id: 8, stateCode: 'DE', cityCounty: 'Dover', name: 'Delaware Alcoholic Beverage Control', jurisdiction: 'State', website: 'https://date.delaware.gov/ABC/' },
+  { id: 9, stateCode: 'DC', cityCounty: 'Washington', name: 'Alcoholic Beverage and Cannabis Administration', jurisdiction: 'State', website: 'https://abca.dc.gov/' },
+  { id: 10, stateCode: 'FL', cityCounty: 'Tallahassee', name: 'Division of Alcoholic Beverages and Tobacco', jurisdiction: 'State', website: 'https://www2.myfloridalicense.com/alcoholic-beverages-and-tobacco/' },
+  { id: 11, stateCode: 'GA', cityCounty: 'Atlanta', name: 'Georgia Department of Revenue, Alcohol & Tobacco Division', jurisdiction: 'State', website: 'https://dor.georgia.gov/alcohol-tobacco' },
+  { id: 12, stateCode: 'HI', cityCounty: 'Honolulu', name: 'Liquor Commission City and County of Honolulu', jurisdiction: 'State', website: 'https://www.honolulu.gov/liq/' },
+  { id: 13, stateCode: 'ID', cityCounty: 'Boise', name: 'Idaho State Police Alcohol Beverage Control', jurisdiction: 'State', website: 'https://isp.idaho.gov/abc/' },
+  { id: 14, stateCode: 'IL', cityCounty: 'Springfield', name: 'Illinois Liquor Control Commission', jurisdiction: 'State', website: 'https://ilcc.illinois.gov/' },
+  { id: 15, stateCode: 'IN', cityCounty: 'Indianapolis', name: 'Indiana Alcohol and Tobacco Commission', jurisdiction: 'State', website: 'https://www.in.gov/atc/' },
+  { id: 16, stateCode: 'IA', cityCounty: 'Des Moines', name: 'Alcoholic Beverages Division', jurisdiction: 'State', website: 'https://abd.iowa.gov/' },
+  { id: 17, stateCode: 'KS', cityCounty: 'Topeka', name: 'Alcoholic Beverage Control Division', jurisdiction: 'State', website: 'https://www.ksrevenue.gov/abcindex.html' },
+  { id: 18, stateCode: 'KY', cityCounty: 'Frankfort', name: 'Kentucky Department of Alcoholic Beverage Control', jurisdiction: 'State', website: 'https://abc.ky.gov/' },
+  { id: 19, stateCode: 'LA', cityCounty: 'Baton Rouge', name: 'Louisiana Office of Alcohol and Tobacco Control', jurisdiction: 'State', website: 'https://atc.louisiana.gov/' },
+  { id: 20, stateCode: 'ME', cityCounty: 'Augusta', name: 'Maine Bureau of Alcoholic Beverages & Lottery Operations', jurisdiction: 'State', website: 'https://www.maine.gov/dafs/bablo/' },
+  { id: 21, stateCode: 'MD', cityCounty: 'Baltimore County', name: 'Maryland Alcohol and Tobacco Commission', jurisdiction: 'State', website: 'https://atc.maryland.gov/' },
+  { id: 22, stateCode: 'MA', cityCounty: 'Boston', name: 'Massachusetts Alcoholic Beverages Control Commission', jurisdiction: 'State', website: 'https://www.mass.gov/orgs/alcoholic-beverages-control-commission' },
+  { id: 23, stateCode: 'MI', cityCounty: 'Lansing', name: 'Michigan Liquor Control Commission', jurisdiction: 'State', website: 'https://www.michigan.gov/lara/bureau-list/lcc' },
+  { id: 24, stateCode: 'MN', cityCounty: 'St. Paul', name: 'Minnesota Alcohol and Gambling Enforcement', jurisdiction: 'State', website: 'https://dps.mn.gov/divisions/age' },
+  { id: 25, stateCode: 'MS', cityCounty: 'Jackson', name: 'Mississippi Department of Revenue — ABC', jurisdiction: 'State', website: 'https://www.dor.ms.gov/alcohol-beverage-control' },
+  { id: 26, stateCode: 'MO', cityCounty: 'Jefferson City', name: 'Missouri Division of Alcohol and Tobacco Control', jurisdiction: 'State', website: 'https://atc.dps.mo.gov/' },
+  { id: 27, stateCode: 'MT', cityCounty: 'Helena', name: 'Montana Department of Revenue — Alcoholic Beverage Control', jurisdiction: 'State', website: 'https://mtrevenue.gov/alcohol-beverage-control/' },
+  { id: 28, stateCode: 'NE', cityCounty: 'Lincoln', name: 'Nebraska Liquor Control Commission', jurisdiction: 'State', website: 'https://lcc.nebraska.gov/' },
+  { id: 29, stateCode: 'NV', cityCounty: 'Carson City', name: 'Nevada Alcoholic Beverage Awareness / Taxation', jurisdiction: 'State', website: 'https://tax.nv.gov/' },
+  { id: 30, stateCode: 'NH', cityCounty: 'Concord', name: 'New Hampshire Liquor Commission', jurisdiction: 'State', website: 'https://www.nh.gov/liquor/' },
+  { id: 31, stateCode: 'NJ', cityCounty: 'Trenton', name: 'New Jersey Division of Alcoholic Beverage Control', jurisdiction: 'State', website: 'https://www.njoag.gov/about/divisions-and-offices/division-of-alcoholic-beverage-control-home/' },
+  { id: 32, stateCode: 'NM', cityCounty: 'Santa Fe', name: 'New Mexico Alcoholic Beverage Control Division', jurisdiction: 'State', website: 'https://www.rld.nm.gov/alcohol-and-gaming/' },
+  { id: 33, stateCode: 'NY', cityCounty: 'Albany', name: 'New York State Liquor Authority', jurisdiction: 'State', website: 'https://sla.ny.gov/' },
+  { id: 34, stateCode: 'NC', cityCounty: 'Raleigh', name: 'North Carolina ABC Commission', jurisdiction: 'State', website: 'https://abc.nc.gov/' },
+  { id: 35, stateCode: 'ND', cityCounty: 'Bismarck', name: 'North Dakota Office of Attorney General — Alcohol', jurisdiction: 'State', website: 'https://attorneygeneral.nd.gov/public-safety/alcohol' },
+  { id: 36, stateCode: 'OH', cityCounty: 'Columbus', name: 'Ohio Division of Liquor Control', jurisdiction: 'State', website: 'https://com.ohio.gov/divisions-and-programs/liquor-control' },
+  { id: 37, stateCode: 'OK', cityCounty: 'Oklahoma City', name: 'Oklahoma ABLE Commission', jurisdiction: 'State', website: 'https://oklahoma.gov/able.html' },
+  { id: 38, stateCode: 'OR', cityCounty: 'Portland', name: 'Oregon Liquor and Cannabis Commission', jurisdiction: 'State', website: 'https://www.oregon.gov/olcc' },
+  { id: 39, stateCode: 'PA', cityCounty: 'Harrisburg', name: 'Pennsylvania Liquor Control Board', jurisdiction: 'State', website: 'https://www.lcb.pa.gov/' },
+  { id: 40, stateCode: 'RI', cityCounty: 'Providence', name: 'Rhode Island Department of Business Regulation', jurisdiction: 'State', website: 'https://dbr.ri.gov/divisions/commercial-licensing/liquor' },
+  { id: 41, stateCode: 'SC', cityCounty: 'Columbia', name: 'South Carolina Department of Revenue — ABC', jurisdiction: 'State', website: 'https://dor.sc.gov/tax/abc' },
+  { id: 42, stateCode: 'SD', cityCounty: 'Pierre', name: 'South Dakota Department of Revenue — Special Taxes', jurisdiction: 'State', website: 'https://dor.sd.gov/businesses/alcohol/' },
+  { id: 43, stateCode: 'TN', cityCounty: 'Nashville', name: 'Tennessee Alcoholic Beverage Commission', jurisdiction: 'State', website: 'https://www.tn.gov/abc.html' },
+  { id: 44, stateCode: 'TX', cityCounty: 'Austin', name: 'Texas Alcoholic Beverage Commission', jurisdiction: 'State', website: 'https://www.tabc.texas.gov/' },
+  { id: 45, stateCode: 'UT', cityCounty: 'Salt Lake City', name: 'Utah Department of Alcoholic Beverage Services', jurisdiction: 'State', website: 'https://abs.utah.gov/' },
+  { id: 46, stateCode: 'VT', cityCounty: 'Montpelier', name: 'Vermont Department of Liquor and Lottery', jurisdiction: 'State', website: 'https://liquorandlottery.vermont.gov/' },
+  { id: 47, stateCode: 'VA', cityCounty: 'Richmond', name: 'Virginia Alcoholic Beverage Control Authority', jurisdiction: 'State', website: 'https://www.abc.virginia.gov/' },
+  { id: 48, stateCode: 'WA', cityCounty: 'Olympia', name: 'Washington State Liquor and Cannabis Board', jurisdiction: 'State', website: 'https://lcb.wa.gov/' },
+  { id: 49, stateCode: 'WV', cityCounty: 'Charleston', name: 'West Virginia Alcohol Beverage Control Administration', jurisdiction: 'State', website: 'https://abca.wv.gov/' },
+  { id: 50, stateCode: 'WI', cityCounty: 'Madison', name: 'Wisconsin Department of Revenue — Alcohol', jurisdiction: 'State', website: 'https://www.revenue.wi.gov/Pages/Businesses/Alcohol.aspx' },
+  { id: 51, stateCode: 'WY', cityCounty: 'Cheyenne', name: 'Wyoming Liquor Division', jurisdiction: 'State', website: 'https://liquor.wyo.gov/' },
+  { id: 52, stateCode: 'TTB', cityCounty: 'Washington, D.C.', name: 'Alcohol and Tobacco Tax and Trade Bureau', jurisdiction: 'Federal', website: 'https://www.ttb.gov/' },
+  { id: 53, stateCode: 'CA', cityCounty: 'Los Angeles County', name: 'LA County Department of Public Health — Alcohol', jurisdiction: 'State', website: 'https://publichealth.lacounty.gov/' },
+  { id: 54, stateCode: 'NY', cityCounty: 'New York County', name: 'NYC Department of Consumer and Worker Protection', jurisdiction: 'State', website: 'https://www.nyc.gov/site/dca/index.page' },
+]
+
+type AgencyContactRow = {
+  id: number
+  agencyId: number
+  salutation: string
+  firstName: string
+  middleName: string
+  lastName: string
+  name: string
+  locationName: string
+  email: string
+  phone: string
+  extension: string
+  cellPhone: string
+  role: string
+  internalRemark: string
+  note: string
+}
+
+const CONTACT_SALUTATIONS = ['Mr.', 'Mrs.', 'Ms.', 'Miss', 'Dr.', 'Prof.'] as const
+
+function formatAgencyContactName(parts: {
+  salutation?: string
+  firstName: string
+  middleName?: string
+  lastName: string
+}) {
+  return [parts.salutation, parts.firstName, parts.middleName, parts.lastName]
+    .map(v => (v ?? '').trim())
+    .filter(Boolean)
+    .join(' ')
+}
+
+function splitPersonName(fullName: string) {
+  const cleaned = fullName.trim().replace(/\s+/g, ' ')
+  const salutation = CONTACT_SALUTATIONS.find(s => cleaned.startsWith(s + ' ') || cleaned.startsWith(s))
+  const withoutSal = salutation ? cleaned.slice(salutation.length).trim() : cleaned
+  const bits = withoutSal.split(' ').filter(Boolean)
+  if (bits.length === 0) return { salutation: salutation ?? '', firstName: '', middleName: '', lastName: '' }
+  if (bits.length === 1) return { salutation: salutation ?? '', firstName: bits[0], middleName: '', lastName: '' }
+  if (bits.length === 2) return { salutation: salutation ?? '', firstName: bits[0], middleName: '', lastName: bits[1] }
+  return {
+    salutation: salutation ?? '',
+    firstName: bits[0],
+    middleName: bits.slice(1, -1).join(' '),
+    lastName: bits[bits.length - 1],
+  }
+}
+
+type AgencyAddressRow = {
+  id: number
+  agencyId: number
+  label: string
+  street: string
+  city: string
+  state: string
+  zip: string
+  phone: string
+  extension: string
+  mailingSame: boolean
+  mailingStreet: string
+  mailingCity: string
+  mailingState: string
+  mailingZip: string
+  mailingPhone: string
+  mailingExtension: string
+}
+
+type AgencyLicenseTypeRow = {
+  id: number
+  agencyId: number
+  state: string
+  func: string
+  type: string
+  itemName: string
+}
+
+const AGENCY_CONTACTS: AgencyContactRow[] = [
+  {
+    id: 1,
+    agencyId: 1,
+    salutation: '',
+    firstName: 'Michael',
+    middleName: '',
+    lastName: 'Shooter',
+    name: 'Michael Shooter',
+    locationName: 'Alabama Alcoholic Beverage Control Board',
+    email: 'mike@ddrive.com',
+    phone: '(707) 555-1212',
+    extension: '',
+    cellPhone: '',
+    role: 'Customer Service Rep',
+    internalRemark: '',
+    note: '',
+  },
+  {
+    id: 2,
+    agencyId: 1,
+    salutation: 'Ms.',
+    firstName: 'Sarah',
+    middleName: '',
+    lastName: 'Collins',
+    name: 'Ms. Sarah Collins',
+    locationName: 'Alabama Alcoholic Beverage Control Board',
+    email: 'scollins@alabcboard.gov',
+    phone: '(334) 555-0144',
+    extension: '12',
+    cellPhone: '(334) 555-0190',
+    role: 'Licensing Specialist',
+    internalRemark: 'Primary licensing contact',
+    note: '',
+  },
+  {
+    id: 3,
+    agencyId: 5,
+    salutation: '',
+    firstName: 'James',
+    middleName: '',
+    lastName: 'Rivera',
+    name: 'James Rivera',
+    locationName: 'Headquarters',
+    email: 'jrivera@abc.ca.gov',
+    phone: '(916) 555-0198',
+    extension: '',
+    cellPhone: '',
+    role: 'District Liaison',
+    internalRemark: '',
+    note: '',
+  },
+  {
+    id: 4,
+    agencyId: 5,
+    salutation: '',
+    firstName: 'Priya',
+    middleName: '',
+    lastName: 'Patel',
+    name: 'Priya Patel',
+    locationName: 'Southern District Office',
+    email: 'ppatel@abc.ca.gov',
+    phone: '(916) 555-0172',
+    extension: '',
+    cellPhone: '(916) 555-0111',
+    role: 'Compliance Analyst',
+    internalRemark: 'Prefers email',
+    note: '',
+  },
+  {
+    id: 5,
+    agencyId: 52,
+    salutation: '',
+    firstName: 'TTB',
+    middleName: '',
+    lastName: 'Help Desk',
+    name: 'TTB Help Desk',
+    locationName: 'TTB Main Office',
+    email: 'ttbhelp@ttb.gov',
+    phone: '(877) 882-3277',
+    extension: '',
+    cellPhone: '',
+    role: 'Support',
+    internalRemark: '',
+    note: '',
+  },
+  {
+    id: 6,
+    agencyId: 44,
+    salutation: '',
+    firstName: 'Austin',
+    middleName: '',
+    lastName: 'Licensing Desk',
+    name: 'Austin Licensing Desk',
+    locationName: 'TABC HQ',
+    email: 'licensing@tabc.texas.gov',
+    phone: '(512) 555-0109',
+    extension: '',
+    cellPhone: '',
+    role: 'Licensing Desk',
+    internalRemark: '',
+    note: '',
+  },
+]
+
+const emptyMailing = {
+  mailingSame: true,
+  mailingStreet: '',
+  mailingCity: '',
+  mailingState: '',
+  mailingZip: '',
+  mailingPhone: '',
+  mailingExtension: '',
+}
+
+const AGENCY_ADDRESSES: AgencyAddressRow[] = [
+  { id: 1, agencyId: 1, label: 'Alabama Alcoholic Beverage Control Board', street: '2715 Gunter Park Drive West', city: 'Montgomery', state: 'AL', zip: '36109', phone: '(334) 271-3840', extension: '', ...emptyMailing },
+  { id: 2, agencyId: 1, label: 'Mailing', street: 'P.O. Box 1151', city: 'Montgomery', state: 'AL', zip: '36101', phone: '(334) 271-3840', extension: '', ...emptyMailing },
+  { id: 3, agencyId: 5, label: 'Headquarters', street: '3927 Lennane Drive, Suite 100', city: 'Sacramento', state: 'CA', zip: '95834', phone: '(916) 419-2500', extension: '', ...emptyMailing },
+  { id: 4, agencyId: 5, label: 'Southern District Office', street: '888 S Figueroa St', city: 'Los Angeles', state: 'CA', zip: '90017', phone: '', extension: '', ...emptyMailing },
+  { id: 5, agencyId: 52, label: 'TTB Main Office', street: '1310 G Street NW', city: 'Washington', state: 'DC', zip: '20005', phone: '(202) 453-2000', extension: '', ...emptyMailing },
+  { id: 6, agencyId: 44, label: 'TABC HQ', street: '5806 Mesa Drive', city: 'Austin', state: 'TX', zip: '78731', phone: '(512) 206-3333', extension: '', ...emptyMailing },
+]
+
+const AGENCY_LICENSE_TYPES: AgencyLicenseTypeRow[] = [
+  { id: 1, agencyId: 1, state: 'AL', func: '3T', type: 'License', itemName: 'Importer Or Manufacturer' },
+  { id: 2, agencyId: 1, state: 'AL', func: 'DTC', type: 'License', itemName: 'Direct Wine Shipper' },
+  { id: 3, agencyId: 1, state: 'AL', func: '3T', type: 'Representative', itemName: 'Industry Representative' },
+  { id: 4, agencyId: 1, state: 'AL', func: '020', type: 'License', itemName: 'Wine Retailer' },
+  { id: 5, agencyId: 1, state: 'AL', func: '050', type: 'License', itemName: 'Wine Wholesaler' },
+  { id: 6, agencyId: 5, state: 'CA', func: '02', type: 'License', itemName: 'Winegrower' },
+  { id: 7, agencyId: 5, state: 'CA', func: '17', type: 'License', itemName: 'Public Premises' },
+  { id: 8, agencyId: 5, state: 'CA', func: '82', type: 'License', itemName: 'Wine Direct Shipper' },
+  { id: 9, agencyId: 52, state: 'TTB', func: 'BW', type: 'Permit', itemName: 'Bonded Winery' },
+  { id: 10, agencyId: 52, state: 'TTB', func: 'WH', type: 'Permit', itemName: 'Bonded Wine Cellar' },
+  { id: 11, agencyId: 44, state: 'TX', func: 'W', type: 'License', itemName: "Winer's Permit" },
+  { id: 12, agencyId: 44, state: 'TX', func: 'DS', type: 'License', itemName: 'Direct Shipper' },
+]
+
 const COMPANY_ADDRESSES = [
   { id: 1, label: 'Client Mailing', street: '1000 Main Street', city: 'Napa', state: 'CA', zip: '94558', country: 'United States', active: true },
   { id: 2, label: 'Client Mailing/Tasting Room', street: '1000 Main Street', city: 'Napa', state: 'CA', zip: '94558', country: 'United States', active: true },
@@ -614,6 +1002,9 @@ export default function App() {
   const [personTab, setPersonTab] = useState<(typeof PERSON_DETAIL_TABS)[number]>('Summary')
   const [addingPerson, setAddingPerson] = useState(false)
   const [people, setPeople] = useState<PersonRow[]>(PEOPLE_INIT)
+  const [agencies, setAgencies] = useState<AgencyRow[]>(AGENCIES_INIT)
+  const [selectedAgency, setSelectedAgency] = useState<AgencyRow | null>(null)
+  const [agencyTab, setAgencyTab] = useState<(typeof AGENCY_DETAIL_TABS)[number]>('Summary')
   const [cellarTab, setCellarTab] = useState<(typeof CELLAR_TABS)[number]>('My Action Items')
   const [actionItems, setActionItems] = useState<ActionItemRow[]>(MY_ACTION_ITEMS)
 
@@ -649,10 +1040,16 @@ export default function App() {
     setAddingPerson(false)
   }
 
+  const clearAgencySelection = () => {
+    setSelectedAgency(null)
+    setAgencyTab('Summary')
+  }
+
   const handleNavClick = (label: string) => {
     setActiveNav(label)
     if (label !== 'Companies') clearCompanySelection()
     if (label !== 'People') clearPersonSelection()
+    if (label !== 'Agencies') clearAgencySelection()
   }
 
   const handleSelectCompany = (id: number) => {
@@ -666,6 +1063,11 @@ export default function App() {
     setSelectedPerson(person)
     setPersonTab('Summary')
     setAddingPerson(false)
+  }
+
+  const handleSelectAgency = (agency: AgencyRow) => {
+    setSelectedAgency(agency)
+    setAgencyTab('Summary')
   }
 
   const handleCompanyTabChange = (tab: (typeof COMPANY_DETAIL_TABS)[number]) => {
@@ -717,6 +1119,15 @@ export default function App() {
       return [
         { label: 'People', onClick: clearPersonSelection },
         { label: personTab },
+      ]
+    }
+    if (activeNav === 'Agencies') {
+      if (!selectedAgency) {
+        return [{ label: 'Agencies' }, { label: 'All Agencies' }]
+      }
+      return [
+        { label: 'Agencies', onClick: clearAgencySelection },
+        { label: agencyTab },
       ]
     }
     if (!isRedesignedNav) {
@@ -969,6 +1380,29 @@ export default function App() {
                 onAddPerson={() => setAddingPerson(true)}
               />
             )
+          ) : activeNav === 'Agencies' ? (
+            selectedAgency ? (
+              <AgencyDetailPage
+                key={selectedAgency.id}
+                agency={selectedAgency}
+                tab={agencyTab}
+                onTabChange={setAgencyTab}
+                onUpdate={data => {
+                  setAgencies(prev => prev.map(a => (a.id === selectedAgency.id ? { ...a, ...data } : a)))
+                  setSelectedAgency(prev => (prev ? { ...prev, ...data } : prev))
+                }}
+                onDelete={() => {
+                  setAgencies(prev => prev.filter(a => a.id !== selectedAgency.id))
+                  clearAgencySelection()
+                }}
+              />
+            ) : (
+              <AgenciesPage
+                agencies={agencies}
+                onAgenciesChange={setAgencies}
+                onSelectAgency={handleSelectAgency}
+              />
+            )
           ) : activeNav === 'Dashboard' ? (
             <DashboardPage
               favorites={favorites}
@@ -1050,8 +1484,6 @@ function DashboardPage({
     { key: 'expiryDate', label: 'Expiration Date' },
     { key: 'actionDays', label: 'Action (Days)' },
   ])
-  const favColBtn = 'p-2 rounded-lg transition-all duration-200'
-
   return (
     <>
       <div className="mb-6">
@@ -1076,20 +1508,14 @@ function DashboardPage({
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 mb-5">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900">My Favorite Companies</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Pinned for quick access</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <SearchInput placeholder="Search here…" />
-            <Select placeholder="Company Type" options={['Bond', 'Client', 'Industry', 'Registered Agent', 'Vendor', 'Warehouse']} />
-            <Select placeholder="Alerts" options={['Pending', 'Work Stop', 'No Alert']} />
-            <Select placeholder="Status" options={['Active', 'Inactive', 'Archived']} />
-            <ColumnSettingsDropdown {...favCols.dropdownProps} buttonClassName={favColBtn} />
-          </div>
-        </div>
+      <div className="bg-white rounded-xl border border-slate-200 mb-5 overflow-hidden">
+        <TableSectionHeader title="My Favorite Companies" subtitle="Pinned for quick access">
+          <SearchInput placeholder="Search here…" />
+          <Select placeholder="Company Type" options={['Bond', 'Client', 'Industry', 'Registered Agent', 'Vendor', 'Warehouse']} />
+          <Select placeholder="Alerts" options={['Pending', 'Work Stop', 'No Alert']} />
+          <Select placeholder="Status" options={['Active', 'Inactive', 'Archived']} />
+          <ColumnSettingsDropdown {...favCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+        </TableSectionHeader>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -1152,20 +1578,14 @@ function DashboardPage({
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900">Renewals Due in the Next 30 Days</h2>
-            <p className="text-xs text-slate-500 mt-0.5">{RENEWALS.length} items requiring action</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <SearchInput placeholder="Search here…" />
-            <Select placeholder="Company" />
-            <Select placeholder="License Type" />
-            <Select placeholder="Function" />
-            <ColumnSettingsDropdown {...renewalCols.dropdownProps} buttonClassName={favColBtn} />
-          </div>
-        </div>
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <TableSectionHeader title="License Renewals" subtitle={`${RENEWALS.length} renewals due in the next 30 days`}>
+          <SearchInput placeholder="Search here…" />
+          <Select placeholder="Company" />
+          <Select placeholder="License Type" />
+          <Select placeholder="Function" />
+          <ColumnSettingsDropdown {...renewalCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+        </TableSectionHeader>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -1488,8 +1908,6 @@ function CellarPage({
     { key: 'specialist', label: 'Specialist' },
     { key: 'status', label: 'Status' },
   ])
-  const cellarColBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
-
   const PAGE_SIZE = 10
 
   const filteredActionItems = actionItems
@@ -1780,60 +2198,58 @@ function CellarPage({
 
       {activeTab === 'Final Decisions' ? (
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
-          <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <AddressSearchInput
-                value={search}
-                onChange={v => { setSearch(v); setPage(1) }}
-              />
-              <select
-                value={fieldFilter}
-                onChange={e => { setFieldFilter(e.target.value); setPage(1) }}
-                className={filterSelectClassName(fieldFilter)}
-                aria-label="Field"
+          <TableSectionHeader title="Final Decisions" subtitle="Approved and denied change requests awaiting review">
+            <AddressSearchInput
+              value={search}
+              onChange={v => { setSearch(v); setPage(1) }}
+            />
+            <FilterSelect
+              value={fieldFilter}
+              onChange={v => { setFieldFilter(v); setPage(1) }}
+              className={filterSelectClassName(fieldFilter)}
+              aria-label="Field"
+            >
+              <option value="">Field</option>
+              {finalFieldOptions.map(f => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              value={requestedByFilter}
+              onChange={v => { setRequestedByFilter(v); setPage(1) }}
+              className={filterSelectClassName(requestedByFilter)}
+              aria-label="Requested By"
+            >
+              <option value="">Requested By</option>
+              {finalRequestedByOptions.map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              value={specialistFilter}
+              onChange={v => { setSpecialistFilter(v); setPage(1) }}
+              className={filterSelectClassName(specialistFilter)}
+              aria-label="Specialist"
+            >
+              <option value="">Specialist</option>
+              {finalSpecialistOptions.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </FilterSelect>
+            {finalFiltersActive && (
+              <button
+                type="button"
+                onClick={clearFinalFilters}
+                className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
               >
-                <option value="">Field</option>
-                {finalFieldOptions.map(f => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
-              <select
-                value={requestedByFilter}
-                onChange={e => { setRequestedByFilter(e.target.value); setPage(1) }}
-                className={filterSelectClassName(requestedByFilter)}
-                aria-label="Requested By"
-              >
-                <option value="">Requested By</option>
-                {finalRequestedByOptions.map(r => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-              <select
-                value={specialistFilter}
-                onChange={e => { setSpecialistFilter(e.target.value); setPage(1) }}
-                className={filterSelectClassName(specialistFilter)}
-                aria-label="Specialist"
-              >
-                <option value="">Specialist</option>
-                {finalSpecialistOptions.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-              {finalFiltersActive && (
-                <button
-                  type="button"
-                  onClick={clearFinalFilters}
-                  className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
-                >
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                    <path d="M3 3l8 8M11 3l-8 8" />
-                  </svg>
-                  Clear
-                </button>
-              )}
-              <ColumnSettingsDropdown {...finalCols.dropdownProps} buttonClassName={cellarColBtn} />
-            </div>
-          </div>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M3 3l8 8M11 3l-8 8" />
+                </svg>
+                Clear
+              </button>
+            )}
+            <ColumnSettingsDropdown {...finalCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+          </TableSectionHeader>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px]">
@@ -1993,15 +2409,13 @@ function CellarPage({
         </section>
       ) : activeTab === 'My Action Items' ? (
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <AddressSearchInput
-                value={search}
-                onChange={v => { setSearch(v); setPage(1) }}
-              />
-              <ColumnSettingsDropdown {...actionItemCols.dropdownProps} buttonClassName={cellarColBtn} />
-            </div>
-          </div>
+          <TableSectionHeader title="My Action Items" subtitle="Changes assigned to you for approval">
+            <AddressSearchInput
+              value={search}
+              onChange={v => { setSearch(v); setPage(1) }}
+            />
+            <ColumnSettingsDropdown {...actionItemCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+          </TableSectionHeader>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px]">
@@ -2134,49 +2548,47 @@ function CellarPage({
         </section>
       ) : (
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <AddressSearchInput
-                value={search}
-                onChange={v => { setSearch(v); setPage(1) }}
-              />
-              <select
-                value={requestedByFilter}
-                onChange={e => { setRequestedByFilter(e.target.value); setPage(1) }}
-                className={filterSelectClassName(requestedByFilter)}
-                aria-label="Requested By"
+          <TableSectionHeader title="Pending Changes" subtitle="Submitted changes awaiting specialist review">
+            <AddressSearchInput
+              value={search}
+              onChange={v => { setSearch(v); setPage(1) }}
+            />
+            <FilterSelect
+              value={requestedByFilter}
+              onChange={v => { setRequestedByFilter(v); setPage(1) }}
+              className={filterSelectClassName(requestedByFilter)}
+              aria-label="Requested By"
+            >
+              <option value="">Requested By</option>
+              {pendingRequestedByOptions.map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              value={specialistFilter}
+              onChange={v => { setSpecialistFilter(v); setPage(1) }}
+              className={filterSelectClassName(specialistFilter)}
+              aria-label="Specialist"
+            >
+              <option value="">Specialist</option>
+              {pendingSpecialistOptions.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </FilterSelect>
+            {pendingFiltersActive && (
+              <button
+                type="button"
+                onClick={clearPendingFilters}
+                className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
               >
-                <option value="">Requested By</option>
-                {pendingRequestedByOptions.map(r => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-              <select
-                value={specialistFilter}
-                onChange={e => { setSpecialistFilter(e.target.value); setPage(1) }}
-                className={filterSelectClassName(specialistFilter)}
-                aria-label="Specialist"
-              >
-                <option value="">Specialist</option>
-                {pendingSpecialistOptions.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-              {pendingFiltersActive && (
-                <button
-                  type="button"
-                  onClick={clearPendingFilters}
-                  className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
-                >
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                    <path d="M3 3l8 8M11 3l-8 8" />
-                  </svg>
-                  Clear
-                </button>
-              )}
-              <ColumnSettingsDropdown {...pendingCols.dropdownProps} buttonClassName={cellarColBtn} />
-            </div>
-          </div>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M3 3l8 8M11 3l-8 8" />
+                </svg>
+                Clear
+              </button>
+            )}
+            <ColumnSettingsDropdown {...pendingCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+          </TableSectionHeader>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1050px]">
@@ -2368,76 +2780,58 @@ function PeoplePage({
 
   return (
     <>
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">People</h1>
-          <p className="mt-1 text-sm text-slate-500">Manage contacts across clients, agencies, vendors, and industry partners.</p>
-        </div>
-        <button
-          type="button"
-          onClick={onAddPerson}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors shadow-sm"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-            <path d="M6 2.5v7M2.5 6h7" />
-          </svg>
-          Add New
-        </button>
-      </div>
-
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="relative">
-              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="5" cy="5" r="3.5" />
-                <path d="M8 8l2.5 2.5" strokeLinecap="round" />
-              </svg>
-              <input
-                value={search}
-                onChange={e => { setSearch(e.target.value); setPage(1) }}
-                placeholder="Search by name, email, or company/agency"
-                className="h-9 w-72 pl-8 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]"
-              />
-            </div>
-            <select
-              value={typeFilter}
-              onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
-              className={filterSelectClassName(typeFilter)}
-            >
-              <option value="">Type</option>
-              <option value="Client">Client</option>
-              <option value="Agency">Agency</option>
-              <option value="Vendor">Vendor</option>
-              <option value="Industry">Industry</option>
-            </select>
-            <select
-              value={categoryFilter}
-              onChange={e => { setCategoryFilter(e.target.value); setPage(1) }}
-              className={filterSelectClassName(categoryFilter)}
-            >
-              <option value="">Category</option>
-              <option value="Individual">Individual</option>
-              <option value="Shared Email">Shared Email</option>
-            </select>
-            {filtersActive && (
-              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
-                Clear
-              </button>
-            )}
-            <ColumnSettingsDropdown {...peopleCols.dropdownProps} buttonClassName={peopleColBtn} />
-            <button
-              type="button"
-              onClick={exportPeople}
-              className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
-            >
-              Export
-            </button>
+        <TableSectionHeader title="People" subtitle="Manage contacts across clients, agencies, vendors, and industry partners">
+          <div className="relative">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="5" cy="5" r="3.5" />
+              <path d="M8 8l2.5 2.5" strokeLinecap="round" />
+            </svg>
+            <input
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1) }}
+              placeholder="Search by name, email, or company/agency"
+              className="h-9 w-full sm:w-72 pl-8 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]"
+            />
           </div>
-        </div>
+          <FilterSelect
+            value={typeFilter}
+            onChange={v => { setTypeFilter(v); setPage(1) }}
+            className={filterSelectClassName(typeFilter)}
+          >
+            <option value="">Type</option>
+            <option value="Client">Client</option>
+            <option value="Agency">Agency</option>
+            <option value="Vendor">Vendor</option>
+            <option value="Industry">Industry</option>
+          </FilterSelect>
+          <FilterSelect
+            value={categoryFilter}
+            onChange={v => { setCategoryFilter(v); setPage(1) }}
+            className={filterSelectClassName(categoryFilter)}
+          >
+            <option value="">Category</option>
+            <option value="Individual">Individual</option>
+            <option value="Shared Email">Shared Email</option>
+          </FilterSelect>
+          {filtersActive && (
+            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M3 3l8 8M11 3l-8 8" />
+              </svg>
+              Clear
+            </button>
+          )}
+          <ColumnSettingsDropdown {...peopleCols.dropdownProps} buttonClassName={peopleColBtn} />
+          <button
+            type="button"
+            onClick={exportPeople}
+            className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors shrink-0"
+          >
+            Export
+          </button>
+          <TableAddNewButton onClick={onAddPerson} />
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px]">
@@ -2518,6 +2912,2687 @@ function PeoplePage({
         <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
       </section>
     </>
+  )
+}
+
+function AgenciesPage({
+  agencies,
+  onAgenciesChange,
+  onSelectAgency,
+}: {
+  agencies: AgencyRow[]
+  onAgenciesChange: (agencies: AgencyRow[] | ((prev: AgencyRow[]) => AgencyRow[])) => void
+  onSelectAgency: (agency: AgencyRow) => void
+}) {
+  const [search, setSearch] = useState('')
+  const [stateFilter, setStateFilter] = useState('')
+  const [jurisdictionFilter, setJurisdictionFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [sortAsc, setSortAsc] = useState(true)
+  const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null)
+  const [editingAgency, setEditingAgency] = useState<AgencyRow | null>(null)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [nextId, setNextId] = useState(() => Math.max(0, ...AGENCIES_INIT.map(a => a.id)) + 1)
+
+  const cols = useTableColumns([
+    { key: 'name', label: 'Agency Name' },
+    { key: 'website', label: 'Website' },
+    { key: 'cityCounty', label: 'City/County' },
+    { key: 'stateCode', label: 'State Code' },
+    { key: 'jurisdiction', label: 'Agency Type' },
+  ])
+  const colBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
+
+  const stateOptions = [...new Set(agencies.map(a => a.stateCode))].sort()
+
+  const filtered = agencies
+    .filter(a => {
+      const q = search.toLowerCase()
+      const matchesSearch =
+        !q ||
+        a.stateCode.toLowerCase().includes(q) ||
+        a.cityCounty.toLowerCase().includes(q) ||
+        a.name.toLowerCase().includes(q) ||
+        a.website.toLowerCase().includes(q) ||
+        a.jurisdiction.toLowerCase().includes(q)
+      return (
+        matchesSearch &&
+        (!stateFilter || a.stateCode === stateFilter) &&
+        (!jurisdictionFilter || a.jurisdiction === jurisdictionFilter)
+      )
+    })
+    .sort((a, b) => {
+      const cmp = a.name.localeCompare(b.name)
+      return sortAsc ? cmp : -cmp
+    })
+
+  const filtersActive = !!(search || stateFilter || jurisdictionFilter)
+  const agencyToDelete = deleteId != null ? agencies.find(a => a.id === deleteId) : undefined
+
+  const clearFilters = () => {
+    setSearch('')
+    setStateFilter('')
+    setJurisdictionFilter('')
+    setPage(1)
+  }
+
+  const openAdd = () => {
+    setEditingAgency(null)
+    setModalMode('add')
+  }
+
+  const openEdit = (agency: AgencyRow) => {
+    setEditingAgency(agency)
+    setModalMode('edit')
+  }
+
+  const saveAgency = (data: Omit<AgencyRow, 'id'>) => {
+    if (modalMode === 'edit' && editingAgency) {
+      onAgenciesChange(prev => prev.map(a => (a.id === editingAgency.id ? { ...a, ...data } : a)))
+    } else {
+      onAgenciesChange(prev => [{ id: nextId, ...data }, ...prev])
+      setNextId(id => id + 1)
+      setPage(1)
+    }
+    setModalMode(null)
+    setEditingAgency(null)
+  }
+
+  const confirmDelete = () => {
+    if (deleteId == null) return
+    onAgenciesChange(prev => prev.filter(a => a.id !== deleteId))
+    setDeleteId(null)
+  }
+
+  return (
+    <>
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+        <TableSectionHeader title="Agencies" subtitle="Directory of federal and state alcoholic beverage control agencies">
+          <AddressSearchInput
+            value={search}
+            onChange={v => {
+              setSearch(v)
+              setPage(1)
+            }}
+            placeholder="Search Here"
+          />
+          <FilterSelect
+            value={stateFilter}
+            onChange={v => {
+              setStateFilter(v)
+              setPage(1)
+            }}
+            className={filterSelectClassName(stateFilter)}
+            aria-label="Select State"
+          >
+            <option value="">Select State</option>
+            {stateOptions.map(code => (
+              <option key={code} value={code}>{code}</option>
+            ))}
+          </FilterSelect>
+          <FilterSelect
+            value={jurisdictionFilter}
+            onChange={v => {
+              setJurisdictionFilter(v)
+              setPage(1)
+            }}
+            className={filterSelectClassName(jurisdictionFilter)}
+            aria-label="Agency Type"
+          >
+            <option value="">Agency Type</option>
+            <option value="Federal">Federal</option>
+            <option value="State">State</option>
+          </FilterSelect>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M3 3l8 8M11 3l-8 8" />
+              </svg>
+              Clear
+            </button>
+          )}
+          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
+          <TableAddNewButton onClick={openAdd} />
+        </TableSectionHeader>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[960px]">
+            <thead>
+              <tr className="border-y border-slate-100 bg-slate-50/60">
+                {cols.show('name') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    <button
+                      type="button"
+                      onClick={() => setSortAsc(v => !v)}
+                      className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors"
+                    >
+                      Agency Name
+                      <svg
+                        width="10"
+                        height="10"
+                        viewBox="0 0 10 10"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={`transition-transform ${sortAsc ? '' : 'rotate-180'}`}
+                      >
+                        <path d="M5 8V2M2.5 4.5L5 2l2.5 2.5" />
+                      </svg>
+                    </button>
+                  </th>
+                )}
+                {cols.show('website') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Website
+                  </th>
+                )}
+                {cols.show('cityCounty') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    City/County
+                  </th>
+                )}
+                {cols.show('stateCode') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">
+                    State Code
+                  </th>
+                )}
+                {cols.show('jurisdiction') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">
+                    Agency Type
+                  </th>
+                )}
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-24">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={cols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
+                    No agencies found.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((agency, i) => (
+                  <tr
+                    key={agency.id}
+                    className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
+                      i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
+                    }`}
+                  >
+                    {cols.show('name') && (
+                      <td className="px-4 py-3 text-sm font-medium max-w-[320px]">
+                        <button
+                          type="button"
+                          onClick={() => onSelectAgency(agency)}
+                          className="text-left text-[#12518c] hover:underline line-clamp-2"
+                          title={agency.name}
+                        >
+                          {agency.name}
+                        </button>
+                      </td>
+                    )}
+                    {cols.show('website') && (
+                      <td className="px-4 py-3 text-sm max-w-[240px]">
+                        {agency.website ? (
+                          <a
+                            href={agency.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#12518c] hover:underline truncate block"
+                            title={agency.website}
+                          >
+                            {agency.website.replace(/^https?:\/\//, '')}
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                    )}
+                    {cols.show('cityCounty') && (
+                      <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
+                        {agency.cityCounty || '—'}
+                      </td>
+                    )}
+                    {cols.show('stateCode') && (
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                        <span className="inline-flex min-w-[2.25rem] justify-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide bg-slate-100 text-slate-700 border border-slate-200">
+                          {agency.stateCode}
+                        </span>
+                      </td>
+                    )}
+                    {cols.show('jurisdiction') && (
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            agency.jurisdiction === 'Federal'
+                              ? 'bg-[#12518c]/10 text-[#12518c]'
+                              : 'bg-emerald-50 text-emerald-700'
+                          }`}
+                        >
+                          {agency.jurisdiction}
+                        </span>
+                      </td>
+                    )}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(agency)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                          title="Edit"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteId(agency.id)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
+                          title="Delete"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                            <path d="M10 11v6M14 11v6" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
+      </section>
+
+      {modalMode && (
+        <AgencyFormModal
+          mode={modalMode}
+          initial={editingAgency}
+          onClose={() => {
+            setModalMode(null)
+            setEditingAgency(null)
+          }}
+          onSave={saveAgency}
+        />
+      )}
+
+      {agencyToDelete && (
+        <AddressDeleteConfirmModal
+          title="Delete agency"
+          locationName={agencyToDelete.name}
+          showUndoneWarning={false}
+          onCancel={() => setDeleteId(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
+    </>
+  )
+}
+
+function AgencyFormModal({
+  mode,
+  initial,
+  onClose,
+  onSave,
+}: {
+  mode: 'add' | 'edit'
+  initial: AgencyRow | null
+  onClose: () => void
+  onSave: (data: Omit<AgencyRow, 'id'>) => void
+}) {
+  const isEdit = mode === 'edit'
+  const [form, setForm] = useState({
+    stateCode: initial?.stateCode ?? '',
+    cityCounty: initial?.cityCounty ?? '',
+    name: initial?.name ?? '',
+    jurisdiction: (initial?.jurisdiction ?? 'State') as AgencyRow['jurisdiction'],
+    website: initial?.website ?? '',
+  })
+  const [errors, setErrors] = useState({ stateCode: false, cityCounty: false, name: false })
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  const set = (key: keyof typeof form, value: string) => {
+    setForm(prev => ({ ...prev, [key]: value }))
+    if (key in errors) setErrors(prev => ({ ...prev, [key]: false }))
+  }
+
+  const stateOptions =
+    form.jurisdiction === 'Federal'
+      ? ['TTB', ...AGENCY_STATE_CODES.filter(s => s !== 'TTB')]
+      : AGENCY_STATE_CODES.filter(s => s !== 'TTB')
+
+  const cityOptions = agencyCityOptions(form.stateCode, form.cityCounty)
+
+  const handleStateChange = (stateCode: string) => {
+    const cities = agencyCityOptions(stateCode)
+    setForm(prev => ({
+      ...prev,
+      stateCode,
+      cityCounty: cities.includes(prev.cityCounty) ? prev.cityCounty : '',
+    }))
+    setErrors(prev => ({ ...prev, stateCode: false, cityCounty: false }))
+  }
+
+  const handleSave = () => {
+    const next = {
+      stateCode: !form.stateCode.trim(),
+      cityCounty: !form.cityCounty.trim(),
+      name: !form.name.trim(),
+    }
+    setErrors(next)
+    if (Object.values(next).some(Boolean)) return
+    onSave({
+      stateCode: form.stateCode.trim().toUpperCase(),
+      cityCounty: form.cityCounty.trim(),
+      name: form.name.trim(),
+      jurisdiction: form.jurisdiction,
+      website: form.website.trim(),
+    })
+  }
+
+  return (
+    <AddressModalShell maxWidth="max-w-lg" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 14V7l6-5 6 5v7H2z" />
+              <rect x="6" y="10" width="4" height="4" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'Edit Agency' : 'Add Agency'}</h3>
+            <p className="text-[11px] text-slate-500">
+              {isEdit ? 'Update agency details' : 'Add a federal or state control agency'}
+            </p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="px-5 py-5 space-y-4">
+        <div>
+          <OwnershipFormLabel required>Agency Name</OwnershipFormLabel>
+          <input
+            value={form.name}
+            onChange={e => set('name', e.target.value)}
+            placeholder="Agency name"
+            className={`w-full h-10 px-3 rounded-xl border text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 ${
+              errors.name
+                ? 'border-[#bb5757] focus:ring-[#bb5757]/20 focus:border-[#bb5757]'
+                : 'border-slate-200 focus:ring-[#12518c]/25 focus:border-[#12518c]'
+            }`}
+          />
+          {errors.name && <p className="mt-1 text-[11px] text-[#bb5757]">Agency name is required.</p>}
+        </div>
+
+        <div>
+          <OwnershipFormLabel required>Federal / State</OwnershipFormLabel>
+          <div className="mt-0.5 inline-flex w-full sm:w-auto rounded-xl border border-slate-200 bg-slate-50 p-1 gap-1">
+            {(['Federal', 'State'] as const).map(option => {
+              const active = form.jurisdiction === option
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    setForm(prev => {
+                      const nextState =
+                        option === 'Federal' ? 'TTB' : prev.stateCode === 'TTB' ? '' : prev.stateCode
+                      const cities = agencyCityOptions(nextState)
+                      return {
+                        ...prev,
+                        jurisdiction: option,
+                        stateCode: nextState,
+                        cityCounty: cities.includes(prev.cityCounty) ? prev.cityCounty : '',
+                      }
+                    })
+                    setErrors(prev => ({ ...prev, stateCode: false, cityCounty: false }))
+                  }}
+                  className={`flex-1 sm:flex-none min-w-[100px] px-4 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                    active
+                      ? 'bg-[#12518c] text-white shadow-sm'
+                      : 'text-slate-600 hover:bg-white hover:text-slate-800'
+                  }`}
+                >
+                  {option}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div>
+          <OwnershipFormSelect
+            label="State"
+            required
+            value={form.stateCode}
+            onChange={handleStateChange}
+            options={stateOptions}
+            placeholder="Select…"
+          />
+          {errors.stateCode && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
+        </div>
+
+        <div>
+          <OwnershipFormSelect
+            label="City/County"
+            required
+            value={form.cityCounty}
+            onChange={v => set('cityCounty', v)}
+            options={cityOptions}
+            placeholder={form.stateCode ? 'Select…' : 'Select state first…'}
+          />
+          {errors.cityCounty && <p className="mt-1 text-[11px] text-[#bb5757]">City/County is required.</p>}
+        </div>
+
+        <div>
+          <OwnershipFormLabel>Website</OwnershipFormLabel>
+          <input
+            value={form.website}
+            onChange={e => set('website', e.target.value)}
+            placeholder="https://"
+            className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]"
+          />
+        </div>
+      </div>
+
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-2.5">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+        >
+          {isEdit ? 'Update' : 'Save'}
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function AgencyDetailPage({
+  agency,
+  tab,
+  onTabChange,
+  onUpdate,
+  onDelete,
+}: {
+  agency: AgencyRow
+  tab: (typeof AGENCY_DETAIL_TABS)[number]
+  onTabChange: (tab: (typeof AGENCY_DETAIL_TABS)[number]) => void
+  onUpdate: (data: Omit<AgencyRow, 'id'>) => void
+  onDelete: () => void
+}) {
+  const [showEdit, setShowEdit] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+  const [licenseToast, setLicenseToast] = useState(false)
+
+  const contacts = AGENCY_CONTACTS.filter(c => c.agencyId === agency.id)
+  const addresses = AGENCY_ADDRESSES.filter(a => a.agencyId === agency.id)
+  const licenseTypes = AGENCY_LICENSE_TYPES.filter(l => l.agencyId === agency.id)
+
+  useEffect(() => {
+    if (!licenseToast) return
+    const t = window.setTimeout(() => setLicenseToast(false), 2500)
+    return () => window.clearTimeout(t)
+  }, [licenseToast])
+
+  return (
+    <div className="space-y-5 animate-[fadeIn_0.25s_ease-out]">
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+        <div className="px-5 py-5">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">{agency.name}</h1>
+                <span
+                  className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold ${
+                    agency.jurisdiction === 'Federal'
+                      ? 'bg-[#12518c]/10 text-[#12518c]'
+                      : 'bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  {agency.jurisdiction}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+                <span><span className="text-slate-400">Agency ID</span> {3000 + agency.id}</span>
+                <span className="text-slate-300">·</span>
+                <span><span className="text-slate-400">State Code</span> {agency.stateCode}</span>
+                <span className="text-slate-300">·</span>
+                <span><span className="text-slate-400">City/County</span> {agency.cityCounty || '—'}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <button
+                type="button"
+                onClick={() => setLicenseToast(true)}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="2" width="10" height="12" rx="1.5" />
+                  <path d="M6 6h4M6 9h4M6 12h2" />
+                </svg>
+                View Client Licenses
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEdit(true)}
+                className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+                title="Edit"
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDelete(true)}
+                className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
+                title="Delete"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav
+        aria-label="Agency sections"
+        className="sticky top-0 z-10 rounded-2xl border border-slate-200 bg-white/95 backdrop-blur-sm shadow-sm"
+      >
+        <div className="overflow-x-auto px-2 sm:px-3 border-b border-slate-100">
+          <div className="flex items-stretch gap-0 min-w-max" role="tablist">
+            {AGENCY_DETAIL_TABS.map(t => {
+              const isActive = tab === t
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => onTabChange(t)}
+                  className={`relative px-3.5 sm:px-4 py-3 text-xs font-semibold whitespace-nowrap transition-colors ${
+                    isActive ? 'text-[#12518c]' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {t}
+                  <span
+                    className={`absolute left-2 right-2 bottom-0 h-0.5 rounded-full transition-opacity ${
+                      isActive ? 'bg-[#12518c] opacity-100' : 'bg-transparent opacity-0'
+                    }`}
+                    aria-hidden
+                  />
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </nav>
+
+      {tab === 'Summary' && (
+        <AgencySummaryTab
+          agency={agency}
+          contacts={contacts}
+          addresses={addresses}
+        />
+      )}
+      {tab === 'Addresses' && (
+        <AgencyAddressesTab agencyId={agency.id} initialAddresses={addresses} />
+      )}
+      {tab === 'Contacts' && (
+        <AgencyContactsTab
+          agencyId={agency.id}
+          agencyName={agency.name}
+          initialContacts={contacts}
+        />
+      )}
+      {tab === 'License Types' && (
+        <AgencyLicenseTypesTab agencyId={agency.id} initialLicenseTypes={licenseTypes} />
+      )}
+
+      {licenseToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-medium shadow-lg animate-[fadeIn_0.2s_ease-out]">
+          Client licenses view coming soon
+        </div>
+      )}
+
+      {showEdit && (
+        <AgencyFormModal
+          mode="edit"
+          initial={agency}
+          onClose={() => setShowEdit(false)}
+          onSave={data => {
+            onUpdate(data)
+            setShowEdit(false)
+          }}
+        />
+      )}
+
+      {showDelete && (
+        <AddressDeleteConfirmModal
+          title="Delete agency"
+          locationName={agency.name}
+          showUndoneWarning={false}
+          onCancel={() => setShowDelete(false)}
+          onConfirm={() => {
+            setShowDelete(false)
+            onDelete()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function AgencySummaryTab({
+  agency,
+  contacts,
+  addresses,
+}: {
+  agency: AgencyRow
+  contacts: AgencyContactRow[]
+  addresses: AgencyAddressRow[]
+}) {
+  const previewContacts = contacts.slice(0, 3)
+  const previewAddresses = addresses.slice(0, 3)
+
+  return (
+    <div className="space-y-5">
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+          <h2 className="text-sm font-semibold text-slate-800">Agency details</h2>
+        </div>
+
+        <div className="px-5 py-5">
+          <dl className="flex flex-wrap xl:flex-nowrap gap-4">
+            <div className="min-w-0 flex-[2.2] basis-[280px] rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3.5">
+              <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Agency Name</dt>
+              <dd className="mt-1.5 text-sm font-semibold text-slate-800 leading-snug" title={agency.name}>
+                {agency.name}
+              </dd>
+            </div>
+            <div className="min-w-0 flex-shrink-0 basis-[110px] self-stretch rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3.5 flex flex-col items-center justify-center text-center">
+              <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Agency Type</dt>
+              <dd className="mt-1.5">
+                <span
+                  className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                    agency.jurisdiction === 'Federal'
+                      ? 'bg-[#12518c]/10 text-[#12518c]'
+                      : 'bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  {agency.jurisdiction}
+                </span>
+              </dd>
+            </div>
+            <div className="min-w-0 flex-shrink-0 basis-[100px] self-stretch rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3.5 flex flex-col items-center justify-center text-center">
+              <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">State Code</dt>
+              <dd className="mt-1.5">
+                <span className="inline-flex min-w-[2.25rem] justify-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide bg-white text-slate-700 border border-slate-200">
+                  {agency.stateCode}
+                </span>
+              </dd>
+            </div>
+            <div className="min-w-0 flex-[1] basis-[140px] rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3.5">
+              <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">City/County</dt>
+              <dd className="mt-1.5 text-sm font-medium text-slate-700 truncate" title={agency.cityCounty || undefined}>
+                {agency.cityCounty || '—'}
+              </dd>
+            </div>
+            <div className="min-w-0 flex-[1.4] basis-[180px] rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3.5">
+              <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Website</dt>
+              <dd className="mt-1.5 text-sm">
+                {agency.website ? (
+                  <a
+                    href={agency.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[#12518c] hover:underline max-w-full"
+                    title={agency.website}
+                  >
+                    <span className="truncate">{agency.website.replace(/^https?:\/\//, '')}</span>
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 opacity-70">
+                      <path d="M5 2H2.5A1.5 1.5 0 0 0 1 3.5v6A1.5 1.5 0 0 0 2.5 11h6A1.5 1.5 0 0 0 10 9.5V7" />
+                      <path d="M7 1h4v4M11 1L5.5 6.5" />
+                    </svg>
+                  </a>
+                ) : (
+                  <span className="text-slate-400">—</span>
+                )}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <AgencyPreviewCard
+          title="Contacts"
+          count={contacts.length}
+          empty="No contacts on file for this agency."
+        >
+          {previewContacts.length > 0 && (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Role</th>
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previewContacts.map((c, i) => (
+                  <tr key={c.id} className={`border-b border-slate-50 ${i % 2 === 1 ? 'bg-slate-50/40' : ''}`}>
+                    <td className="px-4 py-2.5 text-sm font-medium text-slate-800 whitespace-nowrap">{c.name}</td>
+                    <td className="px-4 py-2.5 text-sm text-slate-600 whitespace-nowrap">{c.role || '—'}</td>
+                    <td className="px-4 py-2.5 text-sm">
+                      <a href={`mailto:${c.email}`} className="text-[#12518c] hover:underline">{c.email}</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </AgencyPreviewCard>
+
+        <AgencyPreviewCard
+          title="Addresses"
+          count={addresses.length}
+          empty="No addresses on file for this agency."
+        >
+          {previewAddresses.length > 0 && (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Location</th>
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Street</th>
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">City / State</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previewAddresses.map((a, i) => (
+                  <tr key={a.id} className={`border-b border-slate-50 ${i % 2 === 1 ? 'bg-slate-50/40' : ''}`}>
+                    <td className="px-4 py-2.5 text-sm font-medium text-slate-800 max-w-[140px]">
+                      <span className="line-clamp-2" title={a.label}>{a.label}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-sm text-slate-600 max-w-[180px]">
+                      <span className="line-clamp-2" title={a.street}>{a.street}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-sm text-slate-600 whitespace-nowrap">
+                      {[a.city, a.state].filter(Boolean).join(', ') || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </AgencyPreviewCard>
+      </div>
+    </div>
+  )
+}
+
+function AgencyPreviewCard({
+  title,
+  count,
+  empty,
+  children,
+}: {
+  title: string
+  count: number
+  empty: string
+  children?: ReactNode
+}) {
+  return (
+    <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[220px]">
+      <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+        <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+        <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
+          {count}
+        </span>
+      </div>
+      <div className="flex-1 overflow-x-auto">
+        {count === 0 ? (
+          <p className="px-5 py-10 text-center text-sm text-slate-400">{empty}</p>
+        ) : (
+          children
+        )}
+      </div>
+    </section>
+  )
+}
+
+function AgencyContactsTab({
+  agencyId,
+  agencyName,
+  initialContacts,
+}: {
+  agencyId: number
+  agencyName: string
+  initialContacts: AgencyContactRow[]
+}) {
+  const [rows, setRows] = useState(initialContacts)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [formMode, setFormMode] = useState<'add' | 'edit' | 'view' | null>(null)
+  const [editing, setEditing] = useState<AgencyContactRow | null>(null)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [nextId, setNextId] = useState(
+    () => Math.max(0, ...initialContacts.map(c => c.id), ...AGENCY_CONTACTS.map(c => c.id)) + 1,
+  )
+
+  const locationOptions = Array.from(
+    new Set([
+      agencyName,
+      ...AGENCY_ADDRESSES.filter(a => a.agencyId === agencyId).map(a => a.label),
+      ...rows.map(r => r.locationName).filter(Boolean),
+    ]),
+  )
+
+  useEffect(() => {
+    setRows(AGENCY_CONTACTS.filter(c => c.agencyId === agencyId))
+    setSearch('')
+    setPage(1)
+    setFormMode(null)
+    setEditing(null)
+    setDeleteId(null)
+  }, [agencyId])
+
+  const cols = useTableColumns([
+    { key: 'name', label: 'Name' },
+    { key: 'locationName', label: 'Location Name' },
+    { key: 'email', label: 'Email' },
+    { key: 'phone', label: 'Work Phone' },
+    { key: 'role', label: 'Role' },
+    { key: 'internalRemark', label: 'Internal Remark' },
+  ])
+  const colBtn =
+    'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
+
+  const filtered = rows.filter(c => {
+    const q = search.toLowerCase()
+    return (
+      !q ||
+      [c.name, c.firstName, c.lastName, c.locationName, c.email, c.phone, c.cellPhone, c.role, c.internalRemark].some(v =>
+        v.toLowerCase().includes(q),
+      )
+    )
+  })
+
+  const openAdd = () => {
+    setEditing(null)
+    setFormMode('add')
+  }
+
+  const openView = (row: AgencyContactRow) => {
+    setEditing(row)
+    setFormMode('view')
+  }
+
+  const openEdit = (row: AgencyContactRow) => {
+    setEditing(row)
+    setFormMode('edit')
+  }
+
+  const closeForm = () => {
+    setFormMode(null)
+    setEditing(null)
+  }
+
+  const saveContact = (data: Omit<AgencyContactRow, 'id' | 'agencyId'> & { id?: number }) => {
+    if (formMode === 'edit' && data.id != null) {
+      setRows(prev => prev.map(c => (c.id === data.id ? { ...c, ...data, agencyId } : c)))
+    } else {
+      setRows(prev => [{ id: nextId, agencyId, ...data }, ...prev])
+      setNextId(id => id + 1)
+      setPage(1)
+    }
+    closeForm()
+  }
+
+  const confirmDelete = () => {
+    if (deleteId == null) return
+    setRows(prev => prev.filter(c => c.id !== deleteId))
+    setDeleteId(null)
+  }
+
+  const deleteTarget = deleteId != null ? rows.find(c => c.id === deleteId) : undefined
+
+  return (
+    <>
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+        <TableSectionHeader title="Contacts" subtitle="People associated with this agency">
+          <AddressSearchInput
+            value={search}
+            onChange={v => {
+              setSearch(v)
+              setPage(1)
+            }}
+            className="w-full sm:w-72 shrink-0"
+          />
+          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
+          <TableAddNewButton onClick={openAdd} />
+        </TableSectionHeader>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px]">
+            <thead>
+              <tr className="border-y border-slate-100 bg-slate-50/60">
+                {cols.show('name') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Name
+                  </th>
+                )}
+                {cols.show('locationName') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Location Name
+                  </th>
+                )}
+                {cols.show('email') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Email
+                  </th>
+                )}
+                {cols.show('phone') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Work Phone
+                  </th>
+                )}
+                {cols.show('role') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Role
+                  </th>
+                )}
+                {cols.show('internalRemark') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Internal Remark
+                  </th>
+                )}
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-28">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={cols.visibleCount + 1} className="px-4 py-14 text-center">
+                    <p className="text-sm font-medium text-slate-500">No contacts found</p>
+                    <p className="text-xs text-slate-400 mt-1">Add a contact or adjust your search</p>
+                    <button
+                      type="button"
+                      onClick={openAdd}
+                      className="mt-4 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                        <path d="M6 2.5v7M2.5 6h7" />
+                      </svg>
+                      Add New
+                    </button>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((c, i) => (
+                  <tr
+                    key={c.id}
+                    className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
+                      i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
+                    }`}
+                  >
+                    {cols.show('name') && (
+                      <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">{c.name}</td>
+                    )}
+                    {cols.show('locationName') && (
+                      <td className="px-4 py-3 text-sm text-slate-600 max-w-[260px]">
+                        <span className="line-clamp-2" title={c.locationName}>
+                          {c.locationName || '—'}
+                        </span>
+                      </td>
+                    )}
+                    {cols.show('email') && (
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        {c.email ? (
+                          <a href={`mailto:${c.email}`} className="text-[#12518c] hover:underline">
+                            {c.email}
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                    )}
+                    {cols.show('phone') && (
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        {c.phone ? (
+                          <a href={`tel:${c.phone.replace(/[^\d+]/g, '')}`} className="text-[#12518c] hover:underline">
+                            {c.phone}
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                    )}
+                    {cols.show('role') && (
+                      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.role || '—'}</td>
+                    )}
+                    {cols.show('internalRemark') && (
+                      <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px]">
+                        {c.internalRemark ? (
+                          <span className="line-clamp-2" title={c.internalRemark}>
+                            {c.internalRemark}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+                    )}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openView(c)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+                          title="View"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
+                            <circle cx="8" cy="8" r="1.75" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(c)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                          title="Edit"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteId(c.id)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
+                          title="Delete"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                            <path d="M10 11v6M14 11v6" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
+      </section>
+
+      {formMode && (
+        <AgencyContactFormModal
+          mode={formMode}
+          agencyId={agencyId}
+          agencyName={agencyName}
+          locationOptions={locationOptions}
+          initial={editing}
+          onClose={closeForm}
+          onSave={saveContact}
+          onEdit={() => setFormMode('edit')}
+        />
+      )}
+
+      {deleteTarget && (
+        <AddressDeleteConfirmModal
+          locationName={deleteTarget.name}
+          title="Delete contact"
+          showUndoneWarning={false}
+          onCancel={() => setDeleteId(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
+    </>
+  )
+}
+
+function ContactNoteEditor({
+  value,
+  onChange,
+  readOnly,
+}: {
+  value: string
+  onChange: (html: string) => void
+  readOnly?: boolean
+}) {
+  const editorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = editorRef.current
+    if (!el) return
+    if (el.innerHTML !== value) el.innerHTML = value || ''
+  }, [value])
+
+  const run = (command: string, arg?: string) => {
+    if (readOnly) return
+    editorRef.current?.focus()
+    document.execCommand(command, false, arg)
+    onChange(editorRef.current?.innerHTML ?? '')
+  }
+
+  const ToolBtn = ({
+    title,
+    onClick,
+    children,
+  }: {
+    title: string
+    onClick: () => void
+    children: ReactNode
+  }) => (
+    <button
+      type="button"
+      title={title}
+      onMouseDown={e => {
+        e.preventDefault()
+        onClick()
+      }}
+      className="h-7 min-w-7 px-1.5 inline-flex items-center justify-center rounded-md text-slate-600 hover:bg-white hover:text-[#12518c] hover:shadow-sm transition-colors"
+    >
+      {children}
+    </button>
+  )
+
+  return (
+    <div className={`rounded-xl border border-slate-200 overflow-hidden ${readOnly ? 'bg-slate-50' : 'bg-white'}`}>
+      {!readOnly && (
+        <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-slate-100 bg-slate-50/80">
+          <ToolBtn title="Bold" onClick={() => run('bold')}>
+            <span className="text-xs font-bold">B</span>
+          </ToolBtn>
+          <ToolBtn title="Italic" onClick={() => run('italic')}>
+            <span className="text-xs italic font-serif">I</span>
+          </ToolBtn>
+          <ToolBtn title="Underline" onClick={() => run('underline')}>
+            <span className="text-xs underline">U</span>
+          </ToolBtn>
+          <ToolBtn title="Strikethrough" onClick={() => run('strikeThrough')}>
+            <span className="text-xs line-through">S</span>
+          </ToolBtn>
+          <span className="w-px h-4 bg-slate-200 mx-0.5" />
+          <ToolBtn title="Quote" onClick={() => run('formatBlock', 'blockquote')}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3 12h3l2-4V4H2v4h3zm7 0h3l2-4V4H9v4h3z" /></svg>
+          </ToolBtn>
+          <ToolBtn title="Bulleted list" onClick={() => run('insertUnorderedList')}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="2.5" cy="4" r="1.2"/><circle cx="2.5" cy="8" r="1.2"/><circle cx="2.5" cy="12" r="1.2"/><path d="M6 3.5h8v1H6zm0 4h8v1H6zm0 4h8v1H6z"/></svg>
+          </ToolBtn>
+          <ToolBtn title="Numbered list" onClick={() => run('insertOrderedList')}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h1.5v3H2V2zm0 5h2v.8H3v.4h1v.8H2V7zm0 4.2h1.2V12H2v-.8zm0 1.6h2V14H2v-.2zM6 3.5h8v1H6zm0 4h8v1H6zm0 4h8v1H6z"/></svg>
+          </ToolBtn>
+          <ToolBtn title="Decrease indent" onClick={() => run('outdent')}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 4h7M7 8h7M7 12h7M5 8H2m0 0l2-2M2 8l2 2"/></svg>
+          </ToolBtn>
+          <ToolBtn title="Increase indent" onClick={() => run('indent')}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 4h7M7 8h7M7 12h7M2 8h3m0 0L3 6m2 2L3 10"/></svg>
+          </ToolBtn>
+          <span className="w-px h-4 bg-slate-200 mx-0.5" />
+          <ToolBtn
+            title="Insert link"
+            onClick={() => {
+              const url = window.prompt('Enter URL')
+              if (url) run('createLink', url)
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6.5 9.5l3-3M7 11.5l-1.5 1.5a2.5 2.5 0 01-3.5-3.5L3.5 8M9 4.5l1.5-1.5a2.5 2.5 0 013.5 3.5L12.5 8"/></svg>
+          </ToolBtn>
+          <ToolBtn
+            title="Insert image"
+            onClick={() => {
+              const url = window.prompt('Enter image URL')
+              if (url) run('insertImage', url)
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1"/><path d="M2 11l3.5-3 2.5 2.5L11 7.5l3 3.5"/></svg>
+          </ToolBtn>
+          <ToolBtn title="Clear formatting" onClick={() => run('removeFormat')}>
+            <span className="text-[10px] font-semibold tracking-tight">Tx</span>
+          </ToolBtn>
+        </div>
+      )}
+      <div
+        ref={editorRef}
+        contentEditable={!readOnly}
+        suppressContentEditableWarning
+        onInput={() => onChange(editorRef.current?.innerHTML ?? '')}
+        data-placeholder="Add a note…"
+        className={`min-h-[140px] px-3 py-2.5 text-sm text-slate-800 leading-relaxed outline-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-slate-400 ${
+          readOnly ? 'cursor-default' : ''
+        }`}
+        role="textbox"
+        aria-multiline
+        aria-label="Note"
+      />
+    </div>
+  )
+}
+
+function ContactSearchDropdown({
+  people,
+  value,
+  onChange,
+  hasError,
+  disabled,
+}: {
+  people: PersonRow[]
+  value: string
+  onChange: (id: string) => void
+  hasError?: boolean
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const rootRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const selected = people.find(p => String(p.id) === value)
+  const filtered = people.filter(p => {
+    const q = query.toLowerCase().trim()
+    return !q || [p.name, p.email, p.company].some(v => v.toLowerCase().includes(q))
+  })
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey, true)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (open) {
+      setQuery('')
+      requestAnimationFrame(() => inputRef.current?.focus())
+    }
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(v => !v)}
+        className={`w-full h-10 px-3 rounded-xl border text-sm text-left flex items-center justify-between gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] ${
+          disabled
+            ? 'bg-slate-50 border-slate-200 text-slate-700 cursor-default'
+            : hasError
+              ? 'bg-white border-[#bb5757] text-slate-900'
+              : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300'
+        }`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={`truncate ${selected ? 'text-slate-800' : 'text-slate-400'}`}>
+          {selected ? `${selected.name} — ${selected.email}` : 'Select…'}
+        </span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className={`flex-shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
+        >
+          <path d="M3 4.5L6 7.5L9 4.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-30 left-0 right-0 mt-1.5 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden animate-[fadeIn_0.12s_ease-out]">
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <svg
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                width="13"
+                height="13"
+                viewBox="0 0 12 12"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <circle cx="5" cy="5" r="3.5" />
+                <path d="M8 8l2.5 2.5" strokeLinecap="round" />
+              </svg>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search contact…"
+                className="h-9 w-full pl-8 pr-3 text-sm border border-slate-200 rounded-lg bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]"
+              />
+            </div>
+          </div>
+          <ul role="listbox" className="max-h-52 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-3 text-xs text-slate-400 text-center">No contacts found</li>
+            ) : (
+              filtered.map(p => {
+                const active = String(p.id) === value
+                return (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={active}
+                      onClick={() => {
+                        onChange(String(p.id))
+                        setOpen(false)
+                      }}
+                      className={`w-full px-3 py-2 text-left transition-colors ${
+                        active ? 'bg-[#12518c]/10 text-[#12518c]' : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <span className="block text-sm font-medium truncate">{p.name}</span>
+                      <span className={`block text-[11px] truncate ${active ? 'text-[#12518c]/80' : 'text-slate-400'}`}>
+                        {p.email}
+                        {p.company ? ` · ${p.company}` : ''}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AgencyContactFormModal({
+  mode,
+  agencyId,
+  agencyName,
+  locationOptions,
+  initial,
+  onClose,
+  onSave,
+  onEdit,
+}: {
+  mode: 'add' | 'edit' | 'view'
+  agencyId: number
+  agencyName: string
+  locationOptions: string[]
+  initial: AgencyContactRow | null
+  onClose: () => void
+  onSave: (data: Omit<AgencyContactRow, 'id' | 'agencyId'> & { id?: number }) => void
+  onEdit: () => void
+}) {
+  const readOnly = mode === 'view'
+  const [source, setSource] = useState<'new' | 'existing'>(mode === 'add' ? 'new' : 'new')
+  const [existingId, setExistingId] = useState('')
+  const [errors, setErrors] = useState({
+    firstName: false,
+    lastName: false,
+    locationName: false,
+    existingId: false,
+  })
+  const [form, setForm] = useState({
+    id: initial?.id,
+    salutation: initial?.salutation ?? '',
+    firstName: initial?.firstName ?? '',
+    middleName: initial?.middleName ?? '',
+    lastName: initial?.lastName ?? '',
+    locationName: initial?.locationName ?? '',
+    email: initial?.email ?? '',
+    phone: initial?.phone ?? '',
+    extension: initial?.extension ?? '',
+    cellPhone: initial?.cellPhone ?? '',
+    role: initial?.role ?? '',
+    internalRemark: initial?.internalRemark ?? '',
+    note: initial?.note ?? '',
+  })
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+    setForm(prev => ({ ...prev, [key]: value }))
+    if (key in errors) setErrors(prev => ({ ...prev, [key]: false }))
+  }
+
+  const existingPeople = PEOPLE_INIT.filter(p => p.category === 'Individual')
+
+  const applyExisting = (personId: string) => {
+    setExistingId(personId)
+    setErrors(prev => ({ ...prev, existingId: false }))
+    const person = existingPeople.find(p => String(p.id) === personId)
+    if (!person) return
+    const parts = splitPersonName(person.name)
+    setForm(prev => ({
+      ...prev,
+      salutation: parts.salutation,
+      firstName: parts.firstName,
+      middleName: parts.middleName,
+      lastName: parts.lastName,
+      email: person.email,
+    }))
+    setErrors(prev => ({ ...prev, firstName: false, lastName: false, existingId: false }))
+  }
+
+  const fieldClass = (hasError?: boolean) =>
+    `w-full h-10 px-3 rounded-xl border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] placeholder-slate-400 ${
+      readOnly
+        ? 'bg-slate-50 border-slate-200 text-slate-700 cursor-default'
+        : hasError
+          ? 'bg-white border-[#bb5757] text-slate-900'
+          : 'bg-white border-slate-200 text-slate-800'
+    }`
+
+  const selectClass = (hasError?: boolean) => `${fieldClass(hasError)} appearance-none pr-8`
+
+  const selectStyle = {
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat' as const,
+    backgroundPosition: 'right 0.75rem center',
+  }
+
+  const labelClass = 'block text-[11px] font-medium text-slate-500 mb-1.5 leading-tight'
+  const isExisting = mode === 'add' && source === 'existing'
+
+  const validateAndSave = () => {
+    if (isExisting) {
+      const next = {
+        firstName: false,
+        lastName: false,
+        locationName: !form.locationName.trim(),
+        existingId: !existingId,
+      }
+      setErrors(next)
+      if (next.existingId || next.locationName) return
+    } else {
+      const next = {
+        firstName: !form.firstName.trim(),
+        lastName: !form.lastName.trim(),
+        locationName: !form.locationName.trim(),
+        existingId: false,
+      }
+      setErrors(next)
+      if (next.firstName || next.lastName || next.locationName) return
+    }
+
+    const name = formatAgencyContactName(form)
+    onSave({
+      id: form.id,
+      salutation: form.salutation.trim(),
+      firstName: form.firstName.trim(),
+      middleName: form.middleName.trim(),
+      lastName: form.lastName.trim(),
+      name,
+      locationName: form.locationName.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      extension: form.extension.trim(),
+      cellPhone: form.cellPhone.trim(),
+      role: form.role.trim(),
+      internalRemark: form.internalRemark.trim(),
+      note: form.note,
+    })
+  }
+
+  const locations = locationOptions.includes(form.locationName)
+    ? locationOptions
+    : form.locationName
+      ? [form.locationName, ...locationOptions]
+      : locationOptions
+
+  return (
+    <AddressModalShell maxWidth="max-w-5xl" onClose={onClose}>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-slate-900 truncate">
+            {mode === 'add' ? 'Add Contact' : mode === 'edit' ? 'Edit Contact' : 'View Contact'}
+          </h3>
+          <p className="text-[11px] text-slate-500 truncate">{agencyName}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          aria-label="Close"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="relative px-5 py-5 space-y-4 max-h-[min(72vh,720px)] overflow-y-auto">
+        {mode === 'add' && (
+          <div className="flex items-center gap-5" role="radiogroup" aria-label="Contact source">
+            {(['new', 'existing'] as const).map(opt => (
+              <label key={opt} className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="contact-source"
+                  checked={source === opt}
+                  onChange={() => {
+                    setSource(opt)
+                    setExistingId('')
+                    setErrors({ firstName: false, lastName: false, locationName: false, existingId: false })
+                  }}
+                  className="accent-[#12518c] w-3.5 h-3.5"
+                />
+                <span className={`text-sm font-medium ${source === opt ? 'text-slate-800' : 'text-slate-500'}`}>
+                  {opt === 'new' ? 'New' : 'Existing'}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {isExisting ? (
+          <>
+            <div>
+              <span className={labelClass}>
+                Search Contact <span className="text-[#bb5757]">*</span>
+              </span>
+              <ContactSearchDropdown
+                people={existingPeople}
+                value={existingId}
+                onChange={applyExisting}
+                hasError={errors.existingId}
+                disabled={readOnly}
+              />
+            </div>
+
+            <label className="block">
+              <span className={labelClass}>
+                Location <span className="text-[#bb5757]">*</span>
+              </span>
+              <select
+                value={form.locationName}
+                disabled={readOnly}
+                onChange={e => set('locationName', e.target.value)}
+                className={selectClass(errors.locationName)}
+                style={selectStyle}
+              >
+                <option value="">Select…</option>
+                {locations.map(opt => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="grid grid-cols-12 gap-3">
+              <label className="block col-span-12 sm:col-span-4">
+                <span className={labelClass}>Email</span>
+                <input
+                  type="email"
+                  value={form.email}
+                  readOnly={readOnly}
+                  onChange={e => set('email', e.target.value)}
+                  className={fieldClass()}
+                  placeholder="name@example.com"
+                />
+              </label>
+              <label className="block col-span-12 sm:col-span-3">
+                <span className={labelClass}>Office Contact Number</span>
+                <input
+                  type="text"
+                  value={form.phone}
+                  readOnly={readOnly}
+                  onChange={e => set('phone', e.target.value)}
+                  className={fieldClass()}
+                  placeholder="(555) 555-5555"
+                />
+              </label>
+              <label className="block col-span-6 sm:col-span-2">
+                <span className={labelClass}>Extension</span>
+                <input
+                  type="text"
+                  value={form.extension}
+                  readOnly={readOnly}
+                  onChange={e => set('extension', e.target.value)}
+                  className={fieldClass()}
+                />
+              </label>
+              <label className="block col-span-6 sm:col-span-3">
+                <span className={labelClass}>Cell Phone Number</span>
+                <input
+                  type="text"
+                  value={form.cellPhone}
+                  readOnly={readOnly}
+                  onChange={e => set('cellPhone', e.target.value)}
+                  className={fieldClass()}
+                  placeholder="(555) 555-5555"
+                />
+              </label>
+            </div>
+
+            <div>
+              <span className={labelClass}>Note</span>
+              <ContactNoteEditor value={form.note} onChange={html => set('note', html)} readOnly={readOnly} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-12 gap-3">
+              <label className="block col-span-12 sm:col-span-2">
+                <span className={labelClass}>Salutation</span>
+                <select
+                  value={form.salutation}
+                  disabled={readOnly}
+                  onChange={e => set('salutation', e.target.value)}
+                  className={selectClass()}
+                  style={selectStyle}
+                >
+                  <option value="">Select…</option>
+                  {CONTACT_SALUTATIONS.map(s => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block col-span-12 sm:col-span-3">
+                <span className={labelClass}>
+                  First Name <span className="text-[#bb5757]">*</span>
+                </span>
+                <input
+                  type="text"
+                  value={form.firstName}
+                  readOnly={readOnly}
+                  onChange={e => set('firstName', e.target.value)}
+                  className={fieldClass(errors.firstName)}
+                />
+              </label>
+              <label className="block col-span-12 sm:col-span-3">
+                <span className={labelClass}>Middle Name</span>
+                <input
+                  type="text"
+                  value={form.middleName}
+                  readOnly={readOnly}
+                  onChange={e => set('middleName', e.target.value)}
+                  className={fieldClass()}
+                />
+              </label>
+              <label className="block col-span-12 sm:col-span-4">
+                <span className={labelClass}>
+                  Last Name <span className="text-[#bb5757]">*</span>
+                </span>
+                <input
+                  type="text"
+                  value={form.lastName}
+                  readOnly={readOnly}
+                  onChange={e => set('lastName', e.target.value)}
+                  className={fieldClass(errors.lastName)}
+                />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="block">
+                <span className={labelClass}>Role</span>
+                <input
+                  type="text"
+                  value={form.role}
+                  readOnly={readOnly}
+                  onChange={e => set('role', e.target.value)}
+                  className={fieldClass()}
+                  placeholder="e.g. Customer Service Rep"
+                />
+              </label>
+              <label className="block">
+                <span className={labelClass}>Internal Remark</span>
+                <input
+                  type="text"
+                  value={form.internalRemark}
+                  readOnly={readOnly}
+                  onChange={e => set('internalRemark', e.target.value)}
+                  className={fieldClass()}
+                  placeholder="Visible to your team only"
+                />
+              </label>
+            </div>
+
+            <label className="block">
+              <span className={labelClass}>
+                Location <span className="text-[#bb5757]">*</span>
+              </span>
+              <select
+                value={form.locationName}
+                disabled={readOnly}
+                onChange={e => set('locationName', e.target.value)}
+                className={selectClass(errors.locationName)}
+                style={selectStyle}
+              >
+                <option value="">Select…</option>
+                {locations.map(opt => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="grid grid-cols-12 gap-3">
+              <label className="block col-span-12 sm:col-span-4">
+                <span className={labelClass}>Email</span>
+                <input
+                  type="email"
+                  value={form.email}
+                  readOnly={readOnly}
+                  onChange={e => set('email', e.target.value)}
+                  className={fieldClass()}
+                  placeholder="name@example.com"
+                />
+              </label>
+              <label className="block col-span-12 sm:col-span-3">
+                <span className={labelClass}>Office Contact Number</span>
+                <input
+                  type="text"
+                  value={form.phone}
+                  readOnly={readOnly}
+                  onChange={e => set('phone', e.target.value)}
+                  className={fieldClass()}
+                  placeholder="(555) 555-5555"
+                />
+              </label>
+              <label className="block col-span-6 sm:col-span-2">
+                <span className={labelClass}>Extension</span>
+                <input
+                  type="text"
+                  value={form.extension}
+                  readOnly={readOnly}
+                  onChange={e => set('extension', e.target.value)}
+                  className={fieldClass()}
+                />
+              </label>
+              <label className="block col-span-6 sm:col-span-3">
+                <span className={labelClass}>Cell Phone Number</span>
+                <input
+                  type="text"
+                  value={form.cellPhone}
+                  readOnly={readOnly}
+                  onChange={e => set('cellPhone', e.target.value)}
+                  className={fieldClass()}
+                  placeholder="(555) 555-5555"
+                />
+              </label>
+            </div>
+
+            <div>
+              <span className={labelClass}>Note</span>
+              <ContactNoteEditor value={form.note} onChange={html => set('note', html)} readOnly={readOnly} />
+            </div>
+          </>
+        )}
+
+        <p className="text-[11px] text-slate-400">Agency ID {3000 + agencyId}</p>
+      </div>
+
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-2.5">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+        >
+          Cancel
+        </button>
+        {readOnly ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+          >
+            Edit
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={validateAndSave}
+            className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+          >
+            {mode === 'edit' ? 'Update' : 'Save'}
+          </button>
+        )}
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function AgencyAddressesTab({
+  agencyId,
+  initialAddresses,
+}: {
+  agencyId: number
+  initialAddresses: AgencyAddressRow[]
+}) {
+  const [rows, setRows] = useState(initialAddresses)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [formMode, setFormMode] = useState<'add' | 'edit' | 'view' | null>(null)
+  const [editing, setEditing] = useState<AgencyAddressRow | null>(null)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [nextId, setNextId] = useState(() => Math.max(0, ...initialAddresses.map(a => a.id), ...AGENCY_ADDRESSES.map(a => a.id)) + 1)
+
+  useEffect(() => {
+    setRows(AGENCY_ADDRESSES.filter(a => a.agencyId === agencyId))
+    setSearch('')
+    setPage(1)
+    setFormMode(null)
+    setEditing(null)
+    setDeleteId(null)
+  }, [agencyId])
+
+  const cols = useTableColumns([
+    { key: 'label', label: 'Location Name' },
+    { key: 'street', label: 'Street' },
+    { key: 'city', label: 'City' },
+    { key: 'state', label: 'State' },
+    { key: 'zip', label: 'Zip Code' },
+  ])
+  const colBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
+
+  const filtered = rows.filter(a => {
+    const q = search.toLowerCase()
+    return (
+      !q ||
+      [a.label, a.street, a.city, a.state, a.zip].some(v => v.toLowerCase().includes(q))
+    )
+  })
+
+  const openAdd = () => {
+    setEditing(null)
+    setFormMode('add')
+  }
+
+  const openView = (row: AgencyAddressRow) => {
+    setEditing(row)
+    setFormMode('view')
+  }
+
+  const openEdit = (row: AgencyAddressRow) => {
+    setEditing(row)
+    setFormMode('edit')
+  }
+
+  const closeForm = () => {
+    setFormMode(null)
+    setEditing(null)
+  }
+
+  const saveAddress = (data: Omit<AgencyAddressRow, 'id' | 'agencyId'> & { id?: number }) => {
+    if (formMode === 'edit' && data.id != null) {
+      setRows(prev => prev.map(a => (a.id === data.id ? { ...a, ...data, agencyId } : a)))
+    } else {
+      setRows(prev => [{ id: nextId, agencyId, ...data }, ...prev])
+      setNextId(id => id + 1)
+      setPage(1)
+    }
+    closeForm()
+  }
+
+  const confirmDelete = () => {
+    if (deleteId == null) return
+    setRows(prev => prev.filter(a => a.id !== deleteId))
+    setDeleteId(null)
+  }
+
+  const deleteTarget = deleteId != null ? rows.find(a => a.id === deleteId) : undefined
+
+  return (
+    <>
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+        <TableSectionHeader title="Addresses" subtitle="Physical and mailing locations for this agency">
+          <AddressSearchInput
+            value={search}
+            onChange={v => {
+              setSearch(v)
+              setPage(1)
+            }}
+          />
+          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
+          <TableAddNewButton onClick={openAdd} />
+        </TableSectionHeader>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[880px]">
+            <thead>
+              <tr className="border-y border-slate-100 bg-slate-50/60">
+                {cols.show('label') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Location Name
+                  </th>
+                )}
+                {cols.show('street') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Street
+                  </th>
+                )}
+                {cols.show('city') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    City
+                  </th>
+                )}
+                {cols.show('state') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">
+                    State
+                  </th>
+                )}
+                {cols.show('zip') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Zip Code
+                  </th>
+                )}
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-28">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={cols.visibleCount + 1} className="px-4 py-14 text-center">
+                    <p className="text-sm font-medium text-slate-500">No addresses found</p>
+                    <p className="text-xs text-slate-400 mt-1">Add a location or adjust your search</p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((a, i) => (
+                  <tr
+                    key={a.id}
+                    className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
+                      i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
+                    }`}
+                  >
+                    {cols.show('label') && (
+                      <td className="px-4 py-3 text-sm font-medium text-slate-800 max-w-[240px]">
+                        <span className="line-clamp-2" title={a.label}>{a.label}</span>
+                      </td>
+                    )}
+                    {cols.show('street') && (
+                      <td className="px-4 py-3 text-sm text-slate-600 max-w-[260px]">
+                        <span className="line-clamp-2" title={a.street}>{a.street}</span>
+                      </td>
+                    )}
+                    {cols.show('city') && (
+                      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.city || '—'}</td>
+                    )}
+                    {cols.show('state') && (
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                        {a.state ? (
+                          <span className="inline-flex min-w-[2.25rem] justify-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide bg-slate-100 text-slate-700 border border-slate-200">
+                            {a.state}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                    )}
+                    {cols.show('zip') && (
+                      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.zip || '—'}</td>
+                    )}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openView(a)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+                          title="View"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
+                            <circle cx="8" cy="8" r="1.75" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(a)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                          title="Edit"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteId(a.id)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
+                          title="Delete"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                            <path d="M10 11v6M14 11v6" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
+      </section>
+
+      {formMode && (
+        <AgencyAddressFormModal
+          mode={formMode}
+          agencyId={agencyId}
+          initial={editing}
+          onClose={closeForm}
+          onSave={saveAddress}
+          onEdit={() => setFormMode('edit')}
+        />
+      )}
+
+      {deleteTarget && (
+        <AddressDeleteConfirmModal
+          locationName={deleteTarget.label}
+          title="Delete address"
+          showUndoneWarning={false}
+          onCancel={() => setDeleteId(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
+    </>
+  )
+}
+
+function AgencyAddressFormModal({
+  mode,
+  agencyId,
+  initial,
+  onClose,
+  onSave,
+  onEdit,
+}: {
+  mode: 'add' | 'edit' | 'view'
+  agencyId: number
+  initial: AgencyAddressRow | null
+  onClose: () => void
+  onSave: (data: Omit<AgencyAddressRow, 'id' | 'agencyId'> & { id?: number }) => void
+  onEdit: () => void
+}) {
+  const readOnly = mode === 'view'
+  const stateOptions = US_STATE_CODES
+  const [errors, setErrors] = useState({
+    label: false,
+    street: false,
+    state: false,
+    mailingStreet: false,
+    mailingState: false,
+  })
+  const [form, setForm] = useState({
+    id: initial?.id,
+    label: initial?.label ?? '',
+    street: initial?.street ?? '',
+    city: initial?.city ?? '',
+    state: initial?.state ?? '',
+    zip: initial?.zip ?? '',
+    phone: initial?.phone ?? '',
+    extension: initial?.extension ?? '',
+    mailingSame: initial?.mailingSame ?? true,
+    mailingStreet: initial?.mailingStreet ?? '',
+    mailingCity: initial?.mailingCity ?? '',
+    mailingState: initial?.mailingState ?? '',
+    mailingZip: initial?.mailingZip ?? '',
+    mailingPhone: initial?.mailingPhone ?? '',
+    mailingExtension: initial?.mailingExtension ?? '',
+  })
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+    setForm(prev => ({ ...prev, [key]: value }))
+    if (key in errors) setErrors(prev => ({ ...prev, [key]: false }))
+  }
+
+  const handlePhysicalStateChange = (state: string) => {
+    const cities = citiesForState(state)
+    setForm(prev => ({
+      ...prev,
+      state,
+      city: cities.includes(prev.city) ? prev.city : '',
+    }))
+    setErrors(prev => ({ ...prev, state: false }))
+  }
+
+  const handleMailingStateChange = (mailingState: string) => {
+    const cities = citiesForState(mailingState)
+    setForm(prev => ({
+      ...prev,
+      mailingState,
+      mailingCity: cities.includes(prev.mailingCity) ? prev.mailingCity : '',
+    }))
+    setErrors(prev => ({ ...prev, mailingState: false }))
+  }
+
+  const title =
+    mode === 'add' ? 'Agency - Add Address' : mode === 'edit' ? 'Agency - Edit Address' : 'Agency - View Address'
+
+  const fieldClass = (hasError?: boolean) =>
+    `w-full h-10 px-3 rounded-xl border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] placeholder-slate-400 ${
+      readOnly
+        ? 'bg-slate-50 border-slate-200 text-slate-700 cursor-default'
+        : hasError
+          ? 'bg-white border-[#bb5757] text-slate-900'
+          : 'bg-white border-slate-200 text-slate-800'
+    }`
+
+  const selectClass = (hasError?: boolean) => `${fieldClass(hasError)} appearance-none pr-8`
+
+  const selectStyle = {
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat' as const,
+    backgroundPosition: 'right 0.75rem center',
+  }
+
+  const labelClass = 'block text-[11px] font-medium text-slate-500 mb-1.5 leading-tight'
+  const sectionTitleClass = 'text-sm font-semibold text-slate-800'
+  const physicalCities = citiesForState(form.state, form.city)
+  const mailingCities = citiesForState(form.mailingState, form.mailingCity)
+
+  const validateAndSave = () => {
+    const next = {
+      label: !form.label.trim(),
+      street: !form.street.trim(),
+      state: !form.state.trim(),
+      mailingStreet: !form.mailingSame && !form.mailingStreet.trim(),
+      mailingState: !form.mailingSame && !form.mailingState.trim(),
+    }
+    setErrors(next)
+    if (Object.values(next).some(Boolean)) return
+
+    const mailing = form.mailingSame
+      ? {
+          mailingSame: true,
+          mailingStreet: form.street.trim(),
+          mailingCity: form.city.trim(),
+          mailingState: form.state.trim().toUpperCase(),
+          mailingZip: form.zip.trim(),
+          mailingPhone: form.phone.trim(),
+          mailingExtension: form.extension.trim(),
+        }
+      : {
+          mailingSame: false,
+          mailingStreet: form.mailingStreet.trim(),
+          mailingCity: form.mailingCity.trim(),
+          mailingState: form.mailingState.trim().toUpperCase(),
+          mailingZip: form.mailingZip.trim(),
+          mailingPhone: form.mailingPhone.trim(),
+          mailingExtension: form.mailingExtension.trim(),
+        }
+
+    onSave({
+      id: form.id,
+      label: form.label.trim(),
+      street: form.street.trim(),
+      city: form.city.trim(),
+      state: form.state.trim().toUpperCase(),
+      zip: form.zip.trim(),
+      phone: form.phone.trim(),
+      extension: form.extension.trim(),
+      ...mailing,
+    })
+  }
+
+  return (
+    <AddressModalShell maxWidth="max-w-3xl" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 14s5-3.8 5-7.2A5 5 0 0 0 3 6.8C3 10.2 8 14 8 14z" />
+              <circle cx="8" cy="6.8" r="1.6" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900 truncate">{title}</h3>
+            <p className="text-[11px] text-slate-500">Agency ID {3000 + agencyId}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          aria-label="Close"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="px-5 py-5 space-y-5 max-h-[72vh] overflow-y-auto">
+        <section className="space-y-4">
+          <h4 className={sectionTitleClass}>Physical Address</h4>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="block min-w-0">
+              <span className={labelClass}>
+                Location Name <span className="text-[#bb5757]">*</span>
+              </span>
+              <input
+                type="text"
+                value={form.label}
+                readOnly={readOnly}
+                onChange={e => set('label', e.target.value)}
+                className={fieldClass(errors.label)}
+              />
+              {errors.label && <p className="mt-1 text-[11px] text-[#bb5757]">Location name is required.</p>}
+            </label>
+            <label className="block min-w-0">
+              <span className={labelClass}>
+                Street <span className="text-[#bb5757]">*</span>
+              </span>
+              <input
+                type="text"
+                value={form.street}
+                readOnly={readOnly}
+                onChange={e => set('street', e.target.value)}
+                className={fieldClass(errors.street)}
+              />
+              {errors.street && <p className="mt-1 text-[11px] text-[#bb5757]">Street is required.</p>}
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="block min-w-0">
+              <span className={labelClass}>
+                State <span className="text-[#bb5757]">*</span>
+              </span>
+              <select
+                value={form.state}
+                disabled={readOnly}
+                onChange={e => handlePhysicalStateChange(e.target.value)}
+                className={selectClass(errors.state)}
+                style={selectStyle}
+              >
+                <option value="">Select…</option>
+                {stateOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              {errors.state && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
+            </label>
+            <label className="block min-w-0">
+              <span className={labelClass}>City</span>
+              <select
+                value={form.city}
+                disabled={readOnly || !form.state}
+                onChange={e => set('city', e.target.value)}
+                className={selectClass()}
+                style={selectStyle}
+              >
+                <option value="">{form.state ? 'Select…' : 'Select state first…'}</option>
+                {physicalCities.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <label className="block min-w-0">
+              <span className={labelClass}>Zip Code</span>
+              <input
+                type="text"
+                value={form.zip}
+                readOnly={readOnly}
+                onChange={e => set('zip', e.target.value)}
+                className={fieldClass()}
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className={labelClass}>Phone</span>
+              <input
+                type="text"
+                value={form.phone}
+                readOnly={readOnly}
+                onChange={e => set('phone', e.target.value)}
+                className={fieldClass()}
+                placeholder="(555) 555-5555"
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className={labelClass}>Extension</span>
+              <input
+                type="text"
+                value={form.extension}
+                readOnly={readOnly}
+                onChange={e => set('extension', e.target.value)}
+                className={fieldClass()}
+              />
+            </label>
+          </div>
+        </section>
+
+        <label className={`flex items-center gap-2.5 ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}>
+          <input
+            type="checkbox"
+            checked={form.mailingSame}
+            disabled={readOnly}
+            onChange={e => set('mailingSame', e.target.checked)}
+            className="w-4 h-4 rounded border-slate-300 text-[#12518c] focus:ring-[#12518c]/30"
+          />
+          <span className="text-sm text-slate-700">My physical address is also mailing address</span>
+        </label>
+
+        <section className={`space-y-4 pt-1 ${form.mailingSame ? 'opacity-60' : ''}`}>
+          <h4 className={sectionTitleClass}>Mailing Address</h4>
+
+          <div className="grid grid-cols-1 gap-4">
+            <label className="block min-w-0">
+              <span className={labelClass}>
+                Street {!form.mailingSame && <span className="text-[#bb5757]">*</span>}
+              </span>
+              <input
+                type="text"
+                value={form.mailingSame ? form.street : form.mailingStreet}
+                readOnly={readOnly || form.mailingSame}
+                onChange={e => set('mailingStreet', e.target.value)}
+                className={fieldClass(errors.mailingStreet)}
+              />
+              {errors.mailingStreet && <p className="mt-1 text-[11px] text-[#bb5757]">Street is required.</p>}
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="block min-w-0">
+              <span className={labelClass}>
+                State {!form.mailingSame && <span className="text-[#bb5757]">*</span>}
+              </span>
+              <select
+                value={form.mailingSame ? form.state : form.mailingState}
+                disabled={readOnly || form.mailingSame}
+                onChange={e => handleMailingStateChange(e.target.value)}
+                className={selectClass(errors.mailingState)}
+                style={selectStyle}
+              >
+                <option value="">Select…</option>
+                {stateOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              {errors.mailingState && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
+            </label>
+            <label className="block min-w-0">
+              <span className={labelClass}>City</span>
+              <select
+                value={form.mailingSame ? form.city : form.mailingCity}
+                disabled={readOnly || form.mailingSame || !(form.mailingSame ? form.state : form.mailingState)}
+                onChange={e => set('mailingCity', e.target.value)}
+                className={selectClass()}
+                style={selectStyle}
+              >
+                <option value="">
+                  {(form.mailingSame ? form.state : form.mailingState) ? 'Select…' : 'Select state first…'}
+                </option>
+                {(form.mailingSame ? physicalCities : mailingCities).map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <label className="block min-w-0">
+              <span className={labelClass}>Zip Code</span>
+              <input
+                type="text"
+                value={form.mailingSame ? form.zip : form.mailingZip}
+                readOnly={readOnly || form.mailingSame}
+                onChange={e => set('mailingZip', e.target.value)}
+                className={fieldClass()}
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className={labelClass}>Phone</span>
+              <input
+                type="text"
+                value={form.mailingSame ? form.phone : form.mailingPhone}
+                readOnly={readOnly || form.mailingSame}
+                onChange={e => set('mailingPhone', e.target.value)}
+                className={fieldClass()}
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className={labelClass}>Extension</span>
+              <input
+                type="text"
+                value={form.mailingSame ? form.extension : form.mailingExtension}
+                readOnly={readOnly || form.mailingSame}
+                onChange={e => set('mailingExtension', e.target.value)}
+                className={fieldClass()}
+              />
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-2.5">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+        >
+          Cancel
+        </button>
+        {readOnly ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+          >
+            Edit
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={validateAndSave}
+            className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+          >
+            {mode === 'edit' ? 'Update' : 'Save'}
+          </button>
+        )}
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function AgencyLicenseTypesTab({
+  agencyId,
+  initialLicenseTypes,
+}: {
+  agencyId: number
+  initialLicenseTypes: AgencyLicenseTypeRow[]
+}) {
+  const [rows, setRows] = useState(initialLicenseTypes)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const cols = useTableColumns([
+    { key: 'itemName', label: 'Item Name' },
+    { key: 'type', label: 'Type' },
+    { key: 'state', label: 'State' },
+    { key: 'func', label: 'Function' },
+  ])
+  const colBtn =
+    'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
+
+  useEffect(() => {
+    setRows(AGENCY_LICENSE_TYPES.filter(l => l.agencyId === agencyId))
+    setSearch('')
+    setPage(1)
+  }, [agencyId])
+
+  const filtered = rows.filter(l => {
+    const q = search.toLowerCase()
+    return (
+      !q ||
+      [l.state, l.func, l.type, l.itemName].some(v => v.toLowerCase().includes(q))
+    )
+  })
+
+  return (
+    <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+      <TableSectionHeader title="License Types Issued by Agency" subtitle="Permit and license categories issued by this agency">
+        <AddressSearchInput
+          value={search}
+          onChange={v => {
+            setSearch(v)
+            setPage(1)
+          }}
+          className="w-full sm:w-72 shrink-0"
+        />
+        <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
+      </TableSectionHeader>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px]">
+          <thead>
+            <tr className="border-y border-slate-100 bg-slate-50/60">
+              {cols.show('itemName') && (
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                  Item Name
+                </th>
+              )}
+              {cols.show('type') && (
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                  Type
+                </th>
+              )}
+              {cols.show('state') && (
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">
+                  State
+                </th>
+              )}
+              {cols.show('func') && (
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                  Function
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={cols.visibleCount} className="px-4 py-14 text-center">
+                  <p className="text-sm font-medium text-slate-500">No license types found</p>
+                  <p className="text-xs text-slate-400 mt-1">Adjust your search to see results</p>
+                </td>
+              </tr>
+            ) : (
+              filtered.map((l, i) => (
+                <tr
+                  key={l.id}
+                  className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
+                    i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
+                  }`}
+                >
+                  {cols.show('itemName') && (
+                    <td className="px-4 py-3 text-sm font-medium text-slate-800">{l.itemName}</td>
+                  )}
+                  {cols.show('type') && (
+                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{l.type}</td>
+                  )}
+                  {cols.show('state') && (
+                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                      <span className="inline-flex min-w-[2.25rem] justify-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide bg-slate-100 text-slate-700 border border-slate-200">
+                        {l.state}
+                      </span>
+                    </td>
+                  )}
+                  {cols.show('func') && (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-bold bg-[#12518c]/10 text-[#12518c] border border-[#12518c]/15">
+                        {l.func}
+                      </span>
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
+    </section>
   )
 }
 
@@ -2666,10 +5741,31 @@ function AddPersonPage({
               <DetailField label="Street" value={form.businessStreet} onChange={v => set('businessStreet', v)} editing />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4 mt-4">
-              <DetailField label="City" value={form.businessCity} onChange={v => set('businessCity', v)} editing />
-              <DetailSelect label="State" value={form.businessState} onChange={v => set('businessState', v)} editing options={US_STATES} placeholder="Select…" />
+              <DetailSelect
+                label="State"
+                value={form.businessState}
+                onChange={v => {
+                  const cities = citiesForState(v)
+                  setForm(prev => ({
+                    ...prev,
+                    businessState: v,
+                    businessCity: cities.includes(prev.businessCity) ? prev.businessCity : '',
+                  }))
+                }}
+                editing
+                options={US_STATES}
+                placeholder="Select…"
+              />
+              <DetailSelect
+                label="City"
+                value={form.businessCity}
+                onChange={v => set('businessCity', v)}
+                editing
+                options={citiesForState(form.businessState, form.businessCity)}
+                placeholder={form.businessState ? 'Select…' : 'Select state first…'}
+              />
               <DetailField label="Zip Code" value={form.businessZip} onChange={v => set('businessZip', v)} editing />
-              <DetailSelect label="Country" value={form.businessCountry} onChange={v => set('businessCountry', v)} editing options={['United States', 'Canada', 'Mexico']} />
+              <DetailSelect label="Country" value={form.businessCountry} onChange={v => set('businessCountry', v)} editing options={COUNTRY_OPTIONS} />
             </div>
           </DetailSection>
 
@@ -2686,10 +5782,31 @@ function AddPersonPage({
               <DetailField label="Street" value={form.personalStreet} onChange={v => set('personalStreet', v)} editing />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4 mt-4">
-              <DetailField label="City" value={form.personalCity} onChange={v => set('personalCity', v)} editing />
-              <DetailSelect label="State" value={form.personalState} onChange={v => set('personalState', v)} editing options={US_STATES} placeholder="Select…" />
+              <DetailSelect
+                label="State"
+                value={form.personalState}
+                onChange={v => {
+                  const cities = citiesForState(v)
+                  setForm(prev => ({
+                    ...prev,
+                    personalState: v,
+                    personalCity: cities.includes(prev.personalCity) ? prev.personalCity : '',
+                  }))
+                }}
+                editing
+                options={US_STATES}
+                placeholder="Select…"
+              />
+              <DetailSelect
+                label="City"
+                value={form.personalCity}
+                onChange={v => set('personalCity', v)}
+                editing
+                options={citiesForState(form.personalState, form.personalCity)}
+                placeholder={form.personalState ? 'Select…' : 'Select state first…'}
+              />
               <DetailField label="Zip Code" value={form.personalZip} onChange={v => set('personalZip', v)} editing />
-              <DetailSelect label="Country" value={form.personalCountry} onChange={v => set('personalCountry', v)} editing options={['United States', 'Canada', 'Mexico']} />
+              <DetailSelect label="Country" value={form.personalCountry} onChange={v => set('personalCountry', v)} editing options={COUNTRY_OPTIONS} />
             </div>
             <label className="block min-w-0 mt-4">
               <span className="block text-[11px] font-medium text-slate-500 mb-1.5 leading-tight">Note</span>
@@ -2978,25 +6095,21 @@ function PersonAssociationCard({
 
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {collapsible && (
+      <TableSectionHeader
+        title={title}
+        subtitle={rows.length ? `${rows.length} linked records` : undefined}
+        leading={
+          collapsible ? (
             <button type="button" onClick={onToggle} className="p-1 rounded-md text-slate-400 hover:bg-slate-100" aria-label="Toggle">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" className={open ? '' : 'rotate-180'}>
                 <path d="M2.5 7.5L6 4l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-          )}
-          <h2 className="text-sm font-semibold text-[#12518c] truncate">{title}</h2>
-          <button type="button" className="p-1 rounded-md text-slate-400 hover:bg-slate-100" title="Info">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-              <circle cx="8" cy="8" r="6" />
-              <path d="M8 7v4M8 5h.01" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-        <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName="p-1.5 rounded-md transition-all duration-200" />
-      </div>
+          ) : undefined
+        }
+      >
+        <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+      </TableSectionHeader>
       {open && (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">
@@ -3221,10 +6334,31 @@ function PersonDetailFieldsPage({
             <DetailField label="Street" value={form.street} onChange={v => set('street', v)} editing={editing} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4 mt-4">
-            <DetailField label="City" value={form.city} onChange={v => set('city', v)} editing={editing} />
-            <DetailSelect label="State" value={form.state} onChange={v => set('state', v)} editing={editing} options={US_STATES} placeholder="Select…" />
+            <DetailSelect
+              label="State"
+              value={form.state}
+              onChange={v => {
+                const cities = citiesForState(v)
+                setForm(prev => ({
+                  ...prev,
+                  state: v,
+                  city: cities.includes(prev.city) ? prev.city : '',
+                }))
+              }}
+              editing={editing}
+              options={US_STATES}
+              placeholder="Select…"
+            />
+            <DetailSelect
+              label="City"
+              value={form.city}
+              onChange={v => set('city', v)}
+              editing={editing}
+              options={citiesForState(form.state, form.city)}
+              placeholder={form.state ? 'Select…' : 'Select state first…'}
+            />
             <DetailField label="Zip Code" value={form.zipCode} onChange={v => set('zipCode', v)} editing={editing} />
-            <DetailSelect label="Country" value={form.country} onChange={v => set('country', v)} editing={editing} options={['United States', 'Canada', 'Mexico']} />
+            <DetailSelect label="Country" value={form.country} onChange={v => set('country', v)} editing={editing} options={COUNTRY_OPTIONS} />
           </div>
         </DetailSection>
 
@@ -3370,6 +6504,7 @@ function PersonDetailFieldsPage({
 }
 
 function PersonAddressesPage() {
+  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const cols = useTableColumns([
     { key: 'company', label: 'Company' },
@@ -3381,14 +6516,27 @@ function PersonAddressesPage() {
     { key: 'zip', label: 'Zip Code' },
     { key: 'country', label: 'Country' },
   ])
-  const colBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
-
+  const filtered = PERSON_ADDRESSES.filter(a => {
+    const q = search.toLowerCase()
+    return (
+      !q ||
+      [a.company, a.email, a.workPhone, a.street, a.city, a.state, a.zip, a.country].some(v =>
+        (v ?? '').toLowerCase().includes(q)
+      )
+    )
+  })
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
-        <h2 className="text-sm font-semibold text-slate-800">Business Addresses</h2>
-        <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
-      </div>
+      <TableSectionHeader title="Business Addresses" subtitle="Work locations linked to this person">
+        <AddressSearchInput
+          value={search}
+          onChange={v => {
+            setSearch(v)
+            setPage(1)
+          }}
+        />
+        <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+      </TableSectionHeader>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[880px]">
@@ -3405,14 +6553,14 @@ function PersonAddressesPage() {
             </tr>
           </thead>
           <tbody>
-            {PERSON_ADDRESSES.length === 0 ? (
+            {filtered.length === 0 ? (
               <tr>
                 <td colSpan={cols.visibleCount} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
                   No record Found!
                 </td>
               </tr>
             ) : (
-              PERSON_ADDRESSES.map((a, i) => (
+              filtered.map((a, i) => (
                 <tr
                   key={a.id}
                   className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
@@ -3450,7 +6598,7 @@ function PersonAddressesPage() {
         </table>
       </div>
 
-      <AddressTableFooter total={PERSON_ADDRESSES.length} page={page} onPageChange={setPage} />
+      <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
     </section>
   )
 }
@@ -3477,23 +6625,18 @@ function PersonChangeLogPage() {
     { key: 'notes', label: 'Notes' },
     { key: 'requestedBy', label: 'Requested By' },
   ])
-  const colBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
-
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
-        <h2 className="text-sm font-semibold text-slate-800">Change Log</h2>
-        <div className="flex items-center gap-2">
-          <AddressSearchInput
-            value={search}
-            onChange={v => {
-              setSearch(v)
-              setPage(1)
-            }}
-          />
-          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
-        </div>
-      </div>
+      <TableSectionHeader title="Change Log" subtitle="History of field changes for this person">
+        <AddressSearchInput
+          value={search}
+          onChange={v => {
+            setSearch(v)
+            setPage(1)
+          }}
+        />
+        <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+      </TableSectionHeader>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px]">
@@ -3625,7 +6768,7 @@ function PersonAddNoteModal({
             </svg>
           </span>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'People — Edit Note' : 'People — Add Note'}</h3>
+            <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'Edit Note' : 'Add Note'}</h3>
             <p className="text-[11px] text-slate-500">{isEdit ? 'Update this note for the person' : 'Add a flag, note, or task for this person'}</p>
           </div>
         </div>
@@ -3684,7 +6827,82 @@ function PersonAddNoteModal({
           disabled={!type.trim() || !note.trim()}
           className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          Save
+          {isEdit ? 'Update' : 'Save'}
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function PersonNoteDeleteModal({
+  noteText,
+  noteType,
+  onCancel,
+  onConfirm,
+}: {
+  noteText: string
+  noteType?: string
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const cancelRef = useRef<HTMLButtonElement>(null)
+  const preview = noteText.trim() || 'Untitled note'
+  const truncated = preview.length > 120 ? `${preview.slice(0, 117)}…` : preview
+
+  useEffect(() => {
+    cancelRef.current?.focus()
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onCancel])
+
+  return (
+    <AddressModalShell maxWidth="max-w-md" onClose={onCancel}>
+      <div className="px-5 pt-5 pb-4">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-[15px] font-semibold text-[#12518c] leading-snug min-w-0">
+            Are you sure you want to delete this note?
+          </h3>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0"
+            aria-label="Close"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <path d="M3 3l8 8M11 3l-8 8" />
+            </svg>
+          </button>
+        </div>
+        <div className="mt-3 w-full rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
+          <div className="flex items-center gap-2 mb-1">
+            {noteType && <PersonNoteTypeBadge type={noteType} />}
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Preview</span>
+          </div>
+          <p className="text-sm text-slate-700 leading-relaxed line-clamp-3" title={preview}>
+            {truncated}
+          </p>
+        </div>
+        <p className="mt-2.5 text-[11px] text-slate-500">This action cannot be undone.</p>
+      </div>
+
+      <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
+        <button
+          ref={cancelRef}
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#bb5757] hover:bg-[#d64549] transition-colors"
+        >
+          Delete
         </button>
       </div>
     </AddressModalShell>
@@ -3728,53 +6946,39 @@ function PersonNotesPage() {
   }
 
   const cols = useTableColumns([
-    { key: 'type', label: 'Type' },
     { key: 'note', label: 'Note' },
+    { key: 'type', label: 'Type' },
     { key: 'author', label: 'Author' },
   ])
-  const colBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
-
+  const noteToDelete = deleteNoteId != null ? notes.find(n => n.id === deleteNoteId) : undefined
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
-        <h2 className="text-sm font-semibold text-slate-800">Notes</h2>
-        <div className="flex items-center gap-2">
-          <AddressSearchInput
-            value={search}
-            onChange={v => {
-              setSearch(v)
-              setPage(1)
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M6 2v8M2 6h8" />
-            </svg>
-            Add New
-          </button>
-          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
-        </div>
-      </div>
+      <TableSectionHeader title="Notes" subtitle="Flags, tasks, and notes for this person">
+        <AddressSearchInput
+          value={search}
+          onChange={v => {
+            setSearch(v)
+            setPage(1)
+          }}
+        />
+        <TableAddNewButton onClick={() => setShowAddModal(true)} />
+        <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+      </TableSectionHeader>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px]">
           <thead>
             <tr className="border-y border-slate-100 bg-slate-50/60">
-              <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-16">Action</th>
-              {cols.show('type') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Type</th>}
               {cols.show('note') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Note</th>}
+              {cols.show('type') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Type</th>}
               {cols.show('author') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Author</th>}
-              <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-16" />
+              <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-24">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={cols.visibleCount + 2} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
+                <td colSpan={cols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
                   No record Found!
                 </td>
               </tr>
@@ -3786,8 +6990,15 @@ function PersonNotesPage() {
                     i % 2 === 1 ? 'bg-slate-50/40' : 'bg-[#f8fafc]'
                   }`}
                 >
+                  {cols.show('note') && <td className="px-4 py-3 text-sm text-slate-700">{note.note}</td>}
+                  {cols.show('type') && (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <PersonNoteTypeBadge type={note.type} />
+                    </td>
+                  )}
+                  {cols.show('author') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{note.author}</td>}
                   <td className="px-4 py-3">
-                    <div className="flex justify-center">
+                    <div className="flex items-center justify-center gap-1">
                       <button
                         type="button"
                         onClick={() => setEditingNote(note)}
@@ -3798,17 +7009,6 @@ function PersonNotesPage() {
                           <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
                         </svg>
                       </button>
-                    </div>
-                  </td>
-                  {cols.show('type') && (
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <PersonNoteTypeBadge type={note.type} />
-                    </td>
-                  )}
-                  {cols.show('note') && <td className="px-4 py-3 text-sm text-slate-700">{note.note}</td>}
-                  {cols.show('author') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{note.author}</td>}
-                  <td className="px-4 py-3">
-                    <div className="flex justify-center">
                       <button
                         type="button"
                         onClick={() => setDeleteNoteId(note.id)}
@@ -3848,10 +7048,10 @@ function PersonNotesPage() {
         />
       )}
 
-      {deleteNoteId != null && (
-        <AddressDeleteConfirmModal
-          title="Delete note"
-          locationName={notes.find(n => n.id === deleteNoteId)?.note ?? 'this note'}
+      {noteToDelete && (
+        <PersonNoteDeleteModal
+          noteText={noteToDelete.note}
+          noteType={noteToDelete.type}
           onCancel={() => setDeleteNoteId(null)}
           onConfirm={confirmDeleteNote}
         />
@@ -3859,6 +7059,7 @@ function PersonNotesPage() {
     </section>
   )
 }
+
 
 function AddCompanyPage({
   onCancel,
@@ -4088,14 +7289,38 @@ function CompaniesPage({
   const companyCols = useTableColumns(COMPANY_COLUMNS)
 
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
+  const [alertFilter, setAlertFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
   const total = 550
 
-  const filtered = companies.filter(c =>
-    !search ||
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.dba.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = companies.filter(c => {
+    const q = search.toLowerCase()
+    const matchesSearch =
+      !q ||
+      c.name.toLowerCase().includes(q) ||
+      c.dba.toLowerCase().includes(q)
+    const matchesAlert =
+      !alertFilter ||
+      (alertFilter === 'No Alert' ? c.alert == null : c.alert === alertFilter)
+    return (
+      matchesSearch &&
+      (!typeFilter || c.type === typeFilter) &&
+      matchesAlert &&
+      (!statusFilter || c.status === statusFilter)
+    )
+  })
+
+  const filtersActive = !!(search || typeFilter || alertFilter || statusFilter)
+
+  const clearFilters = () => {
+    setSearch('')
+    setTypeFilter('')
+    setAlertFilter('')
+    setStatusFilter('')
+    setPage(1)
+  }
 
   const toggleStar = (id: number) => {
     onCompaniesChange(prev => prev.map(c => c.id === id ? { ...c, starred: !c.starred } : c))
@@ -4120,32 +7345,59 @@ function CompaniesPage({
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
-          <p className="text-[11px] text-slate-400">Note: Search does not affect export</p>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="relative">
-              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="5" cy="5" r="3.5" />
-                <path d="M8 8l2.5 2.5" strokeLinecap="round" />
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <TableSectionHeader title="All Companies" subtitle="Search does not affect export">
+          <AddressSearchInput
+            value={search}
+            onChange={v => {
+              setSearch(v)
+              setPage(1)
+            }}
+          />
+          <Select
+            placeholder="Company Type"
+            options={['Bond', 'Client', 'Industry', 'Registered Agent', 'Vendor', 'Warehouse']}
+            value={typeFilter}
+            onChange={v => {
+              setTypeFilter(v)
+              setPage(1)
+            }}
+          />
+          <Select
+            placeholder="Alerts"
+            options={['Pending', 'Work Stop', 'No Alert']}
+            value={alertFilter}
+            onChange={v => {
+              setAlertFilter(v)
+              setPage(1)
+            }}
+          />
+          <Select
+            placeholder="Status"
+            options={['Active', 'Inactive', 'Archived']}
+            value={statusFilter}
+            onChange={v => {
+              setStatusFilter(v)
+              setPage(1)
+            }}
+          />
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M3 3l8 8M11 3l-8 8" />
               </svg>
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search Here"
-                className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/30 focus:border-[#12518c] w-44 transition-all"
-              />
-            </div>
-            <Select placeholder="Company Type" options={['Bond', 'Client', 'Industry', 'Registered Agent', 'Vendor', 'Warehouse']} />
-            <Select placeholder="Alerts" options={['Pending', 'Work Stop', 'No Alert']} />
-            <Select placeholder="Status" options={['Active', 'Inactive', 'Archived']} />
-            <button className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-600 hover:bg-slate-700 transition-colors">
-              Export
+              Clear
             </button>
-            <ColumnSettingsDropdown {...companyCols.dropdownProps} />
-          </div>
-        </div>
+          )}
+          <button className="h-9 px-4 rounded-lg text-xs font-semibold text-white bg-slate-600 hover:bg-slate-700 transition-colors">
+            Export
+          </button>
+          <ColumnSettingsDropdown {...companyCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -4889,7 +8141,6 @@ function CompanyContactsPage({
     { key: 'category', label: 'Category' },
     { key: 'active', label: 'Active/Inactive' },
   ])
-  const contactColBtn = 'p-2 rounded-lg border border-slate-200 transition-all duration-200'
 
   if (subPage === 'Add New Contact') {
     return (
@@ -4920,29 +8171,11 @@ function CompanyContactsPage({
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#12518c]">Current Contacts</h2>
-              <p className="text-xs text-slate-500">People linked to this company</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <AddressSearchInput value={currentSearch} onChange={setCurrentSearch} />
-            <ColumnSettingsDropdown {...currentCols.dropdownProps} buttonClassName={contactColBtn} />
-            <button
-              type="button"
-              onClick={openAdd}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M6 2.5v7M2.5 6h7" />
-              </svg>
-              Add New
-            </button>
-          </div>
-        </div>
+        <TableSectionHeader title="Current Contacts" subtitle="People linked to this company">
+          <AddressSearchInput value={currentSearch} onChange={setCurrentSearch} />
+          <ColumnSettingsDropdown {...currentCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+          <TableAddNewButton onClick={openAdd} />
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px]">
@@ -5034,17 +8267,10 @@ function CompanyContactsPage({
       </section>
 
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#12518c]">Past Contacts</h2>
-              <p className="text-xs text-slate-500">Historical contacts no longer linked</p>
-            </div>
-          </div>
+        <TableSectionHeader title="Past Contacts" subtitle="Historical contacts no longer linked">
           <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
-          <ColumnSettingsDropdown {...pastCols.dropdownProps} buttonClassName={contactColBtn} />
-        </div>
+          <ColumnSettingsDropdown {...pastCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+        </TableSectionHeader>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px]">
             <thead>
@@ -6924,39 +10150,21 @@ function CompanyOwnershipPage({
   return (
     <div className="animate-[fadeIn_0.25s_ease-out]">
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#12518c]">Ownership</h2>
-              <p className="text-xs text-slate-500">Owners and equity holders for this company</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold text-slate-700">
-              Total Ownership %:
-              <span className="text-[#12518c]">{totalOwnershipPct.toFixed(2)}</span>
-            </span>
-            <AddressSearchInput value={search} onChange={setSearch} />
-            <button
-              type="button"
-              className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-              title="Column settings"
-            >
-              <GridViewIcon />
-            </button>
-            <button
-              type="button"
-              onClick={openAdd}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M6 2.5v7M2.5 6h7" />
-              </svg>
-              Add New
-            </button>
-          </div>
-        </div>
+        <TableSectionHeader title="Ownership" subtitle="Owners and equity holders for this company">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold text-slate-700">
+            Total Ownership %:
+            <span className="text-[#12518c]">{totalOwnershipPct.toFixed(2)}</span>
+          </span>
+          <AddressSearchInput value={search} onChange={setSearch} />
+          <button
+            type="button"
+            className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`}
+            title="Column settings"
+          >
+            <GridViewIcon />
+          </button>
+          <TableAddNewButton onClick={openAdd} />
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px]">
@@ -7557,70 +10765,40 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
 
         {subTab === 'Licensing Summary' ? (
           <>
-            {/* Header + stats */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-                <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-[#12518c]">Licensing Summary</h2>
-                  <p className="text-xs text-slate-500">Company ID {companyId} · permits, bonds, and state licenses</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-[11px] font-semibold text-emerald-700">
-                  Active <span className="tabular-nums">{activeCount}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-danger-light text-[11px] font-semibold text-[#bb5757]">
-                  Expired <span className="tabular-nums">{expiredCount}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">
-                  Canceled <span className="tabular-nums">{canceledCount}</span>
-                </span>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
-                >
-                  Export
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAddOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
-                >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                    <path d="M6 2.5v7M2.5 6h7" />
-                  </svg>
-                  Add New
-                </button>
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-wrap items-center justify-end gap-2 px-5 py-3 border-b border-slate-100 bg-white">
+            <TableSectionHeader title="Licensing Summary" subtitle={`Company ID ${companyId} · permits, bonds, and state licenses`}>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-[11px] font-semibold text-emerald-700">
+                Active <span className="tabular-nums">{activeCount}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-danger-light text-[11px] font-semibold text-[#bb5757]">
+                Expired <span className="tabular-nums">{expiredCount}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">
+                Canceled <span className="tabular-nums">{canceledCount}</span>
+              </span>
               <AddressSearchInput value={search} onChange={v => setSearch(v)} />
-              <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} className={filterSelectClassName(stateFilter)}>
+              <FilterSelect value={stateFilter} onChange={v => setStateFilter(v)} className={filterSelectClassName(stateFilter)}>
                 <option value="">State / State Code</option>
                 {states.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={funcFilter} onChange={e => setFuncFilter(e.target.value)} className={filterSelectClassName(funcFilter)}>
+              </FilterSelect>
+              <FilterSelect value={funcFilter} onChange={v => setFuncFilter(v)} className={filterSelectClassName(funcFilter)}>
                 <option value="">Function</option>
                 {funcs.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
-              <select value={itemFilter} onChange={e => setItemFilter(e.target.value)} className={filterSelectClassName(itemFilter)}>
+              </FilterSelect>
+              <FilterSelect value={itemFilter} onChange={v => setItemFilter(v)} className={filterSelectClassName(itemFilter)}>
                 <option value="">Item</option>
                 {items.map(it => <option key={it} value={it}>{it}</option>)}
-              </select>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={filterSelectClassName(statusFilter)}>
+              </FilterSelect>
+              <FilterSelect value={statusFilter} onChange={v => setStatusFilter(v)} className={filterSelectClassName(statusFilter)}>
                 <option value="">Item Status</option>
                 <option value="Active">Active</option>
                 <option value="Canceled">Canceled</option>
-              </select>
-              <select value={renewalFilter} onChange={e => setRenewalFilter(e.target.value)} className={filterSelectClassName(renewalFilter)}>
+              </FilterSelect>
+              <FilterSelect value={renewalFilter} onChange={v => setRenewalFilter(v)} className={filterSelectClassName(renewalFilter)}>
                 <option value="">Renewal Timing</option>
                 <option value="Expired">Expired</option>
                 <option value="Due Soon">Due Soon (≤30 days)</option>
                 <option value="Upcoming">Upcoming</option>
-              </select>
+              </FilterSelect>
               {filtersActive && (
                 <button
                   type="button"
@@ -7630,10 +10808,17 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                   Clear filters
                 </button>
               )}
-              <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Column settings">
+              <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
                 <GridViewIcon />
               </button>
-            </div>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+              >
+                Export
+              </button>
+              <TableAddNewButton onClick={() => setAddOpen(true)} />
+            </TableSectionHeader>
 
             {/* Table */}
             <div className="overflow-x-auto">
@@ -7732,71 +10917,41 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
           </>
         ) : (
           <>
-            {/* Header + stats */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-                <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-[#12518c]">Reporting Summary</h2>
-                  <p className="text-xs text-slate-500">Company ID {companyId} · filing schedules, credentials, and due dates</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-[11px] font-semibold text-emerald-700">
-                  Active <span className="tabular-nums">{reportActiveCount}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">
-                  Inactive <span className="tabular-nums">{reportInactiveCount}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-[11px] font-semibold text-sky-700">
-                  Total <span className="tabular-nums">{filteredReports.length}</span>
-                </span>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
-                >
-                  Export
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setEditReport(null); setAddReportOpen(true) }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
-                >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                    <path d="M6 2.5v7M2.5 6h7" />
-                  </svg>
-                  Add New
-                </button>
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-wrap items-center justify-end gap-2 px-5 py-3 border-b border-slate-100 bg-white">
+            <TableSectionHeader title="Reporting Summary" subtitle={`Company ID ${companyId} · filing schedules, credentials, and due dates`}>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-[11px] font-semibold text-emerald-700">
+                Active <span className="tabular-nums">{reportActiveCount}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">
+                Inactive <span className="tabular-nums">{reportInactiveCount}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-[11px] font-semibold text-sky-700">
+                Total <span className="tabular-nums">{filteredReports.length}</span>
+              </span>
               <AddressSearchInput value={reportSearch} onChange={v => { setReportSearch(v); setReportPage(1) }} />
-              <select value={reportStateFilter} onChange={e => { setReportStateFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportStateFilter)}>
+              <FilterSelect value={reportStateFilter} onChange={v => { setReportStateFilter(v); setReportPage(1) }} className={filterSelectClassName(reportStateFilter)}>
                 <option value="">State</option>
                 {reportStates.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={reportFuncFilter} onChange={e => { setReportFuncFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportFuncFilter)}>
+              </FilterSelect>
+              <FilterSelect value={reportFuncFilter} onChange={v => { setReportFuncFilter(v); setReportPage(1) }} className={filterSelectClassName(reportFuncFilter)}>
                 <option value="">Function</option>
                 {reportFuncs.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={reportTypeFilter} onChange={e => { setReportTypeFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportTypeFilter)}>
+              </FilterSelect>
+              <FilterSelect value={reportTypeFilter} onChange={v => { setReportTypeFilter(v); setReportPage(1) }} className={filterSelectClassName(reportTypeFilter)}>
                 <option value="">Report Type</option>
                 {reportTypes.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={reportFilingTypeFilter} onChange={e => { setReportFilingTypeFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportFilingTypeFilter)}>
+              </FilterSelect>
+              <FilterSelect value={reportFilingTypeFilter} onChange={v => { setReportFilingTypeFilter(v); setReportPage(1) }} className={filterSelectClassName(reportFilingTypeFilter)}>
                 <option value="">Filing Type</option>
                 {reportFilingTypes.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={reportFreqFilter} onChange={e => { setReportFreqFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportFreqFilter)}>
+              </FilterSelect>
+              <FilterSelect value={reportFreqFilter} onChange={v => { setReportFreqFilter(v); setReportPage(1) }} className={filterSelectClassName(reportFreqFilter)}>
                 <option value="">Filing Frequency</option>
                 {reportFreqs.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={reportDueFilter} onChange={e => { setReportDueFilter(e.target.value); setReportPage(1) }} className={filterSelectClassName(reportDueFilter)}>
+              </FilterSelect>
+              <FilterSelect value={reportDueFilter} onChange={v => { setReportDueFilter(v); setReportPage(1) }} className={filterSelectClassName(reportDueFilter)}>
                 <option value="">Due Date</option>
                 {reportDues.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              </FilterSelect>
               {reportFiltersActive && (
                 <button
                   type="button"
@@ -7806,10 +10961,17 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                   Clear filters
                 </button>
               )}
-              <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Column settings">
+              <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
                 <GridViewIcon />
               </button>
-            </div>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+              >
+                Export
+              </button>
+              <TableAddNewButton onClick={() => { setEditReport(null); setAddReportOpen(true) }} />
+            </TableSectionHeader>
 
             {/* Table */}
             <div className="overflow-x-auto">
@@ -7845,35 +11007,36 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
 
             {/* Past Reports */}
             <div className="border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setPastReportsOpen(o => !o)}
-                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left bg-gradient-to-r from-slate-50/80 to-white hover:bg-slate-50/60 transition-colors"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
+              <TableSectionHeader title="Past Reports" subtitle={`Archived / inactive filings · ${pastReports.length} total`}>
+                <button
+                  type="button"
+                  onClick={() => setPastReportsOpen(o => !o)}
+                  className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`}
+                  aria-expanded={pastReportsOpen}
+                  title={pastReportsOpen ? 'Collapse' : 'Expand'}
+                >
                   <svg
-                    width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                    className={`text-slate-400 transition-transform flex-shrink-0 ${pastReportsOpen ? 'rotate-90' : ''}`}
+                    width="14"
+                    height="14"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`transition-transform ${pastReportsOpen ? 'rotate-90' : ''}`}
                   >
                     <path d="M6 4l4 4-4 4" />
                   </svg>
-                  <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-                  <div className="min-w-0">
-                    <h2 className="text-sm font-semibold text-[#12518c]">Past Reports</h2>
-                    <p className="text-xs text-slate-500">Archived / inactive filings</p>
-                  </div>
-                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{pastReports.length}</span>
-                </div>
-              </button>
+                </button>
+                <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
+                <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
+                  <GridViewIcon />
+                </button>
+              </TableSectionHeader>
 
               {pastReportsOpen && (
                 <>
-                  <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-y border-slate-100 bg-white">
-                    <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
-                    <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors ml-auto" title="Column settings">
-                      <GridViewIcon />
-                    </button>
-                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[1120px]">
                       <thead>
@@ -8291,62 +11454,39 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#12518c]">Service Scope</h2>
-                <p className="text-xs text-slate-500">Company ID {companyId} · departments, services, and specialists</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12518c]/10 text-[10px] font-semibold text-[#12518c]">
-                OOS <span className="tabular-nums">{scopes.filter(s => s.department === 'OOS').length}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 text-[10px] font-semibold text-teal-700">
-                OPS <span className="tabular-nums">{scopes.filter(s => s.department === 'OPS').length}</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => { setEditScope(null); setAddOpen(true) }}
-                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M6 2.5v7M2.5 6h7" />
-                </svg>
-                Add New
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-            <select value={deptFilter} onChange={e => { setDeptFilter(e.target.value); setPage(1) }} className={filterSelectClassName(deptFilter)}>
-              <option value="">Department</option>
-              {SCOPE_DEPARTMENTS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select value={serviceTypeFilter} onChange={e => { setServiceTypeFilter(e.target.value); setPage(1) }} className={filterSelectClassName(serviceTypeFilter)}>
-              <option value="">Service Type</option>
-              {SCOPE_SERVICE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select value={specialistFilter} onChange={e => { setSpecialistFilter(e.target.value); setPage(1) }} className={filterSelectClassName(specialistFilter)}>
-              <option value="">Specialist</option>
-              {SCOPE_SPECIALISTS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            {filtersActive && (
-              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
-                Clear
-              </button>
-            )}
-            <button type="button" className="p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Column settings">
-              <GridViewIcon />
+        <TableSectionHeader title="Service Scope" subtitle={`Company ID ${companyId} · departments, services, and specialists`}>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12518c]/10 text-[10px] font-semibold text-[#12518c]">
+            OOS <span className="tabular-nums">{scopes.filter(s => s.department === 'OOS').length}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 text-[10px] font-semibold text-teal-700">
+            OPS <span className="tabular-nums">{scopes.filter(s => s.department === 'OPS').length}</span>
+          </span>
+          <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
+          <FilterSelect value={deptFilter} onChange={v => { setDeptFilter(v); setPage(1) }} className={filterSelectClassName(deptFilter)}>
+            <option value="">Department</option>
+            {SCOPE_DEPARTMENTS.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          <FilterSelect value={serviceTypeFilter} onChange={v => { setServiceTypeFilter(v); setPage(1) }} className={filterSelectClassName(serviceTypeFilter)}>
+            <option value="">Service Type</option>
+            {SCOPE_SERVICE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          <FilterSelect value={specialistFilter} onChange={v => { setSpecialistFilter(v); setPage(1) }} className={filterSelectClassName(specialistFilter)}>
+            <option value="">Specialist</option>
+            {SCOPE_SPECIALISTS.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          {filtersActive && (
+            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M3 3l8 8M11 3l-8 8" />
+              </svg>
+              Clear
             </button>
-          </div>
-        </div>
+          )}
+          <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
+            <GridViewIcon />
+          </button>
+          <TableAddNewButton onClick={() => { setEditScope(null); setAddOpen(true) }} />
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px]">
@@ -8844,52 +11984,40 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#12518c]">Change Log</h2>
-                <p className="text-xs text-slate-500">Company ID {companyId} · audit trail of record changes</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-              <select value={tabFilter} onChange={e => { setTabFilter(e.target.value); setPage(1) }} className={filterSelectClassName(tabFilter)}>
-                <option value="">Tab</option>
-                {CHANGE_LOG_TABS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className={filterSelectClassName(typeFilter)}>
-                <option value="">Change Type</option>
-                {CHANGE_LOG_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <select value={requesterFilter} onChange={e => { setRequesterFilter(e.target.value); setPage(1) }} className={filterSelectClassName(requesterFilter)}>
-                <option value="">Requested By</option>
-                {CHANGE_LOG_REQUESTERS.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <label className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
-                From
-                <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1) }} className={dateInputClass} />
-              </label>
-              <label className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
-                To
-                <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1) }} className={dateInputClass} />
-              </label>
-              {filtersActive && (
-                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                    <path d="M3 3l8 8M11 3l-8 8" />
-                  </svg>
-                  Clear
-                </button>
-              )}
-              <button type="button" className="p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Column settings">
-                <GridViewIcon />
-              </button>
-            </div>
-          </div>
-        </div>
+        <TableSectionHeader title="Change Log" subtitle={`Company ID ${companyId} · audit trail of record changes`}>
+          <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
+          <FilterSelect value={tabFilter} onChange={v => { setTabFilter(v); setPage(1) }} className={filterSelectClassName(tabFilter)}>
+            <option value="">Tab</option>
+            {CHANGE_LOG_TABS.map(t => <option key={t} value={t}>{t}</option>)}
+          </FilterSelect>
+          <FilterSelect value={typeFilter} onChange={v => { setTypeFilter(v); setPage(1) }} className={filterSelectClassName(typeFilter)}>
+            <option value="">Change Type</option>
+            {CHANGE_LOG_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </FilterSelect>
+          <FilterSelect value={requesterFilter} onChange={v => { setRequesterFilter(v); setPage(1) }} className={filterSelectClassName(requesterFilter)}>
+            <option value="">Requested By</option>
+            {CHANGE_LOG_REQUESTERS.map(r => <option key={r} value={r}>{r}</option>)}
+          </FilterSelect>
+          <label className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+            From
+            <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1) }} className={dateInputClass} />
+          </label>
+          <label className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+            To
+            <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1) }} className={dateInputClass} />
+          </label>
+          {filtersActive && (
+            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M3 3l8 8M11 3l-8 8" />
+              </svg>
+              Clear
+            </button>
+          )}
+          <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
+            <GridViewIcon />
+          </button>
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1180px]">
@@ -9196,36 +12324,24 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#12518c]">Work Stop</h2>
-                <p className="text-xs text-slate-500">Company ID {companyId} · pause history and day counts</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className={filterSelectClassName(statusFilter)}>
-                <option value="">Status</option>
-                {WORK_STOP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              {filtersActive && (
-                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                    <path d="M3 3l8 8M11 3l-8 8" />
-                  </svg>
-                  Clear
-                </button>
-              )}
-              <button type="button" className="p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Column settings">
-                <GridViewIcon />
-              </button>
-            </div>
-          </div>
-        </div>
+        <TableSectionHeader title="Work Stop" subtitle={`Company ID ${companyId} · pause history and day counts`}>
+          <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
+          <FilterSelect value={statusFilter} onChange={v => { setStatusFilter(v); setPage(1) }} className={filterSelectClassName(statusFilter)}>
+            <option value="">Status</option>
+            {WORK_STOP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          {filtersActive && (
+            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M3 3l8 8M11 3l-8 8" />
+              </svg>
+              Clear
+            </button>
+          )}
+          <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
+            <GridViewIcon />
+          </button>
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px]">
@@ -9432,84 +12548,61 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#12518c]">Account Activity</h2>
-                <p className="text-xs text-slate-500">Company ID {companyId} · issues, notes, and follow-ups</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12518c]/10 text-[10px] font-semibold text-[#12518c]">
-                Open <span className="tabular-nums">{openCount}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[10px] font-semibold text-slate-600">
-                Following <span className="tabular-nums">{followingCount}</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => { setEditActivity(null); setAddOpen(true) }}
-                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M6 2.5v7M2.5 6h7" />
-                </svg>
-                Add New
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-            <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className={filterSelectClassName(typeFilter)}>
-              <option value="">Type</option>
-              {ACTIVITY_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className={filterSelectClassName(statusFilter)}>
-              <option value="">Status</option>
-              {ACTIVITY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select value={flagFilter} onChange={e => { setFlagFilter(e.target.value); setPage(1) }} className={filterSelectClassName(flagFilter)}>
-              <option value="">Flag</option>
-              {ACTIVITY_FLAGS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1) }} className={filterSelectClassName(categoryFilter)}>
-              <option value="">Category</option>
-              {ACTIVITY_CATEGORIES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select value={authorFilter} onChange={e => { setAuthorFilter(e.target.value); setPage(1) }} className={filterSelectClassName(authorFilter)}>
-              <option value="">Author</option>
-              {ACTIVITY_AUTHORS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => { setDateFrom(e.target.value); setPage(1) }}
-              className={filterSelectClassName(dateFrom, 'min-w-[130px]')}
-              title="From date"
-            />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => { setDateTo(e.target.value); setPage(1) }}
-              className={filterSelectClassName(dateTo, 'min-w-[130px]')}
-              title="To date"
-            />
-            {filtersActive && (
-              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
-                Clear
-              </button>
-            )}
-            <button type="button" className="p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="Column settings">
-              <GridViewIcon />
+        <TableSectionHeader title="Account Activity" subtitle={`Company ID ${companyId} · issues, notes, and follow-ups`}>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12518c]/10 text-[10px] font-semibold text-[#12518c]">
+            Open <span className="tabular-nums">{openCount}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[10px] font-semibold text-slate-600">
+            Following <span className="tabular-nums">{followingCount}</span>
+          </span>
+          <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
+          <FilterSelect value={typeFilter} onChange={v => { setTypeFilter(v); setPage(1) }} className={filterSelectClassName(typeFilter)}>
+            <option value="">Type</option>
+            {ACTIVITY_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          <FilterSelect value={statusFilter} onChange={v => { setStatusFilter(v); setPage(1) }} className={filterSelectClassName(statusFilter)}>
+            <option value="">Status</option>
+            {ACTIVITY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          <FilterSelect value={flagFilter} onChange={v => { setFlagFilter(v); setPage(1) }} className={filterSelectClassName(flagFilter)}>
+            <option value="">Flag</option>
+            {ACTIVITY_FLAGS.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          <FilterSelect value={categoryFilter} onChange={v => { setCategoryFilter(v); setPage(1) }} className={filterSelectClassName(categoryFilter)}>
+            <option value="">Category</option>
+            {ACTIVITY_CATEGORIES.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          <FilterSelect value={authorFilter} onChange={v => { setAuthorFilter(v); setPage(1) }} className={filterSelectClassName(authorFilter)}>
+            <option value="">Author</option>
+            {ACTIVITY_AUTHORS.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={e => { setDateFrom(e.target.value); setPage(1) }}
+            className={filterSelectClassName(dateFrom, 'min-w-[130px]')}
+            title="From date"
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={e => { setDateTo(e.target.value); setPage(1) }}
+            className={filterSelectClassName(dateTo, 'min-w-[130px]')}
+            title="To date"
+          />
+          {filtersActive && (
+            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M3 3l8 8M11 3l-8 8" />
+              </svg>
+              Clear
             </button>
-          </div>
-        </div>
+          )}
+          <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
+            <GridViewIcon />
+          </button>
+          <TableAddNewButton onClick={() => { setEditActivity(null); setAddOpen(true) }} />
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px]">
@@ -10507,55 +13600,34 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
 
       {/* Current Credentials */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#12518c]">Current Credentials</h2>
-                <p className="text-xs text-slate-500">Company ID {companyId} · active portal logins</p>
-              </div>
-              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#12518c]/10 text-[10px] font-bold text-[#12518c]">{filtered.length}</span>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
-              <select value={stateFilter} onChange={e => { setStateFilter(e.target.value); setPage(1) }} className={filterSelectClassName(stateFilter)}>
-                <option value="">State</option>
-                {states.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={funcFilter} onChange={e => { setFuncFilter(e.target.value); setPage(1) }} className={filterSelectClassName(funcFilter)}>
-                <option value="">Function</option>
-                {funcs.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={filingTypeFilter} onChange={e => { setFilingTypeFilter(e.target.value); setPage(1) }} className={filterSelectClassName(filingTypeFilter)}>
-                <option value="">Filing Type</option>
-                {filingTypes.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={loginTypeFilter} onChange={e => { setLoginTypeFilter(e.target.value); setPage(1) }} className={filterSelectClassName(loginTypeFilter)}>
-                <option value="">Login Type</option>
-                {loginTypes.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              {filtersActive && (
-                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                    <path d="M3 3l8 8M11 3l-8 8" />
-                  </svg>
-                  Clear
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => unlocked ? setAddOpen(true) : setUnlockOpen(true)}
-                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M6 2.5v7M2.5 6h7" />
-                </svg>
-                Add New
-              </button>
-            </div>
-          </div>
-        </div>
+        <TableSectionHeader title="Current Credentials" subtitle={`Company ID ${companyId} · active portal logins · ${filtered.length} records`}>
+          <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
+          <FilterSelect value={stateFilter} onChange={v => { setStateFilter(v); setPage(1) }} className={filterSelectClassName(stateFilter)}>
+            <option value="">State</option>
+            {states.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          <FilterSelect value={funcFilter} onChange={v => { setFuncFilter(v); setPage(1) }} className={filterSelectClassName(funcFilter)}>
+            <option value="">Function</option>
+            {funcs.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          <FilterSelect value={filingTypeFilter} onChange={v => { setFilingTypeFilter(v); setPage(1) }} className={filterSelectClassName(filingTypeFilter)}>
+            <option value="">Filing Type</option>
+            {filingTypes.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          <FilterSelect value={loginTypeFilter} onChange={v => { setLoginTypeFilter(v); setPage(1) }} className={filterSelectClassName(loginTypeFilter)}>
+            <option value="">Login Type</option>
+            {loginTypes.map(s => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
+          {filtersActive && (
+            <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M3 3l8 8M11 3l-8 8" />
+              </svg>
+              Clear
+            </button>
+          )}
+          <TableAddNewButton onClick={() => unlocked ? setAddOpen(true) : setUnlockOpen(true)} />
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1400px]">
@@ -10590,28 +13662,30 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
 
       {/* Past Credentials */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+        <TableSectionHeader title="Past Credentials" subtitle={`Archived / inactive logins · ${pastCredentials.length} total`}>
           <button
             type="button"
             onClick={() => setPastOpen(o => !o)}
-            className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-90 transition-opacity"
+            className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`}
             aria-expanded={pastOpen}
+            title={pastOpen ? 'Collapse' : 'Expand'}
           >
             <svg
-              width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-              className={`text-slate-400 transition-transform flex-shrink-0 ${pastOpen ? 'rotate-90' : ''}`}
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`transition-transform ${pastOpen ? 'rotate-90' : ''}`}
             >
               <path d="M6 4l4 4-4 4" />
             </svg>
-            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#12518c]">Past Credentials</h2>
-              <p className="text-xs text-slate-500">Archived / inactive logins</p>
-            </div>
-            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{pastCredentials.length}</span>
           </button>
           <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
-        </div>
+        </TableSectionHeader>
 
         {pastOpen && (
           <>
@@ -12365,35 +15439,13 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       {/* Current Addresses */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#12518c]">Current Addresses</h2>
-              <p className="text-xs text-slate-500">Active locations for this company</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <AddressSearchInput value={currentSearch} onChange={setCurrentSearch} />
-            <button
-              type="button"
-              className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-              title="Column settings"
-            >
-              <GridViewIcon />
-            </button>
-            <button
-              type="button"
-              onClick={openAdd}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M6 2.5v7M2.5 6h7" />
-              </svg>
-              Add New
-            </button>
-          </div>
-        </div>
+        <TableSectionHeader title="Current Addresses" subtitle="Active locations for this company">
+          <AddressSearchInput value={currentSearch} onChange={setCurrentSearch} />
+          <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
+            <GridViewIcon />
+          </button>
+          <TableAddNewButton onClick={openAdd} />
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[880px]">
@@ -12496,16 +15548,9 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
 
       {/* Past Addresses */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-1 h-4 rounded-full bg-[#12518c]" aria-hidden />
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#12518c]">Past Addresses</h2>
-              <p className="text-xs text-slate-500">Historical locations no longer in use</p>
-            </div>
-          </div>
+        <TableSectionHeader title="Past Addresses" subtitle="Historical locations no longer in use">
           <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
-        </div>
+        </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px]">
@@ -13128,11 +16173,13 @@ function AddressFormModal({
 function AddressDeleteConfirmModal({
   locationName,
   title = 'Delete address',
+  showUndoneWarning = true,
   onCancel,
   onConfirm,
 }: {
   locationName: string
   title?: string
+  showUndoneWarning?: boolean
   onCancel: () => void
   onConfirm: () => void
 }) {
@@ -13150,7 +16197,7 @@ function AddressDeleteConfirmModal({
           <div className="min-w-0 pt-0.5">
             <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
             <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">
-              Are you sure you want to delete <span className="font-medium text-slate-800">{locationName}</span>? This can’t be undone.
+              Are you sure you want to delete <span className="font-medium text-slate-800">{locationName}</span>?{showUndoneWarning ? ' This can’t be undone.' : ''}
             </p>
           </div>
         </div>
@@ -13383,6 +16430,58 @@ function ContactFormModal({
         )}
       </div>
     </AddressModalShell>
+  )
+}
+
+const TABLE_COL_BTN =
+  'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
+
+function TableAddNewButton({
+  onClick,
+  label = 'Add New',
+  className = '',
+}: {
+  onClick: () => void
+  label?: string
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors shadow-sm shrink-0 ${className}`}
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+        <path d="M6 2.5v7M2.5 6h7" />
+      </svg>
+      {label}
+    </button>
+  )
+}
+
+function TableSectionHeader({
+  title,
+  subtitle,
+  children,
+  leading,
+}: {
+  title: string
+  subtitle?: string
+  children?: ReactNode
+  leading?: ReactNode
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+      <div className="flex items-center gap-2.5 min-w-0">
+        {leading}
+        <span className="w-1 h-4 rounded-full bg-[#12518c] shrink-0" aria-hidden />
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-[#12518c]">{title}</h2>
+          {subtitle ? <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p> : null}
+        </div>
+      </div>
+      {children ? <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">{children}</div> : null}
+    </div>
   )
 }
 
@@ -14197,10 +17296,10 @@ function SearchInput({ placeholder }: { placeholder: string }) {
 
 function filterSelectClassName(value: string, extra = '') {
   const active = !!value
-  return `h-9 min-w-[140px] px-2.5 rounded-lg border bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] transition-colors cursor-pointer ${extra} ${
+  return `h-9 min-w-[140px] pl-2.5 rounded-lg border bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] transition-colors cursor-pointer appearance-none ${extra} ${
     active
-      ? 'border-[#12518c] ring-1 ring-[#12518c]/20 text-slate-800 font-medium'
-      : 'border-slate-200 text-slate-500'
+      ? 'border-[#12518c] ring-1 ring-[#12518c]/20 text-slate-800 font-medium pr-14'
+      : 'border-slate-200 text-slate-500 pr-8'
   }`
 }
 
@@ -14210,27 +17309,60 @@ function FilterSelect({
   onChange,
   options = [],
   className,
+  children,
   'aria-label': ariaLabel,
 }: {
-  label: string
+  label?: string
   value: string
   onChange: (value: string) => void
   options?: readonly string[] | string[]
   className?: string
+  children?: ReactNode
   'aria-label'?: string
 }) {
+  const hasValue = !!value
   return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      aria-label={ariaLabel ?? label}
-      className={className ?? filterSelectClassName(value)}
-    >
-      <option value="">{label}</option>
-      {options.filter(o => o !== 'All').map(option => (
-        <option key={option} value={option}>{option}</option>
-      ))}
-    </select>
+    <div className="relative inline-flex shrink-0 max-w-full">
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        aria-label={ariaLabel ?? label}
+        className={className ?? filterSelectClassName(value)}
+      >
+        {children ?? (
+          <>
+            <option value="">{label}</option>
+            {options.filter(o => o !== 'All').map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </>
+        )}
+      </select>
+      {hasValue && (
+        <button
+          type="button"
+          tabIndex={-1}
+          onMouseDown={e => e.preventDefault()}
+          onClick={e => {
+            e.preventDefault()
+            e.stopPropagation()
+            onChange('')
+          }}
+          className="absolute right-7 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-5 h-5 rounded text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+          aria-label="Clear filter"
+          title="Clear filter"
+        >
+          <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      )}
+      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 4.5L6 7.5 9 4.5" />
+        </svg>
+      </span>
+    </div>
   )
 }
 
