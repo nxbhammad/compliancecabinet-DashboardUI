@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, Children, isValidElement, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import cabinetLogo from './assets/cabinet-logo.png'
 import cabinetIcon from './assets/cabinet-icon.png'
@@ -6,12 +6,13 @@ import LoginPage from './LoginPage'
 
 type AlertStatus = 'Pending' | 'Work Stop' | null
 
-const REDESIGNED_NAV_ITEMS = new Set(['Dashboard', 'The Cellar', 'Companies', 'People', 'Agencies'])
+const REDESIGNED_NAV_ITEMS = new Set(['Dashboard', 'The Cellar', 'Companies', 'Pipeline', 'People', 'Agencies', 'Query', 'Licensing'])
 
 const NAV_ITEMS = [
   { icon: GridIcon, label: 'Dashboard', active: true },
   { icon: WineIcon, label: 'The Cellar', active: false },
   { icon: BuildingIcon, label: 'Companies', active: false },
+  { icon: PipelineIcon, label: 'Pipeline', active: false },
   { icon: PeopleIcon, label: 'People', active: false },
   { icon: AgencyIcon, label: 'Agencies', active: false },
   { icon: QueryIcon, label: 'Query', active: false },
@@ -34,6 +35,643 @@ const RENEWALS = [
 ]
 
 const CELLAR_TABS = ['My Action Items', 'Pending Changes', 'Final Decisions'] as const
+
+const PIPELINE_TABS = ['Prospects', 'My Tasks'] as const
+const PIPELINE_STAGES = [
+  'Call Scheduled',
+  'Inquiry Form Out',
+  'Inquiry Form Returned',
+  'Proposal Out',
+  'Proposal Returned / Accepted',
+  'Contract Out',
+  'Contract Signed',
+] as const
+const PIPELINE_SOURCES = ['Website', 'Referral', 'Trade Show', 'Cold Outreach', 'Existing Client'] as const
+const PIPELINE_STATUSES = ['Active', 'Inactive', 'Archived'] as const
+const PIPELINE_TASK_ATTACHMENT_FILTERS = ['Has attachment', 'No attachment'] as const
+const PIPELINE_TASK_VIEW_FILTERS = ['Open', 'Completed'] as const
+
+type PipelineProspect = {
+  id: number
+  company: string
+  firstName: string
+  lastName: string
+  title: string
+  phone: string
+  email: string
+  source: (typeof PIPELINE_SOURCES)[number]
+  stage: (typeof PIPELINE_STAGES)[number]
+  lastActivity: string
+  owner: string
+  status: (typeof PIPELINE_STATUSES)[number]
+}
+
+type PipelineTaskAttachment = {
+  name: string
+  size: string
+  description?: string
+}
+
+type PipelineTask = {
+  id: number
+  task: string
+  company: string
+  date: string
+  createdBy: string
+  completed: boolean
+  attachment: PipelineTaskAttachment | null
+}
+
+type PipelineStageHistoryItem = {
+  id: number
+  stage: (typeof PIPELINE_STAGES)[number]
+  fromStage: (typeof PIPELINE_STAGES)[number] | null
+  direction: 'start' | 'forward' | 'back' | 'jump' | 'same'
+  notes: string
+  by: string
+  date: string
+  attachment: string | null
+}
+
+type PipelineDocItem = {
+  id: number
+  name: string
+  description: string
+  by: string
+  date: string
+}
+
+const PIPELINE_PROSPECTS: PipelineProspect[] = [
+  { id: 1, company: 'Folio Wine Company, LLC', firstName: 'Sarah', lastName: 'Chen', title: 'Owner', phone: '(707) 555-0142', email: 'sarah@folio.com', source: 'Website', stage: 'Inquiry Form Returned', lastActivity: '08/22/2026', owner: 'Alissa DeLaRiva', status: 'Active' },
+  { id: 2, company: 'Aperture Cellars', firstName: 'Aaron', lastName: 'Robertson', title: 'Winemaker', phone: '(707) 555-0198', email: 'aaron@aperture-cellars.com', source: 'Referral', stage: 'Call Scheduled', lastActivity: '08/21/2026', owner: 'Hammad Iftikhar', status: 'Active' },
+  { id: 3, company: 'Dusty River Wine Cellars', firstName: 'Aaron', lastName: 'Inman', title: 'Compliance Lead', phone: '(707) 555-0114', email: 'aaron@drccellars.com', source: 'Trade Show', stage: 'Inquiry Form Out', lastActivity: '08/20/2026', owner: 'Admin Admin', status: 'Active' },
+  { id: 4, company: 'Vineyard 29, LLC', firstName: 'Maya', lastName: 'Patel', title: 'General Manager', phone: '(707) 555-0160', email: 'maya@v29.com', source: 'Website', stage: 'Proposal Out', lastActivity: '08/18/2026', owner: 'Greer Lagourgue', status: 'Active' },
+  { id: 5, company: 'Stag\'s Leap Wine Cellars LLC', firstName: 'Adam', lastName: 'Beck', title: 'Director of Ops', phone: '(707) 555-0177', email: 'adam.beck@slwc.com', source: 'Existing Client', stage: 'Contract Out', lastActivity: '08/15/2026', owner: 'Alissa DeLaRiva', status: 'Active' },
+  { id: 6, company: '4 Wines, LLC', firstName: 'Elena', lastName: 'Ruiz', title: 'Founder', phone: '(415) 555-0133', email: 'elena@4wines.com', source: 'Cold Outreach', stage: 'Call Scheduled', lastActivity: '08/12/2026', owner: 'Brynne Todd', status: 'Active' },
+  { id: 7, company: 'Paper Shredders, LLC', firstName: 'Sam', lastName: 'Rivera', title: 'Billing Contact', phone: '(707) 555-0190', email: 'sam@papershredderz.com', source: 'Referral', stage: 'Contract Signed', lastActivity: '08/08/2026', owner: 'Caitlin Godfrey', status: 'Active' },
+  { id: 8, company: 'Coast Range Imports', firstName: 'Nina', lastName: 'Walsh', title: 'Buyer', phone: '(415) 555-0188', email: 'nina@coastrange.com', source: 'Website', stage: 'Call Scheduled', lastActivity: '07/30/2026', owner: 'Drea Helfer', status: 'Inactive' },
+  { id: 9, company: 'Old Oak Bottling Co', firstName: 'Chris', lastName: 'Ng', title: 'Controller', phone: '(707) 555-0121', email: 'chris@oldoak.com', source: 'Cold Outreach', stage: 'Proposal Returned / Accepted', lastActivity: '06/14/2026', owner: 'Karin Shooter', status: 'Archived' },
+]
+
+function parsePipelineDate(value: string) {
+  const [month, day, year] = value.split('/').map(Number)
+  if (!month || !day || !year) return 0
+  return new Date(year, month - 1, day).getTime()
+}
+
+function formatPipelineDate(date = new Date()) {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${month}/${day}/${date.getFullYear()}`
+}
+
+function pipelinePhoneHref(phone: string) {
+  const digits = phone.replace(/[^\d+]/g, '')
+  return digits ? `tel:${digits}` : undefined
+}
+
+function getPipelineStageDirection(
+  from: (typeof PIPELINE_STAGES)[number] | null,
+  to: (typeof PIPELINE_STAGES)[number],
+): PipelineStageHistoryItem['direction'] {
+  if (!from) return 'start'
+  const fromIdx = PIPELINE_STAGES.indexOf(from)
+  const toIdx = PIPELINE_STAGES.indexOf(to)
+  if (fromIdx < 0 || toIdx < 0) return 'jump'
+  if (toIdx === fromIdx) return 'same'
+  if (toIdx < fromIdx) return 'back'
+  if (toIdx - fromIdx > 1) return 'jump'
+  return 'forward'
+}
+
+function pipelineStageMoveLabel(item: PipelineStageHistoryItem) {
+  if (item.direction === 'start' || !item.fromStage) return 'Entered pipeline'
+  if (item.direction === 'same') return `Updated notes on ${item.stage}`
+  if (item.direction === 'back') return `Moved back from ${item.fromStage}`
+  if (item.direction === 'forward') return `Moved forward from ${item.fromStage}`
+  return `Jumped from ${item.fromStage}`
+}
+
+function formatPipelineStageLabel(stage: string, visitNumber?: number) {
+  if (visitNumber != null && visitNumber > 1) return `${stage} (${visitNumber})`
+  return stage
+}
+
+function getPipelineStageVisitCount(
+  history: PipelineStageHistoryItem[],
+  stage: (typeof PIPELINE_STAGES)[number] | string,
+) {
+  return history.filter(item => item.stage === stage).length
+}
+
+function getPipelineStageVisitNumber(
+  history: PipelineStageHistoryItem[],
+  item: PipelineStageHistoryItem,
+) {
+  const chronological = history
+    .filter(entry => entry.stage === item.stage)
+    .sort((a, b) => a.id - b.id)
+  const index = chronological.findIndex(entry => entry.id === item.id)
+  return index >= 0 ? index + 1 : 1
+}
+
+function PipelineStageDiff({
+  item,
+  visitNumber,
+}: {
+  item: PipelineStageHistoryItem
+  visitNumber?: number
+}) {
+  const toLabel = formatPipelineStageLabel(item.stage, visitNumber)
+  if (item.fromStage && item.direction !== 'same' && item.direction !== 'start') {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 whitespace-nowrap">
+          {item.fromStage}
+        </span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 shrink-0" aria-hidden>
+          <path d="M2.5 6h7M6.5 3.5L9.5 6 6.5 8.5" />
+        </svg>
+        <span className={PIPELINE_STAGE_TAG}>{toLabel}</span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+      <span className={PIPELINE_STAGE_TAG}>{toLabel}</span>
+      {item.direction === 'same' && (
+        <span className="text-[11px] font-medium text-slate-500">Notes updated</span>
+      )}
+      {(item.direction === 'start' || !item.fromStage) && (
+        <span className="text-[11px] font-medium text-slate-500">Started</span>
+      )}
+    </div>
+  )
+}
+
+function downloadPipelineFile(fileName: string, label = 'Attachment') {
+  const blob = new Blob([`${label}: ${fileName}`], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function truncatePipelineText(text: string, maxWords = 10) {
+  const trimmed = text.trim()
+  if (!trimmed) return ''
+  const words = trimmed.split(/\s+/)
+  if (words.length <= maxWords) return trimmed
+  return `${words.slice(0, maxWords).join(' ')}...`
+}
+
+function PipelineAttachmentLabel({ fileName }: { fileName: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-sm text-slate-700 min-w-0">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 shrink-0">
+        <path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" />
+      </svg>
+      <span className="truncate max-w-[160px]" title={fileName}>{fileName}</span>
+    </span>
+  )
+}
+
+function PipelineCardIconButton({
+  label,
+  onClick,
+  tone = 'default',
+  children,
+}: {
+  label: string
+  onClick: () => void
+  tone?: 'default' | 'danger'
+  children: ReactNode
+}) {
+  const toneClass = tone === 'danger'
+    ? 'text-slate-400 hover:text-[#bb5757] hover:bg-[#bb5757]/10'
+    : 'text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10'
+  return (
+    <button
+      type="button"
+      onClick={e => {
+        e.stopPropagation()
+        onClick()
+      }}
+      className={`p-1.5 rounded-lg transition-colors ${toneClass}`}
+      title={label}
+      aria-label={label}
+    >
+      {children}
+    </button>
+  )
+}
+
+function PipelineCardActions({
+  hasAttachment,
+  onPreview,
+  onEdit,
+  onDelete,
+  onDownload,
+}: {
+  hasAttachment: boolean
+  onPreview: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onDownload?: () => void
+}) {
+  return (
+    <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+      <PipelineCardIconButton label="Preview" onClick={onPreview}>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
+          <circle cx="8" cy="8" r="2" />
+        </svg>
+      </PipelineCardIconButton>
+      <PipelineCardIconButton label="Edit" onClick={onEdit}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8.5 2.5l3 3L5 12H2v-3L8.5 2.5z" />
+        </svg>
+      </PipelineCardIconButton>
+      {hasAttachment && onDownload && (
+        <PipelineCardIconButton label="Download" onClick={onDownload}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
+          </svg>
+        </PipelineCardIconButton>
+      )}
+      <PipelineCardIconButton label="Delete" onClick={onDelete} tone="danger">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <path d="M2.5 3.5h9M5.5 3.5V2.5h3v1M4 3.5l.5 8h5l.5-8" />
+        </svg>
+      </PipelineCardIconButton>
+    </div>
+  )
+}
+
+function PipelineAttachmentActions({
+  fileName,
+  onView,
+  onDownload,
+  showLabel = true,
+}: {
+  fileName: string
+  onView: () => void
+  onDownload: () => void
+  showLabel?: boolean
+}) {
+  return (
+    <div className="inline-flex items-center gap-1.5 min-w-0">
+      {showLabel && <PipelineAttachmentLabel fileName={fileName} />}
+      <button
+        type="button"
+        onClick={onView}
+        className="p-1.5 rounded-lg text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+        title="View attachment"
+        aria-label={`View ${fileName}`}
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
+          <circle cx="8" cy="8" r="2" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={onDownload}
+        className="p-1.5 rounded-lg text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+        title="Download attachment"
+        aria-label={`Download ${fileName}`}
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
+function PipelineResizableSplit({
+  left,
+  right,
+  storageKey = 'pipeline-jira-split-pct',
+  defaultLeftPct = 38,
+  minLeftPct = 22,
+  maxLeftPct = 62,
+}: {
+  left: ReactNode
+  right: ReactNode
+  storageKey?: string
+  defaultLeftPct?: number
+  minLeftPct?: number
+  maxLeftPct?: number
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const leftPctRef = useRef(defaultLeftPct)
+  const [leftPct, setLeftPct] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem(storageKey))
+      if (Number.isFinite(saved) && saved >= minLeftPct && saved <= maxLeftPct) {
+        leftPctRef.current = saved
+        return saved
+      }
+    } catch {
+      /* ignore */
+    }
+    return defaultLeftPct
+  })
+  const [dragging, setDragging] = useState(false)
+  const [isWide, setIsWide] = useState(false)
+
+  useEffect(() => {
+    leftPctRef.current = leftPct
+  }, [leftPct])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1280px)')
+    const sync = () => setIsWide(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  useEffect(() => {
+    if (!dragging) return
+
+    const onMove = (e: PointerEvent) => {
+      const el = containerRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      if (rect.width <= 0) return
+      const next = Math.min(
+        maxLeftPct,
+        Math.max(minLeftPct, ((e.clientX - rect.left) / rect.width) * 100),
+      )
+      leftPctRef.current = next
+      setLeftPct(next)
+    }
+
+    const onUp = () => {
+      setDragging(false)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      try {
+        localStorage.setItem(storageKey, String(leftPctRef.current))
+      } catch {
+        /* ignore */
+      }
+    }
+
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [dragging, maxLeftPct, minLeftPct, storageKey])
+
+  return (
+    <div ref={containerRef} className="flex flex-col xl:flex-row items-stretch w-full min-h-0">
+      <div
+        className="w-full min-w-0"
+        style={
+          isWide
+            ? { flex: `0 0 ${leftPct}%`, maxWidth: `${maxLeftPct}%`, minWidth: 260 }
+            : undefined
+        }
+      >
+        {left}
+      </div>
+
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize panels"
+        aria-valuemin={minLeftPct}
+        aria-valuemax={maxLeftPct}
+        aria-valuenow={Math.round(leftPct)}
+        tabIndex={0}
+        onPointerDown={e => {
+          if (!isWide) return
+          e.preventDefault()
+          setDragging(true)
+        }}
+        onKeyDown={e => {
+          if (!isWide) return
+          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+          e.preventDefault()
+          const delta = e.key === 'ArrowLeft' ? -2 : 2
+          setLeftPct(prev => {
+            const next = Math.min(maxLeftPct, Math.max(minLeftPct, prev + delta))
+            leftPctRef.current = next
+            try {
+              localStorage.setItem(storageKey, String(next))
+            } catch {
+              /* ignore */
+            }
+            return next
+          })
+        }}
+        className={`hidden xl:flex relative w-3 shrink-0 cursor-col-resize items-stretch justify-center group touch-none ${
+          dragging ? 'bg-[#12518c]/10' : 'hover:bg-slate-50'
+        }`}
+        title="Drag to resize"
+      >
+        <span className={`absolute inset-y-0 w-px ${dragging ? 'bg-[#12518c]' : 'bg-slate-200 group-hover:bg-[#12518c]/50'}`} />
+        <span className={`absolute top-1/2 -translate-y-1/2 flex flex-col gap-0.5 px-0.5 py-1.5 rounded-md border bg-white shadow-sm ${
+          dragging ? 'border-[#12518c] text-[#12518c]' : 'border-slate-200 text-slate-400 group-hover:border-[#12518c]/40 group-hover:text-[#12518c]'
+        }`}>
+          <span className="w-0.5 h-0.5 rounded-full bg-current" />
+          <span className="w-0.5 h-0.5 rounded-full bg-current" />
+          <span className="w-0.5 h-0.5 rounded-full bg-current" />
+        </span>
+      </div>
+
+      <div className="min-w-0 flex-1 w-full border-t border-slate-100 xl:border-t-0">
+        {right}
+      </div>
+    </div>
+  )
+}
+
+function PipelineItemPreviewModal({
+  title,
+  subtitle,
+  body,
+  attachmentName,
+  onClose,
+  onDownload,
+}: {
+  title: string
+  subtitle?: string
+  body: string
+  attachmentName?: string | null
+  onClose: () => void
+  onDownload?: () => void
+}) {
+  return (
+    <AddressModalShell maxWidth="max-w-md" onClose={onClose}>
+      <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          {subtitle ? <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p> : null}
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+      <div className="px-5 py-5 space-y-4">
+        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{body || 'No notes provided.'}</p>
+        {attachmentName ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 flex items-center justify-between gap-3">
+            <PipelineAttachmentLabel fileName={attachmentName} />
+            {onDownload && (
+              <button
+                type="button"
+                onClick={onDownload}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors shrink-0"
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
+                </svg>
+                Download
+              </button>
+            )}
+          </div>
+        ) : null}
+      </div>
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">
+          Close
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function PipelineFilePicker({
+  fileName,
+  onChange,
+  label = 'Attachment',
+  buttonLabel = 'Choose File',
+}: {
+  fileName: string
+  onChange: (fileName: string) => void
+  label?: string
+  buttonLabel?: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div className="min-w-0">
+      <span className="block text-[11px] font-medium text-slate-500 mb-1.5">{label}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          ref={inputRef}
+          type="file"
+          className="sr-only"
+          onChange={e => {
+            const file = e.target.files?.[0]
+            onChange(file?.name ?? '')
+            e.target.value = ''
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 hover:border-[#12518c]/40 transition-colors"
+        >
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" />
+          </svg>
+          {buttonLabel}
+        </button>
+        {fileName ? (
+          <span className="inline-flex items-center gap-1.5 max-w-full min-w-0 h-9 pl-2.5 pr-1 rounded-lg border border-[#12518c]/20 bg-[#12518c]/10 text-xs text-[#12518c]">
+            <span className="truncate max-w-[180px]" title={fileName}>{fileName}</span>
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              className="p-1 rounded-md hover:bg-[#12518c]/15 transition-colors"
+              aria-label="Remove file"
+              title="Remove file"
+            >
+              <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M3 3l8 8M11 3l-8 8" />
+              </svg>
+            </button>
+          </span>
+        ) : (
+          <span className="text-xs text-slate-400">No file chosen</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PipelineFileViewModal({
+  fileName,
+  subtitle,
+  onClose,
+  onDownload,
+}: {
+  fileName: string
+  subtitle?: string
+  onClose: () => void
+  onDownload: () => void
+}) {
+  return (
+    <AddressModalShell maxWidth="max-w-md" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900">View attachment</h3>
+            {subtitle ? <p className="text-[11px] text-slate-500 truncate">{subtitle}</p> : null}
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+      <div className="px-5 py-5">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+          <p className="text-sm font-medium text-slate-800 truncate">{fileName}</p>
+          <p className="text-xs text-slate-500 mt-1">Preview unavailable in this demo — download to open the file.</p>
+        </div>
+      </div>
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2.5">
+        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">Close</button>
+        <button type="button" onClick={onDownload} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
+          </svg>
+          Download
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+const PIPELINE_TASKS: PipelineTask[] = [
+  { id: 1, task: 'New Task 3 — follow up on signed inquiry form and confirm next call time with the prospect', company: 'Folio Wine Company, LLC', date: '08/25/2026', createdBy: 'Hammad Iftikhar', completed: false, attachment: { name: 'inquiry-form.pdf', size: '128 KB' } },
+  { id: 2, task: 'Send signed proposal', company: 'Vineyard 29, LLC', date: '08/25/2026', createdBy: 'Hammad Iftikhar', completed: false, attachment: { name: 'v29-proposal.pdf', size: '412 KB' } },
+  { id: 3, task: 'Discovery call recap covering pricing, onboarding timeline, and outstanding compliance questions', company: 'Aperture Cellars', date: '08/24/2026', createdBy: 'Alissa DeLaRiva', completed: false, attachment: null },
+]
 
 type PendingRow = {
   id: number
@@ -113,6 +751,18 @@ const PENDING_CHANGES: PendingRow[] = [
   { id: 9, timestamp: '06/03/2025 08:07:53 PM', company: 'Bubbles, LLC', detail: '100 Champagne Ave', field: 'Street', newValue: '100 Champagne Avenue', badge: 'GL', initials: 'HI', notes: 'Full street suffix added for compliance with state mailing requirements.' },
 ]
 
+const COMPANY_SPECIALISTS = [
+  'Admin Admin',
+  'Alissa DeLaRiva',
+  'Brynne Todd',
+  'Caitlin Godfrey',
+  'Drea Helfer',
+  'Fahad Nisar',
+  'Greer Lagourgue',
+  'Hammad Iftikhar',
+  'Karin Shooter',
+] as const
+
 type CompanyRow = {
   id: number
   name: string
@@ -121,33 +771,52 @@ type CompanyRow = {
   alert: AlertStatus
   type: string
   starred: boolean
+  specialist: string
 }
 
 const COMPANIES_INIT: CompanyRow[] = [
-  { id: 1, name: '1 Matilda Wine Company, LLC', dba: 'Bonkers', status: 'Archived', alert: 'Work Stop', type: 'Client', starred: true },
-  { id: 2, name: '1 Matilda Wine Company, LLC', dba: 'Impensata', status: 'Active', alert: 'Pending', type: 'Client', starred: false },
-  { id: 3, name: '1 Matilda Wine Company, LLC', dba: '', status: 'Active', alert: null, type: 'Client', starred: false },
-  { id: 4, name: '1 Matilda Wine Company, LLC', dba: 'Bonkers', status: 'Inactive', alert: null, type: 'Client', starred: false },
-  { id: 5, name: '1 Matilda Wine Company, LLC', dba: '', status: 'Inactive', alert: null, type: 'Client', starred: false },
-  { id: 6, name: '1 Matilda Wine Company, LLC', dba: 'Impensata', status: 'Active', alert: null, type: 'Client', starred: false },
-  { id: 7, name: '1 Matilda Wine Company, LLC', dba: '', status: 'Inactive', alert: null, type: 'Client', starred: false },
-  { id: 8, name: '1 Matilda Wine Company, LLC', dba: 'Bonkers', status: 'Active', alert: null, type: 'Client', starred: false },
-  { id: 9, name: '1 Matilda Wine Company, LLC', dba: 'Impensata', status: 'Archived', alert: null, type: 'Client', starred: false },
-  { id: 10, name: '1 Matilda Wine Company, LLC', dba: '', status: 'Active', alert: null, type: 'Client', starred: false },
-  { id: 11, name: '101 Caves Lane LLC', dba: '', status: 'Active', alert: null, type: 'Client', starred: false },
-  { id: 12, name: '11 Cellars', dba: '', status: 'Active', alert: null, type: 'Client', starred: false },
-  { id: 13, name: '12 Spies Vineyards', dba: '', status: 'Active', alert: null, type: 'Client', starred: false },
-  { id: 14, name: '14 Hands Winery', dba: '', status: 'Active', alert: null, type: 'Client', starred: false },
+  { id: 1, name: '1 Matilda Wine Company, LLC', dba: 'Bonkers', status: 'Archived', alert: 'Work Stop', type: 'Client', starred: true, specialist: 'Admin Admin' },
+  { id: 2, name: '1 Matilda Wine Company, LLC', dba: 'Impensata', status: 'Active', alert: 'Pending', type: 'Client', starred: false, specialist: 'Alissa DeLaRiva' },
+  { id: 3, name: '1 Matilda Wine Company, LLC', dba: '', status: 'Active', alert: null, type: 'Client', starred: false, specialist: 'Brynne Todd' },
+  { id: 4, name: '1 Matilda Wine Company, LLC', dba: 'Bonkers', status: 'Inactive', alert: null, type: 'Client', starred: false, specialist: 'Caitlin Godfrey' },
+  { id: 5, name: '1 Matilda Wine Company, LLC', dba: '', status: 'Inactive', alert: null, type: 'Client', starred: false, specialist: 'Drea Helfer' },
+  { id: 6, name: '1 Matilda Wine Company, LLC', dba: 'Impensata', status: 'Active', alert: null, type: 'Client', starred: false, specialist: 'Fahad Nisar' },
+  { id: 7, name: '1 Matilda Wine Company, LLC', dba: '', status: 'Inactive', alert: null, type: 'Client', starred: false, specialist: 'Greer Lagourgue' },
+  { id: 8, name: '1 Matilda Wine Company, LLC', dba: 'Bonkers', status: 'Active', alert: null, type: 'Client', starred: false, specialist: 'Hammad Iftikhar' },
+  { id: 9, name: '1 Matilda Wine Company, LLC', dba: 'Impensata', status: 'Archived', alert: null, type: 'Client', starred: false, specialist: 'Karin Shooter' },
+  { id: 10, name: '1 Matilda Wine Company, LLC', dba: '', status: 'Active', alert: null, type: 'Client', starred: false, specialist: 'Admin Admin' },
+  { id: 11, name: '101 Caves Lane LLC', dba: '', status: 'Active', alert: null, type: 'Client', starred: false, specialist: 'Alissa DeLaRiva' },
+  { id: 12, name: '11 Cellars', dba: '', status: 'Active', alert: null, type: 'Client', starred: false, specialist: 'Brynne Todd' },
+  { id: 13, name: '12 Spies Vineyards', dba: '', status: 'Active', alert: null, type: 'Client', starred: false, specialist: 'Caitlin Godfrey' },
+  { id: 14, name: '14 Hands Winery', dba: '', status: 'Active', alert: null, type: 'Client', starred: false, specialist: 'Drea Helfer' },
 ]
+
+type PersonContactType = 'Client' | 'Agency' | 'Vendor' | 'Industry'
+
+const PERSON_CONTACT_TYPES: PersonContactType[] = ['Agency', 'Vendor', 'Industry', 'Client']
+const CLIENT_ONLY_SECTIONS = ['Personal Information', 'Marital Information', 'Employment Information', 'Questionnaire'] as const
 
 type PersonRow = {
   id: number
   name: string
   email: string
   company: string
-  type: 'Client' | 'Agency' | 'Vendor' | 'Industry'
+  type: PersonContactType
+  types?: PersonContactType[]
   category: 'Individual' | 'Shared Email'
   alert: AlertStatus
+}
+
+function getPersonTypes(person: PersonRow): PersonContactType[] {
+  return person.types?.length ? person.types : [person.type]
+}
+
+function primaryPersonType(types: PersonContactType[]): PersonContactType {
+  return types.includes('Client') ? 'Client' : types[0]
+}
+
+function personTypeBadgeClass(_type?: string) {
+  return 'bg-sky-50 text-sky-700'
 }
 
 const PEOPLE_INIT: PersonRow[] = [
@@ -457,19 +1126,79 @@ const COMPANY_OWNERSHIP = [
 
 const COMPANY_LICENSES = [
   { id: 1, state: 'AI', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Active', comment: '' },
-  { id: 2, state: 'AZ', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: 'Wine Direct Shipper Permit', licenseNo: '09080016', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Active', comment: '' },
-  { id: 3, state: 'CA', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Active', comment: '' },
-  { id: 4, state: 'CA', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: 'Direct Shipper Permit', licenseNo: 'DS121', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Active', comment: '' },
-  { id: 5, state: 'CA', cityCounty: '', func: 'Operational', item: 'Bond', itemName: 'Winegrower Bond', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Active', comment: '' },
+  { id: 2, state: 'AZ', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: 'Wine Direct Shipper Permit', licenseNo: '09080016', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Pending', comment: '' },
+  { id: 3, state: 'CA', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Inactive', comment: '' },
+  { id: 4, state: 'CA', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: 'Direct Shipper Permit', licenseNo: 'DS121', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Canceled', comment: '' },
+  { id: 5, state: 'CA', cityCounty: '', func: 'Operational', item: 'Bond', itemName: 'Winegrower Bond', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Expired', comment: '' },
   { id: 6, state: 'CA', cityCounty: '', func: 'Operational', item: 'Type 02', itemName: 'Winegrower', licenseNo: '58279', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Active', comment: '' },
-  { id: 7, state: 'CO', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: 'Wine Direct Shipper Permit', licenseNo: '03-99999-0000', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Active', comment: '' },
-  { id: 8, state: 'CT', cityCounty: '', func: 'DTC', item: 'Wine Shipper', itemName: 'Out-of-State Shipper', licenseNo: 'Asdfasdf', renewalDue: '04/28/2026', expiration: '04/28/2026', actionIn: 'Expired', status: 'Active', comment: '' },
+  { id: 7, state: 'CO', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: 'Wine Direct Shipper Permit', licenseNo: '03-99999-0000', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Pending', comment: '' },
+  { id: 8, state: 'CT', cityCounty: '', func: 'DTC', item: 'Wine Shipper', itemName: 'Out-of-State Shipper', licenseNo: 'Asdfasdf', renewalDue: '04/28/2026', expiration: '04/28/2026', actionIn: 'Expired', status: 'Inactive', comment: '' },
   { id: 9, state: 'FL', cityCounty: 'Miami-Dade', func: 'DTC', item: 'Wine Shipper', itemName: 'Direct Shipper', licenseNo: 'FL-4412', renewalDue: '02/14/2026', expiration: '02/14/2026', actionIn: 'Expired', status: 'Canceled', comment: 'Replaced by new permit' },
-  { id: 10, state: 'NY', cityCounty: '', func: 'DTC', item: 'Out-of-State Shipper', itemName: 'Direct Wine Shipper', licenseNo: 'NY-8821', renewalDue: '05/01/2026', expiration: '05/01/2026', actionIn: '12', status: 'Active', comment: '' },
-  { id: 11, state: 'TX', cityCounty: '', func: 'Wholesale', item: 'Nonresident Seller', itemName: 'Nonresident Seller Permit', licenseNo: 'TX-10044', renewalDue: '03/22/2026', expiration: '03/22/2026', actionIn: 'Expired', status: 'Active', comment: '' },
+  { id: 10, state: 'NY', cityCounty: '', func: 'DTC', item: 'Out-of-State Shipper', itemName: 'Direct Wine Shipper', licenseNo: 'NY-8821', renewalDue: '05/01/2026', expiration: '05/01/2026', actionIn: '12', status: 'Expired', comment: '' },
+  { id: 11, state: 'TX', cityCounty: '', func: 'Wholesale', item: 'Nonresident Seller', itemName: 'Nonresident Seller Permit', licenseNo: 'TX-10044', renewalDue: '03/22/2026', expiration: '03/22/2026', actionIn: 'Expired', status: 'Pending', comment: '' },
   { id: 12, state: 'TTB', cityCounty: '', func: 'Operational', item: 'Basic Permit', itemName: 'Basic Permit', licenseNo: '12345', renewalDue: '07/11/2026', expiration: '07/11/2026', actionIn: '45', status: 'Active', comment: '' },
-  { id: 13, state: 'WA', cityCounty: 'King', func: 'DTC', item: 'Certificate of Approval', itemName: 'COA', licenseNo: 'WA-2201', renewalDue: '01/30/2026', expiration: '01/30/2026', actionIn: 'Expired', status: 'Active', comment: '' },
-  { id: 14, state: 'OR', cityCounty: '', func: 'Wholesale', item: 'Certificate of Authority', itemName: 'Certificate of Authority', licenseNo: 'OR-5510', renewalDue: '06/01/2026', expiration: '06/01/2026', actionIn: '28', status: 'Active', comment: '' },
+  { id: 13, state: 'WA', cityCounty: 'King', func: 'DTC', item: 'Certificate of Approval', itemName: 'COA', licenseNo: 'WA-2201', renewalDue: '01/30/2026', expiration: '01/30/2026', actionIn: 'Expired', status: 'Inactive', comment: '' },
+  { id: 14, state: 'OR', cityCounty: '', func: 'Wholesale', item: 'Certificate of Authority', itemName: 'Certificate of Authority', licenseNo: 'OR-5510', renewalDue: '06/01/2026', expiration: '06/01/2026', actionIn: '28', status: 'Canceled', comment: '' },
+]
+
+type QueryLicenseRow = {
+  id: number
+  companyId: number
+  company: string
+  specialist: string
+  state: string
+  func: string
+  item: string
+  itemName: string
+  licenseNo: string
+  renewalDue: string
+  expiration: string
+  actionIn: string
+  status: string
+  hasReportSetting: boolean
+}
+
+const QUERY_LICENSE_STATUSES = ['Active', 'Pending', 'Inactive', 'Canceled', 'Expired'] as const
+
+const QUERY_LICENSE_EXTRAS: QueryLicenseRow[] = [
+  { id: 15, companyId: 11, company: '101 Caves Lane LLC', specialist: 'Alissa DeLaRiva', state: 'CA', func: 'DTC', item: 'Direct Shippers', itemName: 'Direct Shipper Permit', licenseNo: 'DS-901', renewalDue: '09/30/2026', expiration: '09/30/2026', actionIn: '30', status: 'Pending', hasReportSetting: false },
+  { id: 16, companyId: 12, company: '11 Cellars', specialist: 'Brynne Todd', state: 'OR', func: 'Wholesale', item: 'Certificate of Authority', itemName: 'Certificate of Authority', licenseNo: 'OR-1120', renewalDue: '12/01/2026', expiration: '12/01/2026', actionIn: '92', status: 'Active', hasReportSetting: true },
+  { id: 17, companyId: 13, company: '12 Spies Vineyards', specialist: 'Caitlin Godfrey', state: 'VA', func: 'DTC', item: 'Wine Shipper', itemName: 'Out-of-State Shipper', licenseNo: 'VA-3301', renewalDue: '08/01/2026', expiration: '08/01/2026', actionIn: 'Expired', status: 'Canceled', hasReportSetting: false },
+  { id: 18, companyId: 14, company: '14 Hands Winery', specialist: 'Drea Helfer', state: 'WA', func: 'Operational', item: 'Type 02', itemName: 'Winery License', licenseNo: 'WA-14H', renewalDue: '10/15/2026', expiration: '10/15/2026', actionIn: '45', status: 'Inactive', hasReportSetting: false },
+  { id: 19, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'AL', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Pending', hasReportSetting: false },
+  { id: 20, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'AK', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Inactive', hasReportSetting: false },
+  { id: 21, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'AR', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Canceled', hasReportSetting: false },
+  { id: 22, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'CA', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Expired', hasReportSetting: false },
+  { id: 23, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'CO', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Pending', hasReportSetting: false },
+  { id: 24, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'CT', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Inactive', hasReportSetting: false },
+  { id: 25, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'DE', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Canceled', hasReportSetting: false },
+  { id: 26, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'DC', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Expired', hasReportSetting: false },
+  { id: 27, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'FL', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Pending', hasReportSetting: false },
+  { id: 28, companyId: 8, company: '1 Matilda Wine Company, LLC', specialist: 'Hammad Iftikhar', state: 'GA', func: 'DTC', item: 'Direct Shippers', itemName: 'Wine Direct Shipper Permit', licenseNo: 'GA-2201', renewalDue: '11/01/2026', expiration: '11/01/2026', actionIn: '62', status: 'Inactive', hasReportSetting: false },
+  { id: 29, companyId: 11, company: '101 Caves Lane LLC', specialist: 'Alissa DeLaRiva', state: 'HI', func: 'Wholesale', item: 'Nonresident Seller', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Canceled', hasReportSetting: false },
+]
+
+const QUERY_LICENSES: QueryLicenseRow[] = [
+  ...COMPANY_LICENSES.map((license, index) => {
+    const company = COMPANIES_INIT[index < 8 ? 2 : Math.min(10 + (index - 8), COMPANIES_INIT.length - 1)]
+    return {
+      id: license.id,
+      companyId: company.id,
+      company: company.name,
+      specialist: company.specialist,
+      state: license.state,
+      func: license.func,
+      item: license.item,
+      itemName: license.itemName,
+      licenseNo: license.licenseNo,
+      renewalDue: license.renewalDue,
+      expiration: license.expiration,
+      actionIn: license.actionIn,
+      status: license.status,
+      hasReportSetting: license.id % 3 !== 1,
+    }
+  }),
+  ...QUERY_LICENSE_EXTRAS,
 ]
 
 const COMPANY_REPORTING = [
@@ -623,6 +1352,118 @@ const AGENCY_STATE_CODES = [
   'TTB',
 ]
 
+const LICENSING_TABS = ['Licenses', 'Change Log'] as const
+const QUERY_VIEWS = ['Account Activity', 'Scope', 'Client Licenses', 'Licenses w/o Report Setting', 'Work Stop'] as const
+const QUERY_NAV_GROUPS: { group: string; items: readonly (typeof QUERY_VIEWS)[number][] }[] = [
+  { group: 'Client Management', items: ['Account Activity', 'Scope'] },
+  { group: 'Licensing', items: ['Client Licenses', 'Licenses w/o Report Setting'] },
+  { group: 'Work Stop', items: ['Work Stop'] },
+]
+const QUERY_PAGE_SIZE = 10
+const QUERY_RENEWAL_TIMING = ['Expired', 'Next 30 days', 'Next 60 days', 'Next 90 days'] as const
+const LICENSE_CATALOG_TYPES = ['State', 'Federal'] as const
+const FEDERAL_LICENSE_CODES = ['FDA', 'TTB'] as const
+const LICENSE_FUNCTIONS = ['DTC', 'DTR', '3T', 'Operational', 'Wholesale'] as const
+const LICENSE_ITEM_TYPES = ['License', 'Permit', 'Bond', 'Certificate', 'Excise'] as const
+
+type LicenseCatalogRow = {
+  id: number
+  licenseType: (typeof LICENSE_CATALOG_TYPES)[number]
+  stateCode: string
+  stateName: string
+}
+
+type LicenseChangeLogRow = {
+  id: number
+  statusDate: string
+  state: string
+  func: string
+  item: string
+  field: string
+  changeType: 'Add' | 'Update' | 'Delete'
+  previousData: string
+  updatedData: string
+  requestedBy: string
+}
+
+const LICENSE_LOG_FUNCS = ['DTC', 'DTR', '3T', 'Operational', 'Wholesale'] as const
+const LICENSE_LOG_ITEMS = [
+  'License - Direct Shippers Permit',
+  'Excise - Small Winery Certificate',
+  'License - Wine Direct Shipper Permit',
+  'License - Out-of-State Shipper',
+  'Bond - Winegrower Bond',
+  'License - Type 02 Winegrower',
+  'License - Basic Permit',
+  'Certificate of Approval',
+  'License - Nonresident Seller Permit',
+]
+const LICENSE_LOG_FIELDS = ['Item Name', 'License Number', 'Status', 'Expiration Date', 'Function', 'Item']
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function formatLicenseLogStamp(d: Date) {
+  let hours = d.getHours()
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  hours = hours % 12 || 12
+  return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}/${d.getFullYear()} ${pad2(hours)}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())} ${ampm}`
+}
+
+function buildLicenseChangeLog(count = 746): LicenseChangeLogRow[] {
+  const states = [...US_STATE_CODES, 'TTB']
+  const seed: LicenseChangeLogRow[] = [
+    { id: 1, statusDate: '08/27/2026 06:18:15 PM', state: 'CT', func: 'DTC', item: 'License - Direct Shippers Permit', field: 'Item Name', changeType: 'Update', previousData: 'Direct Shippers Permit', updatedData: 'Direct Shipper Permit', requestedBy: 'AD' },
+    { id: 2, statusDate: '08/27/2026 06:18:15 PM', state: 'NH', func: 'DTR', item: 'Excise - Small Winery Certificate', field: 'Item', changeType: 'Add', previousData: '', updatedData: 'Excise - Small Winery Certificate', requestedBy: 'AD' },
+    { id: 3, statusDate: '08/27/2026 05:44:02 PM', state: 'ND', func: '3T', item: 'License - Wine Direct Shipper Permit', field: 'Status', changeType: 'Update', previousData: 'Pending', updatedData: 'Active', requestedBy: 'GL' },
+    { id: 4, statusDate: '08/27/2026 04:12:41 PM', state: 'ID', func: 'DTC', item: 'License - Out-of-State Shipper', field: 'License Number', changeType: 'Add', previousData: '', updatedData: 'ID-4419', requestedBy: 'HI' },
+    { id: 5, statusDate: '08/27/2026 03:09:18 PM', state: 'SD', func: 'Wholesale', item: 'License - Nonresident Seller Permit', field: 'Expiration Date', changeType: 'Update', previousData: '03/01/2026', updatedData: '03/01/2027', requestedBy: 'WL' },
+    { id: 6, statusDate: '08/27/2026 01:55:07 PM', state: 'NM', func: 'DTC', item: 'License - Direct Shippers Permit', field: 'Item Name', changeType: 'Update', previousData: 'Direct Shippers Permit', updatedData: 'Direct Shipper Permit', requestedBy: 'AD' },
+    { id: 7, statusDate: '08/26/2026 11:22:33 AM', state: 'CA', func: 'Operational', item: 'Bond - Winegrower Bond', field: 'Status', changeType: 'Delete', previousData: 'Active', updatedData: '', requestedBy: 'CC' },
+    { id: 8, statusDate: '08/26/2026 09:14:08 AM', state: 'TTB', func: 'Operational', item: 'License - Basic Permit', field: 'License Number', changeType: 'Add', previousData: '', updatedData: '12345', requestedBy: 'HI' },
+  ]
+  const start = new Date('2026-08-26T08:40:00')
+  const extra = Array.from({ length: Math.max(0, count - seed.length) }, (_, idx) => {
+    const i = idx + seed.length
+    const d = new Date(start.getTime() - i * 41 * 60 * 1000 - (i % 5) * 15 * 60 * 1000)
+    const changeType: LicenseChangeLogRow['changeType'] = i % 13 === 0 ? 'Delete' : i % 4 === 0 ? 'Add' : 'Update'
+    const field = LICENSE_LOG_FIELDS[i % LICENSE_LOG_FIELDS.length]
+    const item = LICENSE_LOG_ITEMS[i % LICENSE_LOG_ITEMS.length]
+    return {
+      id: i + 1,
+      statusDate: formatLicenseLogStamp(d),
+      state: states[i % states.length],
+      func: LICENSE_LOG_FUNCS[i % LICENSE_LOG_FUNCS.length],
+      item,
+      field,
+      changeType,
+      previousData: changeType === 'Add' ? '' : field === 'Item Name' ? 'Direct Shippers Permit' : `${field} ${1 + (i % 6)}`,
+      updatedData: changeType === 'Delete' ? '' : field === 'Item Name' ? 'Direct Shipper Permit' : `${field} ${2 + (i % 6)}`,
+      requestedBy: CHANGE_LOG_REQUESTERS[i % CHANGE_LOG_REQUESTERS.length],
+    } satisfies LicenseChangeLogRow
+  })
+  return [...seed, ...extra]
+}
+
+const LICENSE_CHANGE_LOG_INIT = buildLicenseChangeLog()
+const LICENSE_LOG_PAGE_SIZE = 10
+
+const LICENSES_INIT: LicenseCatalogRow[] = [
+  ...US_STATE_CODE_ENTRIES.map((e, i) => ({
+    id: i + 1,
+    licenseType: 'State' as const,
+    stateCode: e.code,
+    stateName: e.name,
+  })),
+  {
+    id: US_STATE_CODE_ENTRIES.length + 1,
+    licenseType: 'Federal',
+    stateCode: 'TTB',
+    stateName: 'Alcohol and Tobacco Tax and Trade Bureau',
+  },
+]
+
 /** Capitals / common cities by state code (plus TTB). */
 const US_CITIES_BY_STATE: Record<string, string[]> = {
   AL: ['Montgomery', 'Birmingham', 'Huntsville', 'Mobile'],
@@ -677,6 +1518,7 @@ const US_CITIES_BY_STATE: Record<string, string[]> = {
   WI: ['Madison', 'Milwaukee', 'Green Bay'],
   WY: ['Cheyenne', 'Casper', 'Laramie'],
   TTB: ['Washington, D.C.', 'Washington'],
+  FDA: ['Washington, D.C.', 'Washington'],
 }
 
 /** Resolve a state code from either a 2-letter code or full state name. */
@@ -1006,6 +1848,12 @@ export default function App() {
   const [selectedAgency, setSelectedAgency] = useState<AgencyRow | null>(null)
   const [agencyTab, setAgencyTab] = useState<(typeof AGENCY_DETAIL_TABS)[number]>('Summary')
   const [cellarTab, setCellarTab] = useState<(typeof CELLAR_TABS)[number]>('My Action Items')
+  const [pipelineTab, setPipelineTab] = useState<(typeof PIPELINE_TABS)[number]>('Prospects')
+  const [licensingTab, setLicensingTab] = useState<(typeof LICENSING_TABS)[number]>('Licenses')
+  const [queryTab, setQueryTab] = useState<(typeof QUERY_VIEWS)[number]>('Client Licenses')
+  const [licenseFormMode, setLicenseFormMode] = useState<'add' | 'edit' | null>(null)
+  const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null)
+  const [selectedProspectLabel, setSelectedProspectLabel] = useState<string | null>(null)
   const [actionItems, setActionItems] = useState<ActionItemRow[]>(MY_ACTION_ITEMS)
 
   useEffect(() => {
@@ -1045,11 +1893,18 @@ export default function App() {
     setAgencyTab('Summary')
   }
 
+  const clearProspectSelection = () => {
+    setSelectedProspectId(null)
+    setSelectedProspectLabel(null)
+  }
+
   const handleNavClick = (label: string) => {
     setActiveNav(label)
     if (label !== 'Companies') clearCompanySelection()
     if (label !== 'People') clearPersonSelection()
     if (label !== 'Agencies') clearAgencySelection()
+    if (label !== 'Pipeline') clearProspectSelection()
+    setLicenseFormMode(null)
   }
 
   const handleSelectCompany = (id: number) => {
@@ -1085,6 +1940,15 @@ export default function App() {
   const breadcrumbTrail: { label: string; onClick?: () => void }[] = (() => {
     if (activeNav === 'The Cellar') {
       return [{ label: 'The Cellar' }, { label: cellarTab }]
+    }
+    if (activeNav === 'Pipeline') {
+      if (selectedProspectId != null) {
+        return [
+          { label: 'Pipeline', onClick: clearProspectSelection },
+          { label: selectedProspectLabel || 'Details' },
+        ]
+      }
+      return [{ label: 'Pipeline' }, { label: pipelineTab }]
     }
     if (activeNav === 'Companies') {
       if (addingCompany) {
@@ -1129,6 +1993,18 @@ export default function App() {
         { label: 'Agencies', onClick: clearAgencySelection },
         { label: agencyTab },
       ]
+    }
+    if (activeNav === 'Query') {
+      return [{ label: 'Query' }, { label: queryTab }]
+    }
+    if (activeNav === 'Licensing') {
+      if (licenseFormMode) {
+        return [
+          { label: 'Licensing', onClick: () => setLicenseFormMode(null) },
+          { label: licenseFormMode === 'edit' ? 'Edit' : 'Add New' },
+        ]
+      }
+      return [{ label: 'Licensing' }, { label: licensingTab }]
     }
     if (!isRedesignedNav) {
       return [{ label: activeNav }]
@@ -1309,13 +2185,27 @@ export default function App() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className={`flex-1 min-h-0 ${activeNav === 'Query' ? 'flex overflow-hidden' : 'overflow-y-auto p-6'}`}>
           {activeNav === 'The Cellar' ? (
             <CellarPage
               activeTab={cellarTab}
               onTabChange={setCellarTab}
               actionItems={actionItems}
               onActionItemsChange={setActionItems}
+            />
+          ) : activeNav === 'Pipeline' ? (
+            <PipelinePage
+              activeTab={pipelineTab}
+              onTabChange={setPipelineTab}
+              selectedProspectId={selectedProspectId}
+              onSelectProspect={(prospect) => {
+                if (!prospect) {
+                  clearProspectSelection()
+                  return
+                }
+                setSelectedProspectId(prospect.id)
+                setSelectedProspectLabel(prospect.company)
+              }}
             />
           ) : activeNav === 'Companies' ? (
             addingCompany ? (
@@ -1403,6 +2293,37 @@ export default function App() {
                 onSelectAgency={handleSelectAgency}
               />
             )
+          ) : activeNav === 'Query' ? (
+            <>
+              <QuerySubNav active={queryTab} onChange={setQueryTab} />
+              <div className="flex-1 overflow-y-auto p-6">
+                <QueryPage
+                  activeView={queryTab}
+                  companies={companies}
+                  onOpenCompany={(id, tab) => {
+                    setActiveNav('Companies')
+                    handleSelectCompany(id)
+                    if (tab) setCompanyTab(tab)
+                  }}
+                />
+                <div className="mt-6 flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" opacity="0.5">
+                      <path d="M10 2a8 8 0 1 0 0 16A8 8 0 0 0 10 2zm1 11H9V9h2v4zm0-6H9V5h2v2z" />
+                    </svg>
+                    <span className="text-xs text-slate-400">www.dhwinecompliance.com</span>
+                  </div>
+                  <span className="text-xs text-slate-300">v 1.4.0</span>
+                </div>
+              </div>
+            </>
+          ) : activeNav === 'Licensing' ? (
+            <LicensingPage
+              activeTab={licensingTab}
+              onTabChange={setLicensingTab}
+              formMode={licenseFormMode}
+              onFormModeChange={setLicenseFormMode}
+            />
           ) : activeNav === 'Dashboard' ? (
             <DashboardPage
               favorites={favorites}
@@ -1413,8 +2334,8 @@ export default function App() {
             <WorkInProgressPage title={activeNav} />
           )}
 
-          {/* Footer */}
-          <div className="mt-8 flex flex-col items-center gap-1 pb-4">
+          {activeNav !== 'Query' && (
+          <div className="mt-6 flex flex-col items-center gap-1">
             <div className="flex items-center gap-1.5 text-slate-400">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" opacity="0.5">
                 <path d="M10 2a8 8 0 1 0 0 16A8 8 0 0 0 10 2zm1 11H9V9h2v4zm0-6H9V5h2v2z" />
@@ -1423,6 +2344,7 @@ export default function App() {
             </div>
             <span className="text-xs text-slate-300">v 1.4.0</span>
           </div>
+          )}
         </main>
       </div>
     </div>
@@ -1431,7 +2353,4674 @@ export default function App() {
 
 /* ── Pages ───────────────────────────────────────────────────────── */
 
+const PIPELINE_STAGE_TAG = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#12518c]/10 text-[#12518c] whitespace-nowrap'
+
+function PipelineViewModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: 'listing' | 'kanban'
+  onChange: (mode: 'listing' | 'kanban') => void
+}) {
+  return (
+    <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 ml-auto" role="group" aria-label="Pipeline view">
+      <button
+        type="button"
+        onClick={() => onChange('listing')}
+        className={`inline-flex items-center justify-center w-9 h-8 rounded-md transition-colors ${
+          mode === 'listing' ? 'bg-white text-[#12518c] shadow-sm' : 'text-slate-400 hover:text-slate-600'
+        }`}
+        title="Listing view"
+        aria-label="Listing view"
+        aria-pressed={mode === 'listing'}
+      >
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('kanban')}
+        className={`inline-flex items-center justify-center w-9 h-8 rounded-md transition-colors ${
+          mode === 'kanban' ? 'bg-white text-[#12518c] shadow-sm' : 'text-slate-400 hover:text-slate-600'
+        }`}
+        title="Kanban view"
+        aria-label="Kanban view"
+        aria-pressed={mode === 'kanban'}
+      >
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1.75" y="2.5" width="3.5" height="11" rx="1" />
+          <rect x="6.25" y="2.5" width="3.5" height="7" rx="1" />
+          <rect x="10.75" y="2.5" width="3.5" height="9" rx="1" />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
+function PipelineProspectsKanban({
+  prospects,
+  onOpen,
+  onMoveStage,
+}: {
+  prospects: PipelineProspect[]
+  onOpen: (prospect: PipelineProspect) => void
+  onMoveStage: (id: number, stage: PipelineProspect['stage']) => void
+}) {
+  const [dragId, setDragId] = useState<number | null>(null)
+  const [overStage, setOverStage] = useState<PipelineProspect['stage'] | null>(null)
+
+  return (
+    <div className="overflow-x-auto pb-2">
+      <div className="flex gap-3 min-w-max px-1 py-1">
+        {PIPELINE_STAGES.map(stage => {
+          const columnItems = prospects.filter(p => p.stage === stage)
+          const isOver = overStage === stage
+          return (
+            <div
+              key={stage}
+              className={`w-[280px] shrink-0 rounded-2xl border bg-slate-50/80 flex flex-col max-h-[calc(100vh-280px)] min-h-[320px] transition-colors ${
+                isOver ? 'border-[#12518c] bg-[#12518c]/5' : 'border-slate-200'
+              }`}
+              onDragOver={e => {
+                e.preventDefault()
+                setOverStage(stage)
+              }}
+              onDragLeave={() => setOverStage(prev => (prev === stage ? null : prev))}
+              onDrop={e => {
+                e.preventDefault()
+                const id = Number(e.dataTransfer.getData('text/pipeline-prospect-id') || dragId)
+                if (Number.isFinite(id)) onMoveStage(id, stage)
+                setDragId(null)
+                setOverStage(null)
+              }}
+            >
+              <div className="px-3 py-3 border-b border-slate-200/80 flex items-center justify-between gap-2 sticky top-0 bg-slate-50/95 rounded-t-2xl z-10">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-800 leading-snug">{stage}</p>
+                </div>
+                <span className="inline-flex min-w-[22px] h-5 px-1.5 rounded-full text-[10px] font-bold items-center justify-center bg-white border border-slate-200 text-slate-600 shrink-0">
+                  {columnItems.length}
+                </span>
+              </div>
+              <div className="p-2.5 space-y-2 overflow-y-auto flex-1">
+                {columnItems.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-8 px-2">No prospects in this stage</p>
+                ) : (
+                  columnItems.map(row => (
+                    <button
+                      key={row.id}
+                      type="button"
+                      draggable
+                      onDragStart={e => {
+                        setDragId(row.id)
+                        e.dataTransfer.setData('text/pipeline-prospect-id', String(row.id))
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      onDragEnd={() => {
+                        setDragId(null)
+                        setOverStage(null)
+                      }}
+                      onClick={() => onOpen(row)}
+                      className={`w-full text-left rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm hover:border-[#12518c]/40 hover:shadow transition-all cursor-grab active:cursor-grabbing ${
+                        dragId === row.id ? 'opacity-60 ring-2 ring-[#12518c]/20' : ''
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-900 line-clamp-2">{row.company}</p>
+                        <CompanyStatusBadge status={row.status} />
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {row.firstName} {row.lastName}
+                        {row.title && row.title !== '—' ? ` · ${row.title}` : ''}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-400">
+                        <span>{row.owner}</span>
+                        <span aria-hidden>·</span>
+                        <span>{row.lastActivity}</span>
+                        <span aria-hidden>·</span>
+                        <span>{row.source}</span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function PipelineTasksKanban({
+  tasks,
+  onOpenCompany,
+  onToggleComplete,
+  onViewAttachment,
+}: {
+  tasks: PipelineTask[]
+  onOpenCompany: (company: string) => void
+  onToggleComplete: (id: number) => void
+  onViewAttachment: (task: PipelineTask) => void
+}) {
+  const columns = [
+    { id: 'open' as const, label: 'Open', filter: (t: PipelineTask) => !t.completed },
+    { id: 'completed' as const, label: 'Completed', filter: (t: PipelineTask) => t.completed },
+  ]
+  const [dragId, setDragId] = useState<number | null>(null)
+  const [overColumn, setOverColumn] = useState<'open' | 'completed' | null>(null)
+
+  return (
+    <div className="overflow-x-auto pb-2">
+      <div className="flex gap-3 min-w-max px-1 py-1">
+        {columns.map(column => {
+          const columnItems = tasks.filter(column.filter)
+          const isOver = overColumn === column.id
+          return (
+            <div
+              key={column.id}
+              className={`w-[320px] shrink-0 rounded-2xl border bg-slate-50/80 flex flex-col max-h-[calc(100vh-280px)] min-h-[320px] transition-colors ${
+                isOver ? 'border-[#12518c] bg-[#12518c]/5' : 'border-slate-200'
+              }`}
+              onDragOver={e => {
+                e.preventDefault()
+                setOverColumn(column.id)
+              }}
+              onDragLeave={() => setOverColumn(prev => (prev === column.id ? null : prev))}
+              onDrop={e => {
+                e.preventDefault()
+                const id = Number(e.dataTransfer.getData('text/pipeline-task-id') || dragId)
+                const task = tasks.find(t => t.id === id)
+                if (task) {
+                  const shouldComplete = column.id === 'completed'
+                  if (task.completed !== shouldComplete) onToggleComplete(task.id)
+                }
+                setDragId(null)
+                setOverColumn(null)
+              }}
+            >
+              <div className="px-3 py-3 border-b border-slate-200/80 flex items-center justify-between gap-2 sticky top-0 bg-slate-50/95 rounded-t-2xl z-10">
+                <p className="text-xs font-semibold text-slate-800">{column.label}</p>
+                <span className="inline-flex min-w-[22px] h-5 px-1.5 rounded-full text-[10px] font-bold items-center justify-center bg-white border border-slate-200 text-slate-600">
+                  {columnItems.length}
+                </span>
+              </div>
+              <div className="p-2.5 space-y-2 overflow-y-auto flex-1">
+                {columnItems.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-8 px-2">No {column.label.toLowerCase()} tasks</p>
+                ) : (
+                  columnItems.map(row => (
+                    <div
+                      key={row.id}
+                      draggable
+                      onDragStart={e => {
+                        setDragId(row.id)
+                        e.dataTransfer.setData('text/pipeline-task-id', String(row.id))
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      onDragEnd={() => {
+                        setDragId(null)
+                        setOverColumn(null)
+                      }}
+                      className={`rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm hover:border-[#12518c]/40 transition-all cursor-grab active:cursor-grabbing ${
+                        dragId === row.id ? 'opacity-60 ring-2 ring-[#12518c]/20' : ''
+                      } ${row.completed ? 'opacity-80' : ''}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={row.completed}
+                          onClick={() => onToggleComplete(row.id)}
+                          className={`mt-0.5 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 ${
+                            row.completed ? 'border-[#12518c] bg-[#12518c] text-white' : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {row.completed && (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 5.2L4.2 7.5 8 2.5" /></svg>
+                          )}
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-medium ${row.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
+                            {row.task}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => onOpenCompany(row.company)}
+                            className="mt-1 text-xs font-medium text-[#12518c] hover:underline text-left"
+                          >
+                            {row.company}
+                          </button>
+                          <p className="mt-1 text-[11px] text-slate-400">{row.createdBy} · {row.date}</p>
+                          {row.attachment && (
+                            <button
+                              type="button"
+                              onClick={() => onViewAttachment(row)}
+                              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-[#12518c]"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" /></svg>
+                              {row.attachment.name}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function PipelinePage({
+  activeTab,
+  onTabChange,
+  selectedProspectId,
+  onSelectProspect,
+}: {
+  activeTab: (typeof PIPELINE_TABS)[number]
+  onTabChange: (tab: (typeof PIPELINE_TABS)[number]) => void
+  selectedProspectId: number | null
+  onSelectProspect: (prospect: PipelineProspect | null) => void
+}) {
+  const prospectCols = useTableColumns([
+    { key: 'company', label: 'Prospect Company' },
+    { key: 'firstName', label: 'First Name' },
+    { key: 'lastName', label: 'Last Name' },
+    { key: 'title', label: 'Title' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'email', label: 'Email' },
+    { key: 'source', label: 'Source' },
+    { key: 'stage', label: 'Current Stage' },
+    { key: 'lastActivity', label: 'Last Activity' },
+    { key: 'owner', label: 'Owner' },
+  ])
+  const taskCols = useTableColumns([
+    { key: 'company', label: 'Prospect Company' },
+    { key: 'task', label: 'Task' },
+    { key: 'attachment', label: 'Attachment' },
+    { key: 'createdBy', label: 'Created By' },
+    { key: 'date', label: 'Date' },
+  ])
+
+  const [prospects, setProspects] = useState<PipelineProspect[]>(PIPELINE_PROSPECTS)
+  const [tasks, setTasks] = useState<PipelineTask[]>(PIPELINE_TASKS)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<(typeof PIPELINE_STATUSES)[number] | ''>('Active')
+  const [stageFilter, setStageFilter] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('')
+  const [specialistFilter, setSpecialistFilter] = useState('')
+  const [taskViewFilter, setTaskViewFilter] = useState('')
+  const [taskAttachmentFilter, setTaskAttachmentFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [sortDesc, setSortDesc] = useState(true)
+  const [taskSortDesc, setTaskSortDesc] = useState(true)
+  const [viewingAttachment, setViewingAttachment] = useState<PipelineTask | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const [pipelineView, setPipelineView] = useState<'listing' | 'kanban'>(() => {
+    try {
+      const saved = localStorage.getItem('pipeline-list-view')
+      return saved === 'kanban' || saved === 'listing' ? saved : 'listing'
+    } catch {
+      return 'listing'
+    }
+  })
+
+  const setViewMode = (mode: 'listing' | 'kanban') => {
+    setPipelineView(mode)
+    try {
+      localStorage.setItem('pipeline-list-view', mode)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const selectedProspect = selectedProspectId != null
+    ? prospects.find(p => p.id === selectedProspectId) ?? null
+    : null
+  const openTasks = tasks.filter(t => !t.completed).length
+
+  const showToast = (message: string) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 3200)
+  }
+
+  const handleTabChange = (tab: (typeof PIPELINE_TABS)[number]) => {
+    onTabChange(tab)
+    setSearch('')
+    setStageFilter('')
+    setSourceFilter('')
+    setSpecialistFilter('')
+    setTaskViewFilter('')
+    setTaskAttachmentFilter('')
+    setStatusFilter(tab === 'Prospects' ? 'Active' : '')
+    setPage(1)
+    setAddOpen(false)
+  }
+
+  const filteredProspects = prospects
+    .filter(row => {
+      const q = search.trim().toLowerCase()
+      const matchesSearch =
+        !q ||
+        row.company.toLowerCase().includes(q) ||
+        row.firstName.toLowerCase().includes(q) ||
+        row.lastName.toLowerCase().includes(q) ||
+        row.title.toLowerCase().includes(q) ||
+        row.email.toLowerCase().includes(q) ||
+        row.phone.toLowerCase().includes(q) ||
+        row.source.toLowerCase().includes(q) ||
+        row.stage.toLowerCase().includes(q) ||
+        row.owner.toLowerCase().includes(q)
+      return (
+        matchesSearch &&
+        (!statusFilter || row.status === statusFilter) &&
+        (!stageFilter || row.stage === stageFilter) &&
+        (!sourceFilter || row.source === sourceFilter) &&
+        (!specialistFilter || row.owner === specialistFilter)
+      )
+    })
+    .sort((a, b) => {
+      const cmp = parsePipelineDate(a.lastActivity) - parsePipelineDate(b.lastActivity)
+      return sortDesc ? -cmp : cmp
+    })
+
+  const filteredTasks = tasks
+    .filter(row => {
+      const q = search.trim().toLowerCase()
+      const matchesSearch =
+        !q ||
+        row.task.toLowerCase().includes(q) ||
+        row.company.toLowerCase().includes(q) ||
+        row.createdBy.toLowerCase().includes(q)
+      const matchesView =
+        !taskViewFilter ||
+        (taskViewFilter === 'Open' ? !row.completed : row.completed)
+      const matchesAttachment =
+        !taskAttachmentFilter ||
+        (taskAttachmentFilter === 'Has attachment' ? row.attachment != null : row.attachment == null)
+      return (
+        matchesSearch &&
+        matchesView &&
+        matchesAttachment &&
+        (!specialistFilter || row.createdBy === specialistFilter)
+      )
+    })
+    .sort((a, b) => {
+      const cmp = parsePipelineDate(a.date) - parsePipelineDate(b.date)
+      return taskSortDesc ? -cmp : cmp
+    })
+
+  const prospectFiltersActive = !!(search || statusFilter || stageFilter || sourceFilter || specialistFilter)
+  const taskFiltersActive = !!(search || taskViewFilter || taskAttachmentFilter || specialistFilter)
+  const filtersActive = activeTab === 'Prospects' ? prospectFiltersActive : taskFiltersActive
+
+  const clearFilters = () => {
+    setSearch('')
+    setStatusFilter('')
+    setStageFilter('')
+    setSourceFilter('')
+    setSpecialistFilter('')
+    setTaskViewFilter('')
+    setTaskAttachmentFilter('')
+    setPage(1)
+  }
+
+  const openProspect = (company: string) => {
+    const match = prospects.find(p => p.company === company)
+    if (match) onSelectProspect(match)
+  }
+
+  const updateProspect = (next: PipelineProspect) => {
+    setProspects(prev => prev.map(p => (p.id === next.id ? next : p)))
+    onSelectProspect(next)
+  }
+
+  const deleteProspect = (id: number) => {
+    setProspects(prev => prev.filter(p => p.id !== id))
+    setTasks(prev => prev.filter(t => {
+      const prospect = prospects.find(p => p.id === id)
+      return !prospect || t.company !== prospect.company
+    }))
+    onSelectProspect(null)
+    showToast('Prospect deleted')
+  }
+
+  const addProspect = (row: Omit<PipelineProspect, 'id' | 'lastActivity'>) => {
+    const created: PipelineProspect = {
+      ...row,
+      id: Math.max(0, ...prospects.map(p => p.id)) + 1,
+      lastActivity: formatPipelineDate(),
+    }
+    setProspects(prev => [created, ...prev])
+    setAddOpen(false)
+    setStatusFilter(created.status)
+    setPage(1)
+    showToast(`Prospect added for ${created.company}`)
+  }
+
+  const addTask = (row: Omit<PipelineTask, 'id'>) => {
+    const created: PipelineTask = {
+      ...row,
+      id: Math.max(0, ...tasks.map(t => t.id)) + 1,
+    }
+    setTasks(prev => [created, ...prev])
+    setAddOpen(false)
+    setPage(1)
+    showToast(`Task added for ${created.company}`)
+  }
+
+  const toggleTaskComplete = (id: number) => {
+    setTasks(prev => prev.map(task => {
+      if (task.id !== id) return task
+      return { ...task, completed: !task.completed }
+    }))
+  }
+
+  const moveProspectStage = (id: number, stage: PipelineProspect['stage']) => {
+    setProspects(prev => prev.map(p => (
+      p.id === id && p.stage !== stage
+        ? { ...p, stage, lastActivity: formatPipelineDate() }
+        : p
+    )))
+  }
+
+  const downloadTaskAttachment = (task: PipelineTask) => {
+    if (!task.attachment) return
+    const blob = new Blob([`Attachment for ${task.task}`], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = task.attachment.name
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const tabButtonClass = (tab: (typeof PIPELINE_TABS)[number]) =>
+    `px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+      activeTab === tab
+        ? 'bg-[#12518c] text-white shadow-sm'
+        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+    }`
+
+  return (
+    <>
+      {toast && <CellarToast message={toast} />}
+      {viewingAttachment?.attachment && (
+        <PipelineTaskAttachmentModal
+          task={viewingAttachment}
+          onClose={() => setViewingAttachment(null)}
+          onDownload={() => downloadTaskAttachment(viewingAttachment)}
+        />
+      )}
+      {addOpen && activeTab === 'Prospects' && !selectedProspect && (
+        <PipelineAddProspectModal
+          onClose={() => setAddOpen(false)}
+          onSave={addProspect}
+        />
+      )}
+      {addOpen && activeTab === 'My Tasks' && !selectedProspect && (
+        <PipelineAddTaskModal
+          companies={[...new Set(prospects.map(p => p.company))]}
+          onClose={() => setAddOpen(false)}
+          onSave={addTask}
+        />
+      )}
+
+      {selectedProspect ? (
+        <PipelineProspectDetailPage
+          prospect={selectedProspect}
+          tasks={tasks.filter(t => t.company === selectedProspect.company)}
+          onBack={() => onSelectProspect(null)}
+          onUpdate={updateProspect}
+          onDelete={() => deleteProspect(selectedProspect.id)}
+          onTasksChange={updater => {
+            setTasks(prev => {
+              const others = prev.filter(t => t.company !== selectedProspect.company)
+              const current = prev.filter(t => t.company === selectedProspect.company)
+              const next = typeof updater === 'function' ? updater(current) : updater
+              return [...next, ...others]
+            })
+          }}
+          onToast={showToast}
+        />
+      ) : (
+        <>
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Pipeline</h1>
+          <p className="mt-1 text-sm text-slate-500">Track prospects and follow-up work from inquiry through onboarding.</p>
+        </div>
+        <TableAddNewButton
+          onClick={() => setAddOpen(true)}
+          label={activeTab === 'My Tasks' ? 'Add Task' : 'Add New'}
+        />
+      </div>
+
+      <div className="flex items-center gap-2 mb-5 flex-wrap">
+        {PIPELINE_TABS.map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => handleTabChange(tab)}
+            className={tabButtonClass(tab)}
+          >
+            {tab}
+            {tab === 'My Tasks' && openTasks > 0 && (
+              <span className={`ml-1.5 inline-flex min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold items-center justify-center ${
+                activeTab === tab ? 'bg-white/20 text-white' : 'bg-[#12518c] text-white'
+              }`}>
+                {openTasks}
+              </span>
+            )}
+          </button>
+        ))}
+        <PipelineViewModeToggle mode={pipelineView} onChange={setViewMode} />
+      </div>
+
+      {activeTab === 'Prospects' ? (
+        pipelineView === 'kanban' ? (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+          <TableSectionHeader title="Prospects board" subtitle="Drag cards between stages · click a card to open details">
+            <AddressSearchInput
+              value={search}
+              onChange={v => { setSearch(v); setPage(1) }}
+            />
+            <Select
+              placeholder="Status"
+              options={[...PIPELINE_STATUSES]}
+              value={statusFilter}
+              onChange={v => { setStatusFilter(v as typeof statusFilter); setPage(1) }}
+            />
+            <Select
+              placeholder="Current Stage"
+              options={[...PIPELINE_STAGES]}
+              value={stageFilter}
+              onChange={v => { setStageFilter(v); setPage(1) }}
+            />
+            <Select
+              placeholder="Source"
+              options={[...PIPELINE_SOURCES]}
+              value={sourceFilter}
+              onChange={v => { setSourceFilter(v); setPage(1) }}
+            />
+            <Select
+              placeholder="Specialist"
+              options={[...COMPANY_SPECIALISTS]}
+              value={specialistFilter}
+              onChange={v => { setSpecialistFilter(v); setPage(1) }}
+            />
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M3 3l8 8M11 3l-8 8" />
+                </svg>
+                Clear
+              </button>
+            )}
+          </TableSectionHeader>
+          <div className="px-4 pb-4">
+            <PipelineProspectsKanban
+              prospects={filteredProspects}
+              onOpen={onSelectProspect}
+              onMoveStage={moveProspectStage}
+            />
+          </div>
+        </section>
+        ) : (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+          <TableSectionHeader title="Prospects" subtitle="Search by company, contact, email, stage, or owner">
+            <AddressSearchInput
+              value={search}
+              onChange={v => { setSearch(v); setPage(1) }}
+            />
+            <Select
+              placeholder="Status"
+              options={[...PIPELINE_STATUSES]}
+              value={statusFilter}
+              onChange={v => { setStatusFilter(v as typeof statusFilter); setPage(1) }}
+            />
+            <Select
+              placeholder="Current Stage"
+              options={[...PIPELINE_STAGES]}
+              value={stageFilter}
+              onChange={v => { setStageFilter(v); setPage(1) }}
+            />
+            <Select
+              placeholder="Source"
+              options={[...PIPELINE_SOURCES]}
+              value={sourceFilter}
+              onChange={v => { setSourceFilter(v); setPage(1) }}
+            />
+            <Select
+              placeholder="Specialist"
+              options={[...COMPANY_SPECIALISTS]}
+              value={specialistFilter}
+              onChange={v => { setSpecialistFilter(v); setPage(1) }}
+            />
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M3 3l8 8M11 3l-8 8" />
+                </svg>
+                Clear
+              </button>
+            )}
+            <ColumnSettingsDropdown {...prospectCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+          </TableSectionHeader>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px]">
+              <thead>
+                <tr className="border-y border-slate-100 bg-slate-50/60">
+                  {prospectCols.show('company') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Prospect Company</th>}
+                  {prospectCols.show('firstName') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">First Name</th>}
+                  {prospectCols.show('lastName') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Last Name</th>}
+                  {prospectCols.show('title') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Title</th>}
+                  {prospectCols.show('phone') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Phone</th>}
+                  {prospectCols.show('email') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>}
+                  {prospectCols.show('source') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Source</th>}
+                  {prospectCols.show('stage') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-center">Current Stage</th>}
+                  {prospectCols.show('lastActivity') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">
+                      <button
+                        type="button"
+                        onClick={() => setSortDesc(v => !v)}
+                        className="inline-flex items-center gap-1 hover:text-[#12518c] transition-colors"
+                      >
+                        Last Activity
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={sortDesc ? '' : 'rotate-180'}>
+                          <path d="M5 2.5v5M2.5 5L5 7.5 7.5 5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </th>
+                  )}
+                  {prospectCols.show('owner') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Owner</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProspects.length === 0 ? (
+                  <tr>
+                    <td colSpan={Math.max(1, prospectCols.visibleCount)} className="px-4 py-14 text-center">
+                      <p className="text-sm font-medium text-slate-500">No prospects found</p>
+                      <p className="text-xs text-slate-400 mt-1">Adjust filters or add a new prospect to the pipeline.</p>
+                      <button
+                        type="button"
+                        onClick={() => setAddOpen(true)}
+                        className="mt-4 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
+                      >
+                        Add New
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredProspects.map((row, i) => {
+                    const phoneHref = pipelinePhoneHref(row.phone)
+                    return (
+                      <tr
+                        key={row.id}
+                        className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
+                          i % 2 === 1 ? 'bg-[#BBDCFC]/25' : 'bg-white'
+                        }`}
+                      >
+                        {prospectCols.show('company') && (
+                          <td className="px-4 py-3 text-sm font-medium max-w-[240px]">
+                            <button
+                              type="button"
+                              onClick={() => onSelectProspect(row)}
+                              className="text-left text-[#12518c] hover:underline line-clamp-2"
+                              title={row.company}
+                            >
+                              {row.company}
+                            </button>
+                          </td>
+                        )}
+                        {prospectCols.show('firstName') && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{row.firstName}</td>}
+                        {prospectCols.show('lastName') && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{row.lastName}</td>}
+                        {prospectCols.show('title') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{row.title}</td>}
+                        {prospectCols.show('phone') && (
+                          <td className="px-4 py-3 text-sm whitespace-nowrap">
+                            {phoneHref ? (
+                              <a href={phoneHref} className="text-slate-700 hover:text-[#12518c] hover:underline">{row.phone}</a>
+                            ) : (
+                              row.phone
+                            )}
+                          </td>
+                        )}
+                        {prospectCols.show('email') && (
+                          <td className="px-4 py-3 text-sm whitespace-nowrap">
+                            <a href={`mailto:${row.email}`} className="text-[#12518c] hover:underline">{row.email}</a>
+                          </td>
+                        )}
+                        {prospectCols.show('source') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{row.source}</td>}
+                        {prospectCols.show('stage') && (
+                          <td className="px-4 py-3 text-center">
+                            <span className={PIPELINE_STAGE_TAG}>{row.stage}</span>
+                          </td>
+                        )}
+                        {prospectCols.show('lastActivity') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{row.lastActivity}</td>}
+                        {prospectCols.show('owner') && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{row.owner}</td>}
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          <AddressTableFooter total={filteredProspects.length} page={page} onPageChange={setPage} />
+        </section>
+        )
+      ) : (
+        pipelineView === 'kanban' ? (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+          <TableSectionHeader title="Tasks board" subtitle="Drag between Open and Completed · click a company to open the prospect">
+            <AddressSearchInput
+              value={search}
+              onChange={v => { setSearch(v); setPage(1) }}
+              placeholder="Search Here"
+            />
+            <Select
+              placeholder="Status"
+              options={[...PIPELINE_TASK_VIEW_FILTERS]}
+              value={taskViewFilter}
+              onChange={v => { setTaskViewFilter(v); setPage(1) }}
+            />
+            <Select
+              placeholder="Attachment"
+              options={[...PIPELINE_TASK_ATTACHMENT_FILTERS]}
+              value={taskAttachmentFilter}
+              onChange={v => { setTaskAttachmentFilter(v); setPage(1) }}
+            />
+            <Select
+              placeholder="Created By"
+              options={[...COMPANY_SPECIALISTS]}
+              value={specialistFilter}
+              onChange={v => { setSpecialistFilter(v); setPage(1) }}
+            />
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M3 3l8 8M11 3l-8 8" />
+                </svg>
+                Clear
+              </button>
+            )}
+          </TableSectionHeader>
+          <div className="px-4 pb-4">
+            <PipelineTasksKanban
+              tasks={filteredTasks}
+              onOpenCompany={openProspect}
+              onToggleComplete={toggleTaskComplete}
+              onViewAttachment={setViewingAttachment}
+            />
+          </div>
+        </section>
+        ) : (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+          <TableSectionHeader title="My Tasks" subtitle="Mark complete, open attachments, or filter by creator">
+            <AddressSearchInput
+              value={search}
+              onChange={v => { setSearch(v); setPage(1) }}
+              placeholder="Search Here"
+            />
+            <Select
+              placeholder="Status"
+              options={[...PIPELINE_TASK_VIEW_FILTERS]}
+              value={taskViewFilter}
+              onChange={v => { setTaskViewFilter(v); setPage(1) }}
+            />
+            <Select
+              placeholder="Attachment"
+              options={[...PIPELINE_TASK_ATTACHMENT_FILTERS]}
+              value={taskAttachmentFilter}
+              onChange={v => { setTaskAttachmentFilter(v); setPage(1) }}
+            />
+            <Select
+              placeholder="Created By"
+              options={[...COMPANY_SPECIALISTS]}
+              value={specialistFilter}
+              onChange={v => { setSpecialistFilter(v); setPage(1) }}
+            />
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M3 3l8 8M11 3l-8 8" />
+                </svg>
+                Clear
+              </button>
+            )}
+            <ColumnSettingsDropdown {...taskCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+          </TableSectionHeader>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px]">
+              <thead>
+                <tr className="border-y border-slate-100 bg-slate-50/60">
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-center w-16">Action</th>
+                  {taskCols.show('company') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Prospect Company</th>}
+                  {taskCols.show('task') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Task</th>}
+                  {taskCols.show('attachment') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Attachment</th>}
+                  {taskCols.show('createdBy') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Created By</th>}
+                  {taskCols.show('date') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">
+                      <button
+                        type="button"
+                        onClick={() => setTaskSortDesc(v => !v)}
+                        className="inline-flex items-center gap-1 hover:text-[#12518c] transition-colors"
+                      >
+                        Date
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={taskSortDesc ? '' : 'rotate-180'}>
+                          <path d="M5 2.5v5M2.5 5L5 7.5 7.5 5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTasks.length === 0 ? (
+                  <tr>
+                    <td colSpan={Math.max(1, taskCols.visibleCount + 1)} className="px-4 py-14 text-center">
+                      <p className="text-sm font-medium text-slate-500">No tasks found</p>
+                      <p className="text-xs text-slate-400 mt-1">Add a follow-up or clear filters to see your pipeline work.</p>
+                      <button
+                        type="button"
+                        onClick={() => setAddOpen(true)}
+                        className="mt-4 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
+                      >
+                        Add Task
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTasks.map((row, i) => (
+                    <tr
+                      key={row.id}
+                      className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
+                        row.completed
+                          ? 'bg-slate-50/80 opacity-75'
+                          : i % 2 === 1
+                            ? 'bg-[#BBDCFC]/25'
+                            : 'bg-white'
+                      }`}
+                    >
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={row.completed}
+                          aria-label={row.completed ? 'Mark task open' : 'Mark task complete'}
+                          onClick={() => toggleTaskComplete(row.id)}
+                          className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                            row.completed
+                              ? 'border-[#12518c] bg-[#12518c] text-white'
+                              : 'border-slate-300 bg-white hover:border-[#12518c]'
+                          }`}
+                        >
+                          {row.completed && (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M2 5.2L4.2 7.5 8 2.5" />
+                            </svg>
+                          )}
+                        </button>
+                      </td>
+                      {taskCols.show('company') && (
+                        <td className="px-4 py-3 text-sm font-medium max-w-[240px]">
+                          <button
+                            type="button"
+                            onClick={() => openProspect(row.company)}
+                            className="text-left text-[#12518c] hover:underline line-clamp-2"
+                            title={row.company}
+                          >
+                            {row.company}
+                          </button>
+                        </td>
+                      )}
+                      {taskCols.show('task') && (
+                        <td className={`px-4 py-3 text-sm ${row.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
+                          {row.task}
+                        </td>
+                      )}
+                      {taskCols.show('attachment') && (
+                        <td className="px-4 py-3">
+                          {row.attachment ? (
+                            <PipelineAttachmentActions
+                              fileName={row.attachment.name}
+                              onView={() => setViewingAttachment(row)}
+                              onDownload={() => downloadTaskAttachment(row)}
+                            />
+                          ) : (
+                            <span className="text-sm text-slate-400">—</span>
+                          )}
+                        </td>
+                      )}
+                      {taskCols.show('createdBy') && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{row.createdBy}</td>}
+                      {taskCols.show('date') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{row.date}</td>}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <AddressTableFooter total={filteredTasks.length} page={page} onPageChange={setPage} />
+        </section>
+        )
+      )}
+        </>
+      )}
+    </>
+  )
+}
+
+function PipelineProspectDetailPage({
+  prospect,
+  tasks,
+  onBack,
+  onUpdate,
+  onDelete,
+  onTasksChange,
+  onToast,
+}: {
+  prospect: PipelineProspect
+  tasks: PipelineTask[]
+  onBack: () => void
+  onUpdate: (prospect: PipelineProspect) => void
+  onDelete: () => void
+  onTasksChange: (tasks: PipelineTask[] | ((prev: PipelineTask[]) => PipelineTask[])) => void
+  onToast: (message: string) => void
+}) {
+  const phoneHref = pipelinePhoneHref(prospect.phone)
+  const stageFormRef = useRef<HTMLDivElement>(null)
+
+  const [editing, setEditing] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [notes, setNotes] = useState('Initial outreach completed. Waiting on signed inquiry form.')
+  const [stageForm, setStageForm] = useState({
+    stage: prospect.stage,
+    notes: '',
+    attachmentName: '',
+    attachmentDescription: '',
+  })
+  const [taskForm, setTaskForm] = useState({
+    task: '',
+    assignTo: prospect.owner,
+    attachmentName: '',
+    attachmentDescription: '',
+  })
+  const [docForm, setDocForm] = useState({ name: '', description: '' })
+  const [editingStageId, setEditingStageId] = useState<number | null>(null)
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null)
+  const [stageHistory, setStageHistory] = useState<PipelineStageHistoryItem[]>(() => {
+    const startStage: (typeof PIPELINE_STAGES)[number] = 'Call Scheduled'
+    const hasMove = prospect.stage !== startStage
+    const startEntry: PipelineStageHistoryItem = {
+      id: 1,
+      stage: hasMove ? startStage : prospect.stage,
+      fromStage: null,
+      direction: 'start',
+      notes: `Entered pipeline at ${hasMove ? startStage : prospect.stage}.`,
+      by: prospect.owner,
+      date: prospect.lastActivity,
+      attachment: null,
+    }
+    if (!hasMove) return [startEntry]
+    return [
+      {
+        id: 2,
+        stage: prospect.stage,
+        fromStage: startStage,
+        direction: getPipelineStageDirection(startStage, prospect.stage),
+        notes: `Moved to ${prospect.stage}. Initial outreach completed and signed inquiry form received from the prospect for review.`,
+        by: prospect.owner,
+        date: prospect.lastActivity,
+        attachment: 'inquiry-form.pdf',
+      },
+      startEntry,
+    ]
+  })
+  const [docs, setDocs] = useState<PipelineDocItem[]>([
+    { id: 1, name: 'inquiry-form.pdf', description: 'Signed inquiry packet', by: prospect.owner, date: prospect.lastActivity },
+  ])
+  const [viewingFile, setViewingFile] = useState<{ name: string; subtitle?: string } | null>(null)
+  const [previewItem, setPreviewItem] = useState<{
+    title: string
+    subtitle?: string
+    body: string
+    attachmentName?: string | null
+  } | null>(null)
+  const [detailLayout, setDetailLayout] = useState<'classic' | 'jira'>(() => {
+    try {
+      const saved = localStorage.getItem('pipeline-detail-layout')
+      return saved === 'jira' || saved === 'classic' ? saved : 'classic'
+    } catch {
+      return 'classic'
+    }
+  })
+
+  const setLayout = (next: 'classic' | 'jira') => {
+    setDetailLayout(next)
+    try {
+      localStorage.setItem('pipeline-detail-layout', next)
+    } catch {
+      /* ignore */
+    }
+  }
+  const [activityTab, setActivityTab] = useState<'stages' | 'tasks'>('stages')
+
+  const visitedStages = new Set(stageHistory.map(item => item.stage))
+  visitedStages.add(prospect.stage)
+
+  const openFile = (name: string, subtitle?: string) => setViewingFile({ name, subtitle })
+  const downloadFile = (name: string) => downloadPipelineFile(name, `${prospect.company} attachment`)
+
+  const fieldClass =
+    'h-9 w-full px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]'
+  const areaClass =
+    'w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] resize-y min-h-[88px]'
+
+  const selectStageForMove = (stage: (typeof PIPELINE_STAGES)[number]) => {
+    setActivityTab('stages')
+    setStageForm(f => ({ ...f, stage }))
+    stageFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  const saveStage = () => {
+    if (!stageForm.stage) return
+    if (stageForm.stage === prospect.stage && !stageForm.notes.trim() && !stageForm.attachmentName.trim() && editingStageId == null) {
+      onToast('Choose a different stage or add a note to save')
+      return
+    }
+    if (editingStageId != null) {
+      setStageHistory(prev => prev.map(item => (
+        item.id === editingStageId
+          ? {
+              ...item,
+              stage: stageForm.stage,
+              notes: stageForm.notes.trim() || item.notes,
+              attachment: stageForm.attachmentName.trim() || null,
+              date: formatPipelineDate(),
+            }
+          : item
+      )))
+      if (stageForm.stage !== prospect.stage) {
+        onUpdate({
+          ...prospect,
+          stage: stageForm.stage,
+          lastActivity: formatPipelineDate(),
+        })
+      } else {
+        onUpdate({ ...prospect, lastActivity: formatPipelineDate() })
+      }
+      setEditingStageId(null)
+      setStageForm({ stage: stageForm.stage, notes: '', attachmentName: '', attachmentDescription: '' })
+      onToast('Stage entry updated')
+      return
+    }
+    const direction = getPipelineStageDirection(prospect.stage, stageForm.stage)
+    const entry: PipelineStageHistoryItem = {
+      id: Math.max(0, ...stageHistory.map(s => s.id)) + 1,
+      stage: stageForm.stage,
+      fromStage: prospect.stage,
+      direction,
+      notes: stageForm.notes.trim() || (
+        direction === 'back'
+          ? `Returned to ${stageForm.stage}`
+          : direction === 'forward'
+            ? `Advanced to ${stageForm.stage}`
+            : direction === 'same'
+              ? `Updated ${stageForm.stage}`
+              : `Moved to ${stageForm.stage}`
+      ),
+      by: 'Hammad Iftikhar',
+      date: formatPipelineDate(),
+      attachment: stageForm.attachmentName.trim() || null,
+    }
+    setStageHistory(prev => [entry, ...prev])
+    onUpdate({
+      ...prospect,
+      stage: stageForm.stage,
+      lastActivity: formatPipelineDate(),
+    })
+    setStageForm({ stage: stageForm.stage, notes: '', attachmentName: '', attachmentDescription: '' })
+    onToast(
+      direction === 'back'
+        ? `Moved back to ${entry.stage}`
+        : direction === 'forward'
+          ? `Moved forward to ${entry.stage}`
+          : direction === 'same'
+            ? `Updated ${entry.stage}`
+            : `Moved to ${entry.stage}`
+    )
+  }
+
+  const editStageEntry = (item: PipelineStageHistoryItem) => {
+    setActivityTab('stages')
+    setEditingStageId(item.id)
+    setStageForm({
+      stage: item.stage,
+      notes: item.notes,
+      attachmentName: item.attachment ?? '',
+      attachmentDescription: '',
+    })
+    stageFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  const saveTask = () => {
+    if (!taskForm.task.trim()) return
+    const attachment = taskForm.attachmentName.trim()
+      ? {
+          name: taskForm.attachmentName.trim(),
+          size: '24 KB',
+          description: taskForm.attachmentDescription.trim() || undefined,
+        }
+      : null
+    if (editingTaskId != null) {
+      onTasksChange(prev => prev.map(t => (
+        t.id === editingTaskId
+          ? {
+              ...t,
+              task: taskForm.task.trim(),
+              createdBy: taskForm.assignTo || t.createdBy,
+              attachment: attachment
+                ? { ...attachment, size: t.attachment?.size ?? attachment.size }
+                : null,
+              date: formatPipelineDate(),
+            }
+          : t
+      )))
+      setEditingTaskId(null)
+      setTaskForm({ task: '', assignTo: prospect.owner, attachmentName: '', attachmentDescription: '' })
+      onToast('Task updated')
+      return
+    }
+    const created: PipelineTask = {
+      id: Math.max(0, ...tasks.map(t => t.id), 0) + 1,
+      task: taskForm.task.trim(),
+      company: prospect.company,
+      date: formatPipelineDate(),
+      createdBy: 'Hammad Iftikhar',
+      completed: false,
+      attachment,
+    }
+    onTasksChange(prev => [{ ...created, createdBy: taskForm.assignTo || created.createdBy }, ...prev])
+    setTaskForm({ task: '', assignTo: prospect.owner, attachmentName: '', attachmentDescription: '' })
+    onToast('Task added')
+  }
+
+  const editTaskEntry = (task: PipelineTask) => {
+    setActivityTab('tasks')
+    setEditingTaskId(task.id)
+    setTaskForm({
+      task: task.task,
+      assignTo: task.createdBy,
+      attachmentName: task.attachment?.name ?? '',
+      attachmentDescription: task.attachment?.description ?? '',
+    })
+  }
+
+  const toggleTask = (id: number) => {
+    onTasksChange(prev => prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t)))
+  }
+
+  const removeTask = (id: number) => {
+    onTasksChange(prev => prev.filter(t => t.id !== id))
+    if (editingTaskId === id) {
+      setEditingTaskId(null)
+      setTaskForm({ task: '', assignTo: prospect.owner, attachmentName: '', attachmentDescription: '' })
+    }
+    onToast('Task removed')
+  }
+
+  const saveNotes = () => {
+    onUpdate({ ...prospect, lastActivity: formatPipelineDate() })
+    onToast('Notes saved')
+  }
+
+  const uploadDoc = () => {
+    if (!docForm.name.trim()) return
+    setDocs(prev => [
+      {
+        id: Math.max(0, ...prev.map(d => d.id)) + 1,
+        name: docForm.name.trim(),
+        description: docForm.description.trim() || 'Attachment',
+        by: 'Hammad Iftikhar',
+        date: formatPipelineDate(),
+      },
+      ...prev,
+    ])
+    setDocForm({ name: '', description: '' })
+    onToast('Document uploaded')
+  }
+
+  const archiveProspect = () => {
+    onUpdate({ ...prospect, status: 'Archived', lastActivity: formatPipelineDate() })
+    onToast('Prospect archived')
+  }
+
+  const convertToClient = () => {
+    onUpdate({ ...prospect, stage: 'Contract Signed', lastActivity: formatPipelineDate() })
+    onToast('Marked for client conversion')
+  }
+
+  return (
+    <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      {editing && (
+        <PipelineEditProspectModal
+          prospect={prospect}
+          onClose={() => setEditing(false)}
+          onSave={next => {
+            onUpdate({ ...next, lastActivity: formatPipelineDate() })
+            setEditing(false)
+            onToast('Prospect updated')
+          }}
+        />
+      )}
+      {confirmDelete && (
+        <AddressModalShell maxWidth="max-w-md" onClose={() => setConfirmDelete(false)}>
+          <div className="px-5 pt-5 pb-3">
+            <h3 className="text-sm font-semibold text-slate-900">Delete prospect?</h3>
+            <p className="text-sm text-slate-600 mt-1.5">
+              This will remove <span className="font-medium">{prospect.company}</span> and its pipeline tasks. This cannot be undone.
+            </p>
+          </div>
+          <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2.5">
+            <button type="button" onClick={() => setConfirmDelete(false)} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50">Cancel</button>
+            <button type="button" onClick={onDelete} className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#bb5757] hover:bg-[#a34a4a]">Delete</button>
+          </div>
+        </AddressModalShell>
+      )}
+      {viewingFile && (
+        <PipelineFileViewModal
+          fileName={viewingFile.name}
+          subtitle={viewingFile.subtitle}
+          onClose={() => setViewingFile(null)}
+          onDownload={() => downloadFile(viewingFile.name)}
+        />
+      )}
+      {previewItem && (
+        <PipelineItemPreviewModal
+          title={previewItem.title}
+          subtitle={previewItem.subtitle}
+          body={previewItem.body}
+          attachmentName={previewItem.attachmentName}
+          onClose={() => setPreviewItem(null)}
+          onDownload={
+            previewItem.attachmentName
+              ? () => downloadFile(previewItem.attachmentName!)
+              : undefined
+          }
+        />
+      )}
+
+      {/* Header */}
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="px-5 py-4 flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#12518c] hover:underline mb-2"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M7.5 2.5L4 6l3.5 3.5" />
+              </svg>
+              Back to Pipeline
+            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{prospect.company}</h1>
+              <CompanyStatusBadge status={prospect.status} />
+              <span className={PIPELINE_STAGE_TAG}>
+                {formatPipelineStageLabel(prospect.stage, getPipelineStageVisitCount(stageHistory, prospect.stage))}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              {prospect.firstName} {prospect.lastName}
+              {prospect.title && prospect.title !== '—' ? ` · ${prospect.title}` : ''}
+              {' · '}Owner {prospect.owner}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end shrink-0">
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5" role="group" aria-label="Detail layout">
+              <button
+                type="button"
+                onClick={() => setLayout('classic')}
+                className={`h-8 px-3 rounded-md text-[11px] font-semibold transition-colors ${
+                  detailLayout === 'classic' ? 'bg-white text-[#12518c] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Classic
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayout('jira')}
+                className={`h-8 px-3 rounded-md text-[11px] font-semibold transition-colors ${
+                  detailLayout === 'jira' ? 'bg-white text-[#12518c] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Jira
+              </button>
+            </div>
+            <button type="button" onClick={() => setEditing(true)} className="h-9 px-3.5 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">Edit</button>
+            <button type="button" onClick={convertToClient} className="h-9 px-3.5 rounded-lg text-xs font-semibold text-[#12518c] bg-[#BBDCFC] hover:bg-[#a8d0f5] transition-colors">Convert to Client</button>
+            <button type="button" onClick={archiveProspect} className="h-9 px-3.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">Archive</button>
+            <button type="button" onClick={() => setConfirmDelete(true)} className="h-9 px-3.5 rounded-lg text-xs font-semibold text-[#bb5757] border border-[#bb5757]/30 bg-white hover:bg-[#bb5757]/5 transition-colors">Delete</button>
+          </div>
+        </div>
+
+        {/* Compact info strip */}
+        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+          {[
+            { label: 'Phone', value: phoneHref ? <a href={phoneHref} className="text-[#12518c] hover:underline">{prospect.phone}</a> : prospect.phone },
+            { label: 'Email', value: <a href={`mailto:${prospect.email}`} className="text-[#12518c] hover:underline break-all">{prospect.email}</a> },
+            { label: 'Source', value: prospect.source },
+            { label: 'Owner', value: prospect.owner },
+            { label: 'Last Activity', value: prospect.lastActivity },
+            { label: 'Linked Client', value: '—' },
+          ].map(item => (
+            <div key={item.label} className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
+              <p className="mt-0.5 text-sm text-slate-800 truncate">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Stage map — not a one-way progress bar */}
+        <div className="px-5 py-4 border-t border-slate-100">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <p className="text-xs font-semibold text-slate-700">Pipeline stages</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Leads can start anywhere and move forward or back. Click a stage to prepare a move.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#12518c]" /> Current
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#BBDCFC] ring-1 ring-[#12518c]/20" /> Visited
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-white border border-slate-300" /> Available
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {PIPELINE_STAGES.map(stage => {
+              const current = stage === prospect.stage
+              const selected = stage === stageForm.stage
+              const visited = visitedStages.has(stage)
+              const visitCount = getPipelineStageVisitCount(stageHistory, stage)
+              const stageLabel = formatPipelineStageLabel(stage, visitCount)
+              return (
+                <button
+                  key={stage}
+                  type="button"
+                  onClick={() => selectStageForMove(stage)}
+                  title={
+                    current
+                      ? `Current stage${visitCount > 1 ? ` · visited ${visitCount} times` : ''} — add a note or choose another stage`
+                      : visited
+                        ? `Return to ${stage}${visitCount > 1 ? ` (${visitCount} visits)` : ''}`
+                        : `Move to ${stage}`
+                  }
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    current
+                      ? 'bg-[#12518c] border-[#12518c] text-white shadow-sm'
+                      : selected
+                        ? 'bg-[#BBDCFC] border-[#12518c] text-[#3B4A59] ring-2 ring-[#12518c]/20'
+                        : visited
+                          ? 'bg-[#BBDCFC]/70 border-[#BBDCFC] text-[#3B4A59] hover:border-[#12518c]/40'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-[#12518c]/40 hover:bg-slate-50'
+                  }`}
+                >
+                  {current && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/90" aria-hidden />
+                  )}
+                  {!current && visited && (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                      <path d="M2 5.2L4.2 7.5 8 2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                  {stageLabel}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Stages / Tasks — tabbed so layouts stay aligned */}
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center gap-1 px-4 pt-3 border-b border-slate-100" role="tablist" aria-label="Stages and tasks">
+          {([
+            { id: 'stages' as const, label: 'Stages', count: stageHistory.length },
+            { id: 'tasks' as const, label: 'Tasks', count: tasks.length },
+          ]).map(tab => {
+            const active = activityTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActivityTab(tab.id)}
+                className={`relative inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                  active ? 'text-[#12518c]' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {tab.label}
+                <span className={`inline-flex min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold items-center justify-center ${
+                  active ? 'bg-[#12518c]/10 text-[#12518c]' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {tab.count}
+                </span>
+                {active && <span className="absolute left-3 right-3 -bottom-px h-0.5 rounded-full bg-[#12518c]" />}
+              </button>
+            )
+          })}
+        </div>
+
+        {activityTab === 'stages' ? (
+          detailLayout === 'classic' ? (
+            <div className="flex flex-col">
+              <div ref={stageFormRef} className="px-5 py-4 space-y-3 border-b border-slate-100">
+                <p className="text-[11px] text-slate-400">Move to any stage — including earlier ones — and keep an audit trail</p>
+                <label className="block">
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Move to stage</span>
+                  <select
+                    value={stageForm.stage}
+                    onChange={e => setStageForm(f => ({ ...f, stage: e.target.value as PipelineProspect['stage'] }))}
+                    className={fieldClass}
+                  >
+                    {PIPELINE_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  {stageForm.stage !== prospect.stage && (
+                    <p className="mt-1.5 text-[11px] text-slate-500">
+                      {getPipelineStageDirection(prospect.stage, stageForm.stage) === 'back'
+                        ? `This moves the lead back from ${prospect.stage}.`
+                        : getPipelineStageDirection(prospect.stage, stageForm.stage) === 'forward'
+                          ? `This advances the lead from ${prospect.stage}.`
+                          : `This jumps from ${prospect.stage} to ${stageForm.stage}.`}
+                    </p>
+                  )}
+                </label>
+                <label className="block">
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Notes</span>
+                  <textarea
+                    value={stageForm.notes}
+                    onChange={e => setStageForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder="What changed and why…"
+                    className={areaClass}
+                  />
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <PipelineFilePicker
+                    label="Attachment"
+                    buttonLabel="Choose File"
+                    fileName={stageForm.attachmentName}
+                    onChange={name => setStageForm(f => ({ ...f, attachmentName: name }))}
+                  />
+                  <label className="block">
+                    <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Attachment description</span>
+                    <input
+                      value={stageForm.attachmentDescription}
+                      onChange={e => setStageForm(f => ({ ...f, attachmentDescription: e.target.value }))}
+                      placeholder="Optional"
+                      className={fieldClass}
+                    />
+                  </label>
+                </div>
+                <div className="flex justify-end">
+                  <button type="button" onClick={saveStage} className="h-9 px-4 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
+                    {editingStageId != null ? 'Update Stage' : 'Save Stage'}
+                  </button>
+                </div>
+              </div>
+              <div className="px-5 py-3 space-y-2 max-h-80 overflow-y-auto">
+                {stageHistory.map(item => {
+                  const moveLabel = pipelineStageMoveLabel(item)
+                  const notesPreview = truncatePipelineText(item.notes)
+                  const visitNumber = getPipelineStageVisitNumber(stageHistory, item)
+                  const stageLabel = formatPipelineStageLabel(item.stage, visitNumber)
+                  const openPreview = () => setPreviewItem({
+                    title: item.fromStage && item.direction !== 'same' && item.direction !== 'start'
+                      ? `${item.fromStage} → ${stageLabel}`
+                      : stageLabel,
+                    subtitle: `${moveLabel} · ${item.date} · by ${item.by}`,
+                    body: item.notes,
+                    attachmentName: item.attachment,
+                  })
+                  return (
+                    <div
+                      key={item.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={openPreview}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          openPreview()
+                        }
+                      }}
+                      className="flex items-start gap-3 rounded-xl border border-slate-100 px-3 py-2.5 hover:bg-slate-50/80 transition-colors cursor-pointer"
+                    >
+                      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
+                        item.stage === prospect.stage ? 'bg-[#12518c]' : 'bg-slate-300'
+                      }`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <PipelineStageDiff
+                            item={item}
+                            visitNumber={visitNumber}
+                          />
+                          <span className="text-[11px] text-slate-400">{item.date}</span>
+                        </div>
+                        <p className="mt-1 text-sm text-slate-700" title={item.notes}>{notesPreview}</p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          <p className="text-[11px] text-slate-400">by {item.by}</p>
+                          {item.attachment && <PipelineAttachmentLabel fileName={item.attachment} />}
+                        </div>
+                      </div>
+                      <PipelineCardActions
+                        hasAttachment={Boolean(item.attachment)}
+                        onPreview={openPreview}
+                        onEdit={() => editStageEntry(item)}
+                        onDelete={() => {
+                          setStageHistory(prev => prev.filter(s => s.id !== item.id))
+                          if (editingStageId === item.id) {
+                            setEditingStageId(null)
+                            setStageForm({ stage: prospect.stage, notes: '', attachmentName: '', attachmentDescription: '' })
+                          }
+                        }}
+                        onDownload={item.attachment ? () => downloadFile(item.attachment!) : undefined}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <PipelineResizableSplit
+              left={(
+              <div ref={stageFormRef} className="px-5 py-4 space-y-3 h-full">
+                <p className="text-xs font-semibold text-slate-700">Add Stage</p>
+                <p className="text-[11px] text-slate-400 -mt-1">Move the lead and capture why</p>
+                <label className="block">
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Move to stage</span>
+                  <select
+                    value={stageForm.stage}
+                    onChange={e => setStageForm(f => ({ ...f, stage: e.target.value as PipelineProspect['stage'] }))}
+                    className={fieldClass}
+                  >
+                    {PIPELINE_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  {stageForm.stage !== prospect.stage && (
+                    <p className="mt-1.5 text-[11px] text-slate-500">
+                      {getPipelineStageDirection(prospect.stage, stageForm.stage) === 'back'
+                        ? `This moves the lead back from ${prospect.stage}.`
+                        : getPipelineStageDirection(prospect.stage, stageForm.stage) === 'forward'
+                          ? `This advances the lead from ${prospect.stage}.`
+                          : `This jumps from ${prospect.stage} to ${stageForm.stage}.`}
+                    </p>
+                  )}
+                </label>
+                <label className="block">
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Notes</span>
+                  <textarea
+                    value={stageForm.notes}
+                    onChange={e => setStageForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder="What changed and why…"
+                    className={areaClass}
+                    rows={3}
+                  />
+                </label>
+                <PipelineFilePicker
+                  label="Attachment"
+                  buttonLabel="Choose File"
+                  fileName={stageForm.attachmentName}
+                  onChange={name => setStageForm(f => ({ ...f, attachmentName: name }))}
+                />
+                <label className="block">
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Attachment description</span>
+                  <input
+                    value={stageForm.attachmentDescription}
+                    onChange={e => setStageForm(f => ({ ...f, attachmentDescription: e.target.value }))}
+                    placeholder="Optional"
+                    className={fieldClass}
+                  />
+                </label>
+                <button type="button" onClick={saveStage} className="w-full h-9 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
+                  {editingStageId != null ? 'Update Stage' : 'Save Stage'}
+                </button>
+              </div>
+              )}
+              right={(
+              <div className="px-5 py-3 space-y-2 max-h-[32rem] overflow-y-auto min-w-0">
+                <p className="text-[11px] text-slate-400 px-0.5 pb-1">
+                  {stageHistory.length} entr{stageHistory.length === 1 ? 'y' : 'ies'} · from → to changes
+                </p>
+                {stageHistory.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-8 text-center">No stage history yet.</p>
+                ) : (
+                  stageHistory.map(item => {
+                    const moveLabel = pipelineStageMoveLabel(item)
+                    const notesPreview = truncatePipelineText(item.notes)
+                    const visitNumber = getPipelineStageVisitNumber(stageHistory, item)
+                    const stageLabel = formatPipelineStageLabel(item.stage, visitNumber)
+                    const openPreview = () => setPreviewItem({
+                      title: item.fromStage && item.direction !== 'same' && item.direction !== 'start'
+                        ? `${item.fromStage} → ${stageLabel}`
+                        : stageLabel,
+                      subtitle: `${moveLabel} · ${item.date} · by ${item.by}`,
+                      body: item.notes,
+                      attachmentName: item.attachment,
+                    })
+                    return (
+                      <div
+                        key={item.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={openPreview}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            openPreview()
+                          }
+                        }}
+                        className="flex items-start gap-3 rounded-xl border border-slate-100 px-3 py-2.5 hover:bg-slate-50/80 transition-colors cursor-pointer"
+                      >
+                        <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
+                          item.stage === prospect.stage ? 'bg-[#12518c]' : 'bg-slate-300'
+                        }`} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <PipelineStageDiff
+                              item={item}
+                              visitNumber={visitNumber}
+                            />
+                            <span className="text-[11px] text-slate-400">{item.date}</span>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-700" title={item.notes}>{notesPreview}</p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                            <p className="text-[11px] text-slate-400">by {item.by}</p>
+                            {item.attachment && <PipelineAttachmentLabel fileName={item.attachment} />}
+                          </div>
+                        </div>
+                        <PipelineCardActions
+                          hasAttachment={Boolean(item.attachment)}
+                          onPreview={openPreview}
+                          onEdit={() => editStageEntry(item)}
+                          onDelete={() => {
+                            setStageHistory(prev => prev.filter(s => s.id !== item.id))
+                            if (editingStageId === item.id) {
+                              setEditingStageId(null)
+                              setStageForm({ stage: prospect.stage, notes: '', attachmentName: '', attachmentDescription: '' })
+                            }
+                          }}
+                          onDownload={item.attachment ? () => downloadFile(item.attachment!) : undefined}
+                        />
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+              )}
+            />
+          )
+        ) : (
+          detailLayout === 'classic' ? (
+            <div className="flex flex-col">
+              <div className="px-5 py-4 space-y-3 border-b border-slate-100">
+                <p className="text-[11px] text-slate-400">Assign follow-ups for this prospect</p>
+                <label className="block">
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Task</span>
+                  <input value={taskForm.task} onChange={e => setTaskForm(f => ({ ...f, task: e.target.value }))} placeholder="Follow up on proposal" className={fieldClass} />
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Assign to</span>
+                    <select value={taskForm.assignTo} onChange={e => setTaskForm(f => ({ ...f, assignTo: e.target.value }))} className={fieldClass}>
+                      {COMPANY_SPECIALISTS.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </label>
+                  <PipelineFilePicker
+                    label="Attachment"
+                    buttonLabel="Add Attachment"
+                    fileName={taskForm.attachmentName}
+                    onChange={name => setTaskForm(f => ({ ...f, attachmentName: name }))}
+                  />
+                </div>
+                <label className="block">
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Attachment description</span>
+                  <input
+                    value={taskForm.attachmentDescription}
+                    onChange={e => setTaskForm(f => ({ ...f, attachmentDescription: e.target.value }))}
+                    placeholder="Optional"
+                    className={fieldClass}
+                  />
+                </label>
+                <div className="flex justify-end">
+                  <button type="button" onClick={saveTask} className="h-9 px-4 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
+                    {editingTaskId != null ? 'Update Task' : 'Save Task'}
+                  </button>
+                </div>
+              </div>
+              <div className="px-5 py-3 space-y-2 max-h-80 overflow-y-auto">
+                {tasks.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-6 text-center">No tasks yet for this prospect.</p>
+                ) : (
+                  tasks.map(task => {
+                    const taskPreview = truncatePipelineText(task.task)
+                    const openPreview = () => setPreviewItem({
+                      title: 'Task details',
+                      subtitle: `Assigned ${task.createdBy} · ${task.date}${task.completed ? ' · Complete' : ' · Open'}`,
+                      body: task.task,
+                      attachmentName: task.attachment?.name ?? null,
+                    })
+                    return (
+                      <div
+                        key={task.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={openPreview}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            openPreview()
+                          }
+                        }}
+                        className={`flex items-start gap-3 rounded-xl border border-slate-100 px-3 py-2.5 cursor-pointer ${task.completed ? 'bg-slate-50/80 opacity-80' : 'bg-white hover:bg-slate-50/80'} transition-colors`}
+                      >
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={task.completed}
+                          onClick={e => {
+                            e.stopPropagation()
+                            toggleTask(task.id)
+                          }}
+                          className={`mt-0.5 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 ${
+                            task.completed ? 'border-[#12518c] bg-[#12518c] text-white' : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {task.completed && (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 5.2L4.2 7.5 8 2.5" /></svg>
+                          )}
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-medium ${task.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`} title={task.task}>{taskPreview}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Assigned {task.createdBy} · {task.date}</p>
+                          {task.attachment && (
+                            <div className="mt-1.5 space-y-0.5">
+                              <PipelineAttachmentLabel fileName={task.attachment.name} />
+                              {task.attachment.description ? (
+                                <p className="text-[11px] text-slate-400 pl-5">{task.attachment.description}</p>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
+                          task.completed ? 'bg-slate-100 text-slate-500' : 'bg-[#BBDCFC] text-[#3B4A59]'
+                        }`}>
+                          {task.completed ? 'Complete' : 'Open'}
+                        </span>
+                        <PipelineCardActions
+                          hasAttachment={Boolean(task.attachment)}
+                          onPreview={openPreview}
+                          onEdit={() => editTaskEntry(task)}
+                          onDelete={() => removeTask(task.id)}
+                          onDownload={task.attachment ? () => downloadFile(task.attachment!.name) : undefined}
+                        />
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          ) : (
+            <PipelineResizableSplit
+              left={(
+              <div className="px-5 py-4 space-y-3 h-full">
+                <p className="text-xs font-semibold text-slate-700">Add Task</p>
+                <p className="text-[11px] text-slate-400 -mt-1">Create a follow-up for this prospect</p>
+                <label className="block">
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Task</span>
+                  <input value={taskForm.task} onChange={e => setTaskForm(f => ({ ...f, task: e.target.value }))} placeholder="Follow up on proposal" className={fieldClass} />
+                </label>
+                <label className="block">
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Assign to</span>
+                  <select value={taskForm.assignTo} onChange={e => setTaskForm(f => ({ ...f, assignTo: e.target.value }))} className={fieldClass}>
+                    {COMPANY_SPECIALISTS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </label>
+                <PipelineFilePicker
+                  label="Attachment"
+                  buttonLabel="Add Attachment"
+                  fileName={taskForm.attachmentName}
+                  onChange={name => setTaskForm(f => ({ ...f, attachmentName: name }))}
+                />
+                <label className="block">
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Attachment description</span>
+                  <input
+                    value={taskForm.attachmentDescription}
+                    onChange={e => setTaskForm(f => ({ ...f, attachmentDescription: e.target.value }))}
+                    placeholder="Optional"
+                    className={fieldClass}
+                  />
+                </label>
+                <button type="button" onClick={saveTask} className="w-full h-9 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
+                  {editingTaskId != null ? 'Update Task' : 'Save Task'}
+                </button>
+              </div>
+              )}
+              right={(
+              <div className="px-5 py-3 space-y-2 max-h-[32rem] overflow-y-auto min-w-0">
+                <p className="text-[11px] text-slate-400 px-0.5 pb-1">
+                  {tasks.length} task{tasks.length === 1 ? '' : 's'}
+                </p>
+                {tasks.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-8 text-center">No tasks yet for this prospect.</p>
+                ) : (
+                  tasks.map(task => {
+                    const taskPreview = truncatePipelineText(task.task)
+                    const openPreview = () => setPreviewItem({
+                      title: 'Task details',
+                      subtitle: `Assigned ${task.createdBy} · ${task.date}${task.completed ? ' · Complete' : ' · Open'}`,
+                      body: task.task,
+                      attachmentName: task.attachment?.name ?? null,
+                    })
+                    return (
+                      <div
+                        key={task.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={openPreview}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            openPreview()
+                          }
+                        }}
+                        className={`flex items-start gap-3 rounded-xl border border-slate-100 px-3 py-2.5 cursor-pointer ${task.completed ? 'bg-slate-50/80 opacity-80' : 'bg-white hover:bg-slate-50/80'} transition-colors`}
+                      >
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={task.completed}
+                          onClick={e => {
+                            e.stopPropagation()
+                            toggleTask(task.id)
+                          }}
+                          className={`mt-0.5 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 ${
+                            task.completed ? 'border-[#12518c] bg-[#12518c] text-white' : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {task.completed && (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 5.2L4.2 7.5 8 2.5" /></svg>
+                          )}
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-medium ${task.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`} title={task.task}>{taskPreview}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Assigned {task.createdBy} · {task.date}</p>
+                          {task.attachment && (
+                            <div className="mt-1.5 space-y-0.5">
+                              <PipelineAttachmentLabel fileName={task.attachment.name} />
+                              {task.attachment.description ? (
+                                <p className="text-[11px] text-slate-400 pl-5">{task.attachment.description}</p>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
+                          task.completed ? 'bg-slate-100 text-slate-500' : 'bg-[#BBDCFC] text-[#3B4A59]'
+                        }`}>
+                          {task.completed ? 'Complete' : 'Open'}
+                        </span>
+                        <PipelineCardActions
+                          hasAttachment={Boolean(task.attachment)}
+                          onPreview={openPreview}
+                          onEdit={() => editTaskEntry(task)}
+                          onDelete={() => removeTask(task.id)}
+                          onDownload={task.attachment ? () => downloadFile(task.attachment!.name) : undefined}
+                        />
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+              )}
+            />
+          )
+        )}
+      </section>
+
+      {/* Notes + Docs */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <TableSectionHeader title="Notes" subtitle="General notes for the sales team" />
+          <div className="px-5 py-4 space-y-3">
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} className={areaClass} rows={5} />
+            <div className="flex justify-end">
+              <button type="button" onClick={saveNotes} className="h-9 px-4 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
+                Save Notes
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <TableSectionHeader title="Documents" subtitle="Files shared with this lead" />
+          <div className="px-5 py-4 space-y-3 border-b border-slate-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PipelineFilePicker
+                label="Attachment"
+                buttonLabel="Choose File"
+                fileName={docForm.name}
+                onChange={name => setDocForm(f => ({ ...f, name }))}
+              />
+              <label className="block">
+                <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Description</span>
+                <input value={docForm.description} onChange={e => setDocForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional" className={fieldClass} />
+              </label>
+            </div>
+            <div className="flex justify-end">
+              <button type="button" onClick={uploadDoc} className="h-9 px-4 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
+                Upload
+              </button>
+            </div>
+          </div>
+          <div className="px-5 py-3 space-y-2 max-h-56 overflow-y-auto">
+            {docs.map(doc => (
+              <div key={doc.id} className="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-2.5">
+                <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center shrink-0">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" /></svg>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{doc.description} · {doc.by} · {doc.date}</p>
+                </div>
+                <PipelineAttachmentActions
+                  fileName={doc.name}
+                  showLabel={false}
+                  onView={() => openFile(doc.name, doc.description)}
+                  onDownload={() => downloadFile(doc.name)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setDocs(prev => prev.filter(d => d.id !== doc.id))}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-[#bb5757] hover:bg-[#bb5757]/10"
+                  aria-label="Delete document"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2.5 3.5h9M5.5 3.5V2.5h3v1M4 3.5l.5 8h5l.5-8" /></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  )
+}
+
+function PipelineEditProspectModal({
+  prospect,
+  onClose,
+  onSave,
+}: {
+  prospect: PipelineProspect
+  onClose: () => void
+  onSave: (prospect: PipelineProspect) => void
+}) {
+  const [form, setForm] = useState({ ...prospect })
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+    setForm(prev => ({ ...prev, [key]: value }))
+  }
+  const fieldClass =
+    'h-9 w-full px-3 rounded-xl border border-slate-200 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]'
+
+  return (
+    <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Edit prospect</h3>
+          <p className="text-[11px] text-slate-500">Update contact and lead details</p>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 3l8 8M11 3l-8 8" /></svg>
+        </button>
+      </div>
+      <div className="px-5 py-5 grid grid-cols-2 gap-3.5">
+        <label className="col-span-2">
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Prospect Company</span>
+          <input value={form.company} onChange={e => set('company', e.target.value)} className={fieldClass} />
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">First Name</span>
+          <input value={form.firstName} onChange={e => set('firstName', e.target.value)} className={fieldClass} />
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Last Name</span>
+          <input value={form.lastName} onChange={e => set('lastName', e.target.value)} className={fieldClass} />
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Title</span>
+          <input value={form.title} onChange={e => set('title', e.target.value)} className={fieldClass} />
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Phone</span>
+          <input value={form.phone} onChange={e => set('phone', e.target.value)} className={fieldClass} />
+        </label>
+        <label className="col-span-2">
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Email</span>
+          <input value={form.email} onChange={e => set('email', e.target.value)} className={fieldClass} />
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Source</span>
+          <select value={form.source} onChange={e => set('source', e.target.value as PipelineProspect['source'])} className={`${fieldClass} bg-white`}>
+            {PIPELINE_SOURCES.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Stage</span>
+          <select value={form.stage} onChange={e => set('stage', e.target.value as PipelineProspect['stage'])} className={`${fieldClass} bg-white`}>
+            {PIPELINE_STAGES.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Owner</span>
+          <select value={form.owner} onChange={e => set('owner', e.target.value)} className={`${fieldClass} bg-white`}>
+            {COMPANY_SPECIALISTS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Status</span>
+          <select value={form.status} onChange={e => set('status', e.target.value as PipelineProspect['status'])} className={`${fieldClass} bg-white`}>
+            {PIPELINE_STATUSES.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2.5">
+        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50">Cancel</button>
+        <button type="button" onClick={() => onSave(form)} className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173]">Save</button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function PipelineAddProspectModal({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void
+  onSave: (row: Omit<PipelineProspect, 'id' | 'lastActivity'>) => void
+}) {
+  const [form, setForm] = useState({
+    company: '',
+    firstName: '',
+    lastName: '',
+    title: '',
+    phone: '',
+    email: '',
+    source: '' as '' | PipelineProspect['source'],
+    stage: '' as '' | PipelineProspect['stage'],
+    owner: '',
+    status: 'Active' as PipelineProspect['status'],
+  })
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
+  const set = (key: keyof typeof form) => (value: string) => {
+    setForm(prev => ({ ...prev, [key]: value }))
+    if (errors[key]) setErrors(prev => ({ ...prev, [key]: false }))
+  }
+
+  const handleSave = () => {
+    const next = {
+      company: !form.company.trim(),
+      firstName: !form.firstName.trim(),
+      lastName: !form.lastName.trim(),
+      email: !form.email.trim(),
+      source: !form.source,
+      stage: !form.stage,
+      owner: !form.owner,
+    }
+    setErrors(next)
+    if (Object.values(next).some(Boolean)) return
+    onSave({
+      company: form.company.trim(),
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      title: form.title.trim() || '—',
+      phone: form.phone.trim() || '—',
+      email: form.email.trim(),
+      source: form.source as PipelineProspect['source'],
+      stage: form.stage as PipelineProspect['stage'],
+      owner: form.owner,
+      status: form.status,
+    })
+  }
+
+  const fieldClass = (invalid?: boolean) =>
+    `h-9 w-full px-3 rounded-xl border text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 ${
+      invalid
+        ? 'border-[#bb5757] focus:ring-[#bb5757]/20 focus:border-[#bb5757]'
+        : 'border-slate-200 focus:ring-[#12518c]/25 focus:border-[#12518c]'
+    }`
+
+  return (
+    <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Add prospect</h3>
+          <p className="text-[11px] text-slate-500">Create a new company in the pipeline</p>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+      <div className="px-5 py-5 grid grid-cols-2 gap-3.5">
+        <label className="col-span-2">
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Prospect Company <span className="text-[#bb5757]">*</span></span>
+          <input value={form.company} onChange={e => set('company')(e.target.value)} className={fieldClass(errors.company)} placeholder="Company name" />
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">First Name <span className="text-[#bb5757]">*</span></span>
+          <input value={form.firstName} onChange={e => set('firstName')(e.target.value)} className={fieldClass(errors.firstName)} />
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Last Name <span className="text-[#bb5757]">*</span></span>
+          <input value={form.lastName} onChange={e => set('lastName')(e.target.value)} className={fieldClass(errors.lastName)} />
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Title</span>
+          <input value={form.title} onChange={e => set('title')(e.target.value)} className={fieldClass()} />
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Phone</span>
+          <input value={form.phone} onChange={e => set('phone')(e.target.value)} className={fieldClass()} placeholder="(707) 555-0100" />
+        </label>
+        <label className="col-span-2">
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Email <span className="text-[#bb5757]">*</span></span>
+          <input type="email" value={form.email} onChange={e => set('email')(e.target.value)} className={fieldClass(errors.email)} placeholder="name@company.com" />
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Source <span className="text-[#bb5757]">*</span></span>
+          <select value={form.source} onChange={e => set('source')(e.target.value)} className={`${fieldClass(errors.source)} bg-white`}>
+            <option value="">Select…</option>
+            {PIPELINE_SOURCES.map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Current Stage <span className="text-[#bb5757]">*</span></span>
+          <select value={form.stage} onChange={e => set('stage')(e.target.value)} className={`${fieldClass(errors.stage)} bg-white`}>
+            <option value="">Select…</option>
+            {PIPELINE_STAGES.map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Owner <span className="text-[#bb5757]">*</span></span>
+          <select value={form.owner} onChange={e => set('owner')(e.target.value)} className={`${fieldClass(errors.owner)} bg-white`}>
+            <option value="">Select Specialist</option>
+            {COMPANY_SPECIALISTS.map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Status</span>
+          <select value={form.status} onChange={e => set('status')(e.target.value)} className={`${fieldClass()} bg-white`}>
+            {PIPELINE_STATUSES.map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2.5">
+        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">Cancel</button>
+        <button type="button" onClick={handleSave} className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">Save</button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function PipelineTaskAttachmentModal({
+  task,
+  onClose,
+  onDownload,
+}: {
+  task: PipelineTask
+  onClose: () => void
+  onDownload: () => void
+}) {
+  const attachment = task.attachment
+  if (!attachment) return null
+
+  return (
+    <AddressModalShell maxWidth="max-w-md" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900">View attachment</h3>
+            <p className="text-[11px] text-slate-500 truncate">{task.task}</p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+      <div className="px-5 py-5 space-y-3">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+          <p className="text-sm font-medium text-slate-800 truncate">{attachment.name}</p>
+          <p className="text-xs text-slate-500 mt-1">{attachment.size} · {task.company}</p>
+        </div>
+        <p className="text-xs text-slate-500">Created by {task.createdBy} on {task.date}</p>
+      </div>
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2.5">
+        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">Close</button>
+        <button type="button" onClick={onDownload} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
+          </svg>
+          Download
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function PipelineAddTaskModal({
+  companies,
+  onClose,
+  onSave,
+}: {
+  companies: string[]
+  onClose: () => void
+  onSave: (row: Omit<PipelineTask, 'id'>) => void
+}) {
+  const [form, setForm] = useState({
+    task: '',
+    company: companies[0] ?? '',
+    createdBy: 'Hammad Iftikhar',
+    hasAttachment: false,
+    attachmentName: '',
+  })
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
+  const set = (key: keyof typeof form) => (value: string | boolean) => {
+    setForm(prev => ({ ...prev, [key]: value }))
+    if (typeof key === 'string' && errors[key]) setErrors(prev => ({ ...prev, [key]: false }))
+  }
+  const fieldClass = (invalid?: boolean) =>
+    `h-9 w-full px-3 rounded-xl border text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 ${
+      invalid
+        ? 'border-[#bb5757] focus:ring-[#bb5757]/20 focus:border-[#bb5757]'
+        : 'border-slate-200 focus:ring-[#12518c]/25 focus:border-[#12518c]'
+    }`
+
+  const handleSave = () => {
+    const next = {
+      task: !form.task.trim(),
+      company: !form.company,
+      createdBy: !form.createdBy,
+      attachmentName: form.hasAttachment && !form.attachmentName.trim(),
+    }
+    setErrors(next)
+    if (Object.values(next).some(Boolean)) return
+    onSave({
+      task: form.task.trim(),
+      company: form.company,
+      date: formatPipelineDate(),
+      createdBy: form.createdBy,
+      completed: false,
+      attachment: form.hasAttachment
+        ? { name: form.attachmentName.trim(), size: '24 KB' }
+        : null,
+    })
+  }
+
+  return (
+    <AddressModalShell maxWidth="max-w-lg" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Add task</h3>
+          <p className="text-[11px] text-slate-500">Create a follow-up for a pipeline prospect</p>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+      <div className="px-5 py-5 space-y-3.5">
+        <label className="block">
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Task <span className="text-[#bb5757]">*</span></span>
+          <input value={form.task} onChange={e => set('task')(e.target.value)} className={fieldClass(errors.task)} placeholder="New Task 3" />
+        </label>
+        <label className="block">
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Prospect Company <span className="text-[#bb5757]">*</span></span>
+          <select value={form.company} onChange={e => set('company')(e.target.value)} className={`${fieldClass(errors.company)} bg-white`}>
+            {companies.map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <span className="block text-[11px] font-medium text-slate-500 mb-1.5">Created By <span className="text-[#bb5757]">*</span></span>
+          <select value={form.createdBy} onChange={e => set('createdBy')(e.target.value)} className={`${fieldClass(errors.createdBy)} bg-white`}>
+            {COMPANY_SPECIALISTS.map(option => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={form.hasAttachment}
+            onChange={e => {
+              set('hasAttachment')(e.target.checked)
+              if (!e.target.checked) set('attachmentName')('')
+            }}
+            className="w-4 h-4 rounded border-slate-300 text-[#12518c] focus:ring-[#12518c]/25"
+          />
+          <span className="text-sm text-slate-700">Include attachment</span>
+        </label>
+        {form.hasAttachment && (
+          <label className="block">
+            <span className="block text-[11px] font-medium text-slate-500 mb-1.5">File name <span className="text-[#bb5757]">*</span></span>
+            <input
+              value={form.attachmentName}
+              onChange={e => set('attachmentName')(e.target.value)}
+              className={fieldClass(errors.attachmentName)}
+              placeholder="proposal.pdf"
+            />
+          </label>
+        )}
+      </div>
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2.5">
+        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">Cancel</button>
+        <button type="button" onClick={handleSave} className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">Save</button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function formatLicenseDate(d = new Date()) {
+  return formatLicenseLogStamp(d)
+}
+
+function licenseStateName(code: string) {
+  if (code === 'TTB') return 'Alcohol and Tobacco Tax and Trade Bureau'
+  if (code === 'FDA') return 'Food and Drug Administration'
+  return US_STATE_CODE_ENTRIES.find(e => e.code === code)?.name ?? code
+}
+
+function LicensingPage({
+  activeTab,
+  onTabChange,
+  formMode,
+  onFormModeChange,
+}: {
+  activeTab: (typeof LICENSING_TABS)[number]
+  onTabChange: (tab: (typeof LICENSING_TABS)[number]) => void
+  formMode: 'add' | 'edit' | null
+  onFormModeChange: (mode: 'add' | 'edit' | null) => void
+}) {
+  const [rows, setRows] = useState<LicenseCatalogRow[]>(LICENSES_INIT)
+  const [changeLog, setChangeLog] = useState<LicenseChangeLogRow[]>(LICENSE_CHANGE_LOG_INIT)
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
+  const [stateFilter, setStateFilter] = useState('')
+  const [logSearch, setLogSearch] = useState('')
+  const [logStateFilter, setLogStateFilter] = useState('')
+  const [logFuncFilter, setLogFuncFilter] = useState('')
+  const [logTypeFilter, setLogTypeFilter] = useState('')
+  const [logRequesterFilter, setLogRequesterFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [logPage, setLogPage] = useState(1)
+  const [sortAsc, setSortAsc] = useState(true)
+  const [logSortDesc, setLogSortDesc] = useState(true)
+  const [editing, setEditing] = useState<LicenseCatalogRow | null>(null)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  const cols = useTableColumns([
+    { key: 'license', label: 'License' },
+    { key: 'stateCode', label: 'State/State Code' },
+    { key: 'stateName', label: 'State Name' },
+  ])
+  const logCols = useTableColumns([
+    { key: 'statusDate', label: 'Status Date' },
+    { key: 'state', label: 'State' },
+    { key: 'func', label: 'Function' },
+    { key: 'item', label: 'Item' },
+    { key: 'field', label: 'Field' },
+    { key: 'changeType', label: 'Change Type' },
+    { key: 'previousData', label: 'Previous Data' },
+    { key: 'updatedData', label: 'Updated Data' },
+    { key: 'requestedBy', label: 'Requested By' },
+  ])
+
+  const showToast = (message: string) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 2800)
+  }
+
+  const pushLog = (entry: Omit<LicenseChangeLogRow, 'id' | 'statusDate' | 'requestedBy'>) => {
+    setChangeLog(prev => [
+      {
+        id: Math.max(0, ...prev.map(e => e.id)) + 1,
+        statusDate: formatLicenseDate(),
+        requestedBy: 'HI',
+        ...entry,
+      },
+      ...prev,
+    ])
+    setLogPage(1)
+  }
+
+  const filtered = rows
+    .filter(row => {
+      const q = search.toLowerCase()
+      const matchesSearch =
+        !q ||
+        row.licenseType.toLowerCase().includes(q) ||
+        row.stateCode.toLowerCase().includes(q) ||
+        row.stateName.toLowerCase().includes(q)
+      return (
+        matchesSearch &&
+        (!typeFilter || row.licenseType === typeFilter) &&
+        (!stateFilter || row.stateCode === stateFilter)
+      )
+    })
+    .sort((a, b) => {
+      const cmp = a.stateCode.localeCompare(b.stateCode)
+      return sortAsc ? cmp : -cmp
+    })
+
+  const parseLogStamp = (value: string) => {
+    const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s+(AM|PM)$/i)
+    if (!match) return 0
+    let hour = Number(match[4])
+    const ampm = match[7].toUpperCase()
+    if (ampm === 'PM' && hour !== 12) hour += 12
+    if (ampm === 'AM' && hour === 12) hour = 0
+    return new Date(Number(match[3]), Number(match[1]) - 1, Number(match[2]), hour, Number(match[5]), Number(match[6])).getTime()
+  }
+
+  const filteredLog = changeLog
+    .filter(entry => {
+      const q = logSearch.toLowerCase()
+      const matchesSearch =
+        !q ||
+        [entry.statusDate, entry.state, entry.func, entry.item, entry.field, entry.changeType, entry.previousData, entry.updatedData, entry.requestedBy].some(v =>
+          v.toLowerCase().includes(q)
+        )
+      return (
+        matchesSearch &&
+        (!logStateFilter || entry.state === logStateFilter) &&
+        (!logFuncFilter || entry.func === logFuncFilter) &&
+        (!logTypeFilter || entry.changeType === logTypeFilter) &&
+        (!logRequesterFilter || entry.requestedBy === logRequesterFilter)
+      )
+    })
+    .sort((a, b) => {
+      const cmp = parseLogStamp(a.statusDate) - parseLogStamp(b.statusDate)
+      return logSortDesc ? -cmp : cmp
+    })
+
+  const logPages = Math.max(1, Math.ceil(filteredLog.length / LICENSE_LOG_PAGE_SIZE))
+  const safeLogPage = Math.min(logPage, logPages)
+  const pagedLog = filteredLog.slice((safeLogPage - 1) * LICENSE_LOG_PAGE_SIZE, safeLogPage * LICENSE_LOG_PAGE_SIZE)
+  const logPageStart = Math.max(1, Math.min(safeLogPage - 2, logPages - 4))
+  const logPageNumbers = Array.from(
+    { length: Math.min(5, logPages) },
+    (_, i) => logPageStart + i
+  ).filter(n => n >= 1 && n <= logPages)
+
+  const stateOptions = [...new Set(rows.map(r => r.stateCode))].sort()
+  const logStateOptions = [...new Set(changeLog.map(e => e.state))].sort()
+  const logFuncOptions = [...new Set(changeLog.map(e => e.func))].sort()
+  const filtersActive = !!(search || typeFilter || stateFilter)
+  const logFiltersActive = !!(logSearch || logStateFilter || logFuncFilter || logTypeFilter || logRequesterFilter)
+  const deleteTarget = deleteId != null ? rows.find(r => r.id === deleteId) : undefined
+
+  const logChangeTypeClass = (type: string) => {
+    switch (type) {
+      case 'Add': return 'bg-[#BBDCFC] text-[#3B4A59]'
+      case 'Update': return 'bg-sky-50 text-sky-700'
+      case 'Delete': return 'bg-danger-light text-[#bb5757]'
+      default: return 'bg-slate-100 text-slate-600'
+    }
+  }
+
+  const clearLogFilters = () => {
+    setLogSearch('')
+    setLogStateFilter('')
+    setLogFuncFilter('')
+    setLogTypeFilter('')
+    setLogRequesterFilter('')
+    setLogPage(1)
+  }
+
+  const tabButtonClass = (tab: (typeof LICENSING_TABS)[number]) =>
+    `px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+      activeTab === tab
+        ? 'bg-[#12518c] text-white shadow-sm'
+        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+    }`
+
+  const saveRow = (data: Omit<LicenseCatalogRow, 'id'>) => {
+    const duplicate = rows.some(
+      r => r.licenseType === data.licenseType && r.stateCode === data.stateCode && r.id !== editing?.id
+    )
+    if (duplicate) return false
+    if (editing) {
+      const prev = editing
+      setRows(list => list.map(r => (r.id === editing.id ? { ...r, ...data } : r)))
+      if (prev.licenseType !== data.licenseType) {
+        pushLog({
+          state: data.stateCode,
+          func: data.licenseType === 'Federal' ? 'Operational' : 'DTC',
+          item: `${data.licenseType} jurisdiction`,
+          field: 'License',
+          changeType: 'Update',
+          previousData: prev.licenseType,
+          updatedData: data.licenseType,
+        })
+      }
+      if (prev.stateCode !== data.stateCode) {
+        pushLog({
+          state: data.stateCode,
+          func: data.licenseType === 'Federal' ? 'Operational' : 'DTC',
+          item: `${data.licenseType} jurisdiction`,
+          field: 'State/State Code',
+          changeType: 'Update',
+          previousData: prev.stateCode,
+          updatedData: data.stateCode,
+        })
+      }
+      showToast(`Updated ${data.stateCode}`)
+    } else {
+      const nextId = Math.max(0, ...rows.map(r => r.id)) + 1
+      setRows(list => [{ id: nextId, ...data }, ...list])
+      pushLog({
+        state: data.stateCode,
+        func: data.licenseType === 'Federal' ? 'Operational' : 'DTC',
+        item: `${data.licenseType} jurisdiction`,
+        field: 'License',
+        changeType: 'Add',
+        previousData: '',
+        updatedData: data.licenseType,
+      })
+      setPage(1)
+      showToast(`Added ${data.stateCode}`)
+    }
+    setEditing(null)
+    onFormModeChange(null)
+    return true
+  }
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    setRows(list => list.filter(r => r.id !== deleteTarget.id))
+    pushLog({
+      state: deleteTarget.stateCode,
+      func: deleteTarget.licenseType === 'Federal' ? 'Operational' : 'DTC',
+      item: `${deleteTarget.licenseType} jurisdiction`,
+      field: 'License',
+      changeType: 'Delete',
+      previousData: deleteTarget.licenseType,
+      updatedData: '',
+    })
+    showToast(`Deleted ${deleteTarget.stateCode}`)
+    setDeleteId(null)
+  }
+
+  if (formMode) {
+    return (
+      <>
+        {toast && <CellarToast message={toast} />}
+        <LicenseCatalogAddPage
+          key={editing?.id ?? 'add'}
+          initial={formMode === 'edit' ? editing : null}
+          existing={rows}
+          onCancel={() => { onFormModeChange(null); setEditing(null) }}
+          onSave={saveRow}
+        />
+      </>
+    )
+  }
+
+  return (
+    <>
+      {toast && <CellarToast message={toast} />}
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-slate-900">Licensing</h1>
+        <p className="mt-1 text-sm text-slate-500">Master list of license jurisdictions used across company records.</p>
+      </div>
+
+      <div className="flex items-center gap-2 mb-5 flex-wrap">
+        {LICENSING_TABS.map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => onTabChange(tab)}
+            className={tabButtonClass(tab)}
+          >
+            {tab}
+            {tab === 'Licenses' && (
+              <span className={`ml-1.5 inline-flex min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold items-center justify-center ${
+                activeTab === tab ? 'bg-white/20 text-white' : 'bg-[#12518c] text-white'
+              }`}>
+                {rows.length}
+              </span>
+            )}
+            {tab === 'Change Log' && (
+              <span className={`ml-1.5 inline-flex min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold items-center justify-center ${
+                activeTab === tab ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {changeLog.length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'Licenses' ? (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+          <TableSectionHeader title="Licenses" subtitle="License types by state and federal jurisdiction">
+            <AddressSearchInput
+              value={search}
+              onChange={v => { setSearch(v); setPage(1) }}
+            />
+            <FilterSelect
+              value={typeFilter}
+              onChange={v => { setTypeFilter(v); setPage(1) }}
+              className={filterSelectClassName(typeFilter)}
+              aria-label="License"
+            >
+              <option value="">License</option>
+              {LICENSE_CATALOG_TYPES.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              value={stateFilter}
+              onChange={v => { setStateFilter(v); setPage(1) }}
+              className={filterSelectClassName(stateFilter)}
+              aria-label="State/State Code"
+            >
+              <option value="">State/State Code</option>
+              {stateOptions.map(code => (
+                <option key={code} value={code}>{code}</option>
+              ))}
+            </FilterSelect>
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setTypeFilter(''); setStateFilter(''); setPage(1) }}
+                className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M3 3l8 8M11 3l-8 8" />
+                </svg>
+                Clear
+              </button>
+            )}
+            <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+            <TableAddNewButton onClick={() => { setEditing(null); onFormModeChange('add') }} />
+          </TableSectionHeader>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead>
+                <tr className="border-y border-slate-100 bg-slate-50/60">
+                  {cols.show('license') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">License</th>
+                  )}
+                  {cols.show('stateCode') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                      <button
+                        type="button"
+                        onClick={() => setSortAsc(v => !v)}
+                        className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors"
+                      >
+                        State/State Code
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 10 10"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className={`transition-transform ${sortAsc ? '' : 'rotate-180'}`}
+                        >
+                          <path d="M5 8V2M2.5 4.5L5 2l2.5 2.5" />
+                        </svg>
+                      </button>
+                    </th>
+                  )}
+                  {cols.show('stateName') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">State Name</th>
+                  )}
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-24">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={cols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No licenses found.</td>
+                  </tr>
+                ) : (
+                  filtered.map((row, i) => (
+                    <tr
+                      key={row.id}
+                      className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
+                        i % 2 === 1 ? 'bg-[#BBDCFC]/25' : 'bg-white'
+                      }`}
+                    >
+                      {cols.show('license') && (
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            row.licenseType === 'Federal'
+                              ? 'bg-[#12518c]/10 text-[#12518c]'
+                              : 'bg-[#BBDCFC] text-[#3B4A59]'
+                          }`}>
+                            {row.licenseType}
+                          </span>
+                        </td>
+                      )}
+                      {cols.show('stateCode') && (
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="inline-flex min-w-[2.25rem] justify-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide bg-slate-100 text-slate-700 border border-slate-200">
+                            {row.stateCode}
+                          </span>
+                        </td>
+                      )}
+                      {cols.show('stateName') && (
+                        <td className="px-4 py-3 text-sm text-slate-700">{row.stateName}</td>
+                      )}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => { setEditing(row); onFormModeChange('edit') }}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                            title="Edit"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                              <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteId(row.id)}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
+                            title="Delete"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                              <path d="M10 11v6M14 11v6" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
+        </section>
+      ) : (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
+          <TableSectionHeader title="Change Log" subtitle="Audit trail of license record changes">
+            <AddressSearchInput
+              value={logSearch}
+              onChange={v => { setLogSearch(v); setLogPage(1) }}
+            />
+            <FilterSelect
+              value={logStateFilter}
+              onChange={v => { setLogStateFilter(v); setLogPage(1) }}
+              className={filterSelectClassName(logStateFilter)}
+              aria-label="State"
+            >
+              <option value="">State</option>
+              {logStateOptions.map(code => (
+                <option key={code} value={code}>{code}</option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              value={logFuncFilter}
+              onChange={v => { setLogFuncFilter(v); setLogPage(1) }}
+              className={filterSelectClassName(logFuncFilter)}
+              aria-label="Function"
+            >
+              <option value="">Function</option>
+              {logFuncOptions.map(fn => (
+                <option key={fn} value={fn}>{fn}</option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              value={logTypeFilter}
+              onChange={v => { setLogTypeFilter(v); setLogPage(1) }}
+              className={filterSelectClassName(logTypeFilter)}
+              aria-label="Change Type"
+            >
+              <option value="">Change Type</option>
+              {CHANGE_LOG_TYPES.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              value={logRequesterFilter}
+              onChange={v => { setLogRequesterFilter(v); setLogPage(1) }}
+              className={filterSelectClassName(logRequesterFilter)}
+              aria-label="Requested By"
+            >
+              <option value="">Requested By</option>
+              {CHANGE_LOG_REQUESTERS.map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </FilterSelect>
+            {logFiltersActive && (
+              <button
+                type="button"
+                onClick={clearLogFilters}
+                className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M3 3l8 8M11 3l-8 8" />
+                </svg>
+                Clear
+              </button>
+            )}
+            <ColumnSettingsDropdown {...logCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+          </TableSectionHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1180px]">
+              <thead>
+                <tr className="border-y border-slate-100 bg-slate-50/60">
+                  {logCols.show('statusDate') && (
+                    <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setLogSortDesc(v => !v)}
+                        className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors"
+                      >
+                        Status Date
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className={logSortDesc ? '' : 'rotate-180'}>
+                          <path d="M2.5 4L5 6.5 7.5 4" />
+                        </svg>
+                      </button>
+                    </th>
+                  )}
+                  {logCols.show('state') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">State</th>}
+                  {logCols.show('func') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Function</th>}
+                  {logCols.show('item') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Item</th>}
+                  {logCols.show('field') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Field</th>}
+                  {logCols.show('changeType') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Change Type</th>}
+                  {logCols.show('previousData') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Previous Data</th>}
+                  {logCols.show('updatedData') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Updated Data</th>}
+                  {logCols.show('requestedBy') && <th className="px-4 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {pagedLog.length === 0 ? (
+                  <tr>
+                    <td colSpan={Math.max(1, logCols.visibleCount)} className="px-4 py-12 text-center text-sm text-slate-400">No change log entries found.</td>
+                  </tr>
+                ) : (
+                  pagedLog.map((entry, i) => (
+                    <tr
+                      key={entry.id}
+                      className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
+                        i % 2 === 1 ? 'bg-[#BBDCFC]/25' : 'bg-white'
+                      }`}
+                    >
+                      {logCols.show('statusDate') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{entry.statusDate}</td>
+                      )}
+                      {logCols.show('state') && (
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="inline-flex min-w-[2.25rem] justify-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide bg-slate-100 text-slate-700 border border-slate-200">
+                            {entry.state}
+                          </span>
+                        </td>
+                      )}
+                      {logCols.show('func') && (
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700">{entry.func}</span>
+                        </td>
+                      )}
+                      {logCols.show('item') && (
+                        <td className="px-4 py-3 text-sm text-slate-700 max-w-[240px]">
+                          <span className="line-clamp-2" title={entry.item}>{entry.item}</span>
+                        </td>
+                      )}
+                      {logCols.show('field') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{entry.field}</td>}
+                      {logCols.show('changeType') && (
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${logChangeTypeClass(entry.changeType)}`}>
+                            {entry.changeType}
+                          </span>
+                        </td>
+                      )}
+                      {logCols.show('previousData') && (
+                        <td className="px-4 py-3 text-sm text-slate-500 max-w-[180px]">
+                          <span className="line-clamp-2" title={entry.previousData || undefined}>{entry.previousData || '—'}</span>
+                        </td>
+                      )}
+                      {logCols.show('updatedData') && (
+                        <td className="px-4 py-3 text-sm text-slate-700 max-w-[180px]">
+                          <span className="line-clamp-2" title={entry.updatedData || undefined}>{entry.updatedData || '—'}</span>
+                        </td>
+                      )}
+                      {logCols.show('requestedBy') && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center">
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
+                              {entry.requestedBy}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100 bg-slate-50/40">
+            <span className="text-sm text-slate-500">
+              Total: <span className="font-semibold text-slate-700">{filteredLog.length}</span>
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-white disabled:opacity-40"
+                disabled={safeLogPage <= 1}
+                onClick={() => setLogPage(p => Math.max(1, p - 1))}
+                aria-label="Previous page"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M9 3L5 7l4 4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {logPageNumbers.map(pageNum => (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setLogPage(pageNum)}
+                  className={`min-w-8 h-8 px-2.5 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                    safeLogPage === pageNum
+                      ? 'bg-[#12518c] text-white'
+                      : 'border border-slate-200 text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-white disabled:opacity-40"
+                disabled={safeLogPage >= logPages}
+                onClick={() => setLogPage(p => Math.min(logPages, p + 1))}
+                aria-label="Next page"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M5 3l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {deleteTarget && (
+        <AddressDeleteConfirmModal
+          title="Delete license"
+          locationName={`${deleteTarget.licenseType} · ${deleteTarget.stateCode}`}
+          showUndoneWarning={false}
+          onCancel={() => setDeleteId(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
+    </>
+  )
+}
+
+function LicenseFormToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 min-h-10">
+      <span className="text-[11px] font-medium text-slate-500 leading-tight">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+      >
+        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-5' : ''}`} />
+      </button>
+    </div>
+  )
+}
+
+function LicenseCatalogAddPage({
+  existing,
+  initial,
+  onCancel,
+  onSave,
+}: {
+  existing: LicenseCatalogRow[]
+  initial?: LicenseCatalogRow | null
+  onCancel: () => void
+  onSave: (data: Omit<LicenseCatalogRow, 'id'>) => boolean
+}) {
+  const isEdit = Boolean(initial)
+  const [licenseType, setLicenseType] = useState<(typeof LICENSE_CATALOG_TYPES)[number] | ''>(initial?.licenseType ?? '')
+  const [stateCode, setStateCode] = useState(initial?.stateCode ?? '')
+  const [func, setFunc] = useState('')
+  const [cityCounty, setCityCounty] = useState('')
+  const [agency, setAgency] = useState('')
+  const [item, setItem] = useState('')
+  const [itemName, setItemName] = useState('')
+  const [expirationAlerts, setExpirationAlerts] = useState(false)
+  const [includeInCount, setIncludeInCount] = useState(false)
+  const [firstWarningDays, setFirstWarningDays] = useState('')
+  const [secondWarningDays, setSecondWarningDays] = useState('')
+  const [addedItems, setAddedItems] = useState<{
+    id: number
+    func: string
+    item: string
+    itemName: string
+    agency: string
+    counted: boolean
+  }[]>([])
+  const [addingItem, setAddingItem] = useState(true)
+  const [editingItemId, setEditingItemId] = useState<number | null>(null)
+  const [functionFilter, setFunctionFilter] = useState('')
+  const [errors, setErrors] = useState({
+    licenseType: false,
+    stateCode: false,
+    func: false,
+    item: false,
+    firstWarningDays: false,
+    secondWarningDays: false,
+    duplicate: false,
+    items: false,
+  })
+
+  const stateOptions =
+    licenseType === 'Federal'
+      ? [...FEDERAL_LICENSE_CODES]
+      : US_STATE_CODES
+
+  const cityOptions = citiesForState(stateCode, cityCounty)
+  const agencyOptions = [
+    ...AGENCIES_INIT.filter(a => a.stateCode === stateCode).map(a => a.name),
+    ...(stateCode === 'FDA' ? ['Food and Drug Administration'] : []),
+  ]
+
+  const duplicateHint = !!(
+    licenseType &&
+    stateCode &&
+    existing.some(r => r.licenseType === licenseType && r.stateCode === stateCode && r.id !== initial?.id)
+  )
+
+  const filteredItems = addedItems.filter(row => !functionFilter || row.func === functionFilter)
+
+  const resetDetails = () => {
+    setFunc('')
+    setCityCounty('')
+    setAgency('')
+    setItem('')
+    setItemName('')
+    setExpirationAlerts(false)
+    setIncludeInCount(false)
+    setFirstWarningDays('')
+    setSecondWarningDays('')
+    setEditingItemId(null)
+  }
+
+  const handleTypeChange = (next: (typeof LICENSE_CATALOG_TYPES)[number]) => {
+    setLicenseType(next)
+    setStateCode('')
+    setAddedItems([])
+    setFunctionFilter('')
+    setAddingItem(true)
+    resetDetails()
+    setErrors({ licenseType: false, stateCode: false, func: false, item: false, firstWarningDays: false, secondWarningDays: false, duplicate: false, items: false })
+  }
+
+  const handleStateChange = (next: string) => {
+    setStateCode(next)
+    setCityCounty('')
+    setAgency('')
+    setAddedItems([])
+    setFunctionFilter('')
+    setAddingItem(true)
+    resetDetails()
+    setErrors(prev => ({ ...prev, stateCode: false, duplicate: false, items: false }))
+  }
+
+  const validateItem = () => {
+    const next = {
+      func: !func,
+      item: !item,
+      firstWarningDays: expirationAlerts && !firstWarningDays.trim(),
+      secondWarningDays: expirationAlerts && !secondWarningDays.trim(),
+    }
+    setErrors(prev => ({ ...prev, ...next, items: false }))
+    return !Object.values(next).some(Boolean)
+  }
+
+  const buildItem = (id?: number) => ({
+    id: id ?? Date.now(),
+    func,
+    item,
+    itemName: itemName.trim() || 'N/A',
+    agency: agency || 'N/A',
+    counted: includeInCount,
+  })
+
+  const handleAddItem = () => {
+    if (!validateItem()) return
+    const nextItem = buildItem(editingItemId ?? undefined)
+    setAddedItems(prev =>
+      editingItemId != null
+        ? prev.map(row => (row.id === editingItemId ? nextItem : row))
+        : [...prev, nextItem]
+    )
+    resetDetails()
+    setAddingItem(false)
+    setErrors(prev => ({ ...prev, func: false, item: false, firstWarningDays: false, secondWarningDays: false, items: false }))
+  }
+
+  const handleAddNewItem = () => {
+    resetDetails()
+    setAddingItem(true)
+    setErrors(prev => ({ ...prev, func: false, item: false, firstWarningDays: false, secondWarningDays: false, items: false }))
+  }
+
+  const handleEditItem = (row: (typeof addedItems)[number]) => {
+    setFunc(row.func)
+    setItem(row.item)
+    setItemName(row.itemName === 'N/A' ? '' : row.itemName)
+    setAgency(row.agency === 'N/A' ? '' : row.agency)
+    setIncludeInCount(row.counted)
+    setEditingItemId(row.id)
+    setAddingItem(true)
+  }
+
+  const handleSave = () => {
+    if (!licenseType) {
+      setErrors(prev => ({ ...prev, licenseType: true }))
+      return
+    }
+    if (!stateCode) {
+      setErrors(prev => ({ ...prev, stateCode: true, duplicate: false }))
+      return
+    }
+    let list = addedItems
+    if (addingItem && (func || item)) {
+      if (!validateItem()) return
+      const nextItem = buildItem(editingItemId ?? undefined)
+      list = editingItemId != null
+        ? addedItems.map(row => (row.id === editingItemId ? nextItem : row))
+        : [...addedItems, nextItem]
+      setAddedItems(list)
+      resetDetails()
+      setAddingItem(false)
+    }
+    if (list.length === 0 && !isEdit) {
+      setAddingItem(true)
+      setErrors(prev => ({ ...prev, items: true }))
+      return
+    }
+    const saved = onSave({
+      licenseType,
+      stateCode,
+      stateName: licenseStateName(stateCode),
+    })
+    if (!saved) setErrors(prev => ({ ...prev, duplicate: true }))
+  }
+
+  const btnPrimary = 'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors'
+  const btnSecondary = 'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors'
+
+  return (
+    <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-slate-900">{isEdit ? 'Licensing: Edit' : 'Licensing: Add'}</h1>
+          <p className="mt-1 text-sm text-slate-500">Choose the type of license first, then add one or more items.</p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+          <button type="button" onClick={onCancel} className={btnSecondary}>
+            Cancel
+          </button>
+          <button type="button" onClick={handleSave} className={btnPrimary}>
+            Save
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-5 space-y-5">
+          <div>
+            <OwnershipRadioGroup
+              label="Type of License"
+              required
+              value={licenseType}
+              onChange={v => handleTypeChange(v as (typeof LICENSE_CATALOG_TYPES)[number])}
+              options={[
+                { value: 'Federal', label: 'Federal' },
+                { value: 'State', label: 'State' },
+              ]}
+            />
+            {errors.licenseType && (
+              <p className="mt-1.5 text-[11px] text-[#bb5757]">Type of license is required.</p>
+            )}
+          </div>
+
+          {licenseType && (
+            <div className="rounded-xl border border-slate-200 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
+                  <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
+                  <path d="M9.5 2.5V6H13" />
+                </svg>
+                <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">License Information</span>
+              </div>
+              <div className="p-4 bg-white space-y-4">
+                {!stateCode ? (
+                  <div className="max-w-sm">
+                    <OwnershipFormSelect
+                      label={licenseType === 'Federal' ? 'State Code' : 'State'}
+                      required
+                      value={stateCode}
+                      onChange={handleStateChange}
+                      options={stateOptions}
+                      placeholder="Select..."
+                    />
+                    {errors.stateCode && <p className="mt-1 text-[11px] text-[#bb5757]">State code is required.</p>}
+                  </div>
+                ) : (
+                  <>
+                    {addedItems.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="max-w-sm">
+                          <OwnershipFormSelect
+                            label="Select Function"
+                            value={functionFilter}
+                            onChange={setFunctionFilter}
+                            options={[...new Set(addedItems.map(row => row.func))]}
+                            placeholder="Select Function"
+                          />
+                        </div>
+                        <div className="overflow-x-auto rounded-xl border border-slate-200">
+                          <table className="w-full min-w-[640px]">
+                            <thead>
+                              <tr className="border-b border-slate-100 bg-slate-50/60">
+                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Function</th>
+                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Item</th>
+                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
+                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Agency</th>
+                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Counted</th>
+                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-center w-24">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredItems.length === 0 ? (
+                                <tr>
+                                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">No items match this function.</td>
+                                </tr>
+                              ) : (
+                                filteredItems.map((row, i) => (
+                                  <tr
+                                    key={row.id}
+                                    className={`border-b border-slate-100 ${i % 2 === 1 ? 'bg-[#BBDCFC]/25' : 'bg-white'}`}
+                                  >
+                                    <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{row.func}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-700">{row.item}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-600">{row.itemName}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-600">{row.agency}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-600">{row.counted ? 'Yes' : 'No'}</td>
+                                    <td className="px-4 py-3">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleEditItem(row)}
+                                          className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                          title="Edit"
+                                        >
+                                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setAddedItems(prev => prev.filter(itemRow => itemRow.id !== row.id))}
+                                          className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
+                                          title="Delete"
+                                        >
+                                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M3 6h18" />
+                                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                            <path d="M10 11v6M14 11v6" />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {addingItem ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                        <div className="space-y-4">
+                          <div className="relative">
+                            {(errors.duplicate || duplicateHint) && (
+                              <p className="absolute top-0 right-0 z-10 max-w-[70%] pl-3 text-[11px] leading-tight text-right text-[#bb5757]">
+                                This license and state combination already exists.
+                              </p>
+                            )}
+                            <OwnershipFormSelect
+                              label={licenseType === 'Federal' ? 'State Code' : 'State'}
+                              required
+                              value={stateCode}
+                              onChange={handleStateChange}
+                              options={stateOptions}
+                              placeholder="Select..."
+                            />
+                            {errors.stateCode && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
+                          </div>
+                          <div>
+                            <OwnershipFormSelect
+                              label="Function"
+                              required
+                              value={func}
+                              onChange={v => {
+                                setFunc(v)
+                                setErrors(prev => ({ ...prev, func: false }))
+                              }}
+                              options={[...LICENSE_FUNCTIONS]}
+                              placeholder="Select..."
+                            />
+                            {errors.func && <p className="mt-1 text-[11px] text-[#bb5757]">Function is required.</p>}
+                          </div>
+                          <OwnershipFormSelect
+                            label="City/County"
+                            value={cityCounty}
+                            onChange={setCityCounty}
+                            options={cityOptions}
+                            placeholder="Select City/County"
+                          />
+                          <OwnershipFormSelect
+                            label="Agency"
+                            value={agency}
+                            onChange={setAgency}
+                            options={agencyOptions}
+                            placeholder="Agency"
+                          />
+                        </div>
+                        <div className="space-y-4">
+                          <div>
+                            <OwnershipFormSelect
+                              label="Item"
+                              required
+                              value={item}
+                              onChange={v => {
+                                setItem(v)
+                                setErrors(prev => ({ ...prev, item: false }))
+                              }}
+                              options={[...LICENSE_ITEM_TYPES]}
+                              placeholder="Item"
+                            />
+                            {errors.item && <p className="mt-1 text-[11px] text-[#bb5757]">Item is required.</p>}
+                          </div>
+                          <OwnershipFormField
+                            label="Item Name"
+                            value={itemName}
+                            onChange={setItemName}
+                            placeholder="Item Name"
+                          />
+                          <LicenseFormToggle
+                            label="Include in license count"
+                            checked={includeInCount}
+                            onChange={setIncludeInCount}
+                          />
+                          <LicenseFormToggle
+                            label="Expiration Alerts"
+                            checked={expirationAlerts}
+                            onChange={on => {
+                              setExpirationAlerts(on)
+                              if (!on) {
+                                setFirstWarningDays('')
+                                setSecondWarningDays('')
+                                setErrors(prev => ({ ...prev, firstWarningDays: false, secondWarningDays: false }))
+                              }
+                            }}
+                          />
+                        </div>
+                        {expirationAlerts && (
+                          <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-[#12518c]/15 bg-[#12518c]/[0.03] p-3.5 animate-[fadeIn_0.2s_ease-out]">
+                            <div>
+                              <OwnershipFormField
+                                label="First Warning (Days)"
+                                required
+                                value={firstWarningDays}
+                                onChange={v => {
+                                  setFirstWarningDays(v.replace(/\D/g, ''))
+                                  setErrors(prev => ({ ...prev, firstWarningDays: false }))
+                                }}
+                                placeholder="First Warning Days"
+                              />
+                              {errors.firstWarningDays && (
+                                <p className="mt-1 text-[11px] text-[#bb5757]">First warning days is required.</p>
+                              )}
+                            </div>
+                            <div>
+                              <OwnershipFormField
+                                label="Second Warning (Days)"
+                                required
+                                value={secondWarningDays}
+                                onChange={v => {
+                                  setSecondWarningDays(v.replace(/\D/g, ''))
+                                  setErrors(prev => ({ ...prev, secondWarningDays: false }))
+                                }}
+                                placeholder="Second Warning Days"
+                              />
+                              {errors.secondWarningDays && (
+                                <p className="mt-1 text-[11px] text-[#bb5757]">Second warning days is required.</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        <div className="sm:col-span-2 flex justify-end pt-1">
+                          <button type="button" onClick={handleAddItem} className={btnPrimary}>
+                            {editingItemId != null ? 'Update Item' : 'Add Item'}
+                          </button>
+                        </div>
+                        {errors.items && (
+                          <p className="sm:col-span-2 text-[11px] text-[#bb5757] text-right">Add at least one item before saving.</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex justify-end">
+                        <button type="button" onClick={handleAddNewItem} className={btnPrimary}>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                            <path d="M6 2.5v7M2.5 6h7" />
+                          </svg>
+                          Add New Item
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+function downloadQueryCsv(filename: string, headers: string[], rows: string[][]) {
+  const csv = [headers, ...rows]
+    .map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function queryIncludes(q: string, ...values: Array<string | undefined>) {
+  if (!q) return true
+  return values.some(value => (value ?? '').toLowerCase().includes(q))
+}
+
+function parseQueryDate(value: string): number | null {
+  if (!value) return null
+  const mdy = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (mdy) return new Date(Number(mdy[3]), Number(mdy[1]) - 1, Number(mdy[2])).getTime()
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])).getTime()
+  return null
+}
+
+function inQueryDateRange(value: string, from: string, to: string) {
+  if (!from && !to) return true
+  const time = parseQueryDate(value)
+  if (time == null) return false
+  if (from) {
+    const start = parseQueryDate(from)
+    if (start != null && time < start) return false
+  }
+  if (to) {
+    const end = parseQueryDate(to)
+    if (end != null && time > end) return false
+  }
+  return true
+}
+
+function matchesRenewalTiming(row: QueryLicenseRow, timing: string) {
+  if (!timing) return true
+  if (timing === 'Expired') return row.actionIn === 'Expired'
+  const days = Number(row.actionIn)
+  if (!Number.isFinite(days) || days <= 0) return false
+  if (timing === 'Next 30 days') return days <= 30
+  if (timing === 'Next 60 days') return days <= 60
+  if (timing === 'Next 90 days') return days <= 90
+  return true
+}
+
+const QUERY_DATE_INPUT =
+  'h-9 px-2 bg-transparent text-xs text-slate-700 focus:outline-none min-w-[118px]'
+const QUERY_COL_BTN = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
+const QUERY_TH = 'px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap sticky top-0 bg-slate-50 z-[1]'
+
+function QueryDateRange({
+  label,
+  from,
+  to,
+  onFrom,
+  onTo,
+}: {
+  label: string
+  from: string
+  to: string
+  onFrom: (value: string) => void
+  onTo: (value: string) => void
+}) {
+  const active = !!(from || to)
+  return (
+    <div className={`inline-flex items-center h-9 rounded-lg border bg-white overflow-hidden ${active ? 'border-[#12518c] ring-1 ring-[#12518c]/20' : 'border-slate-200'}`}>
+      <span className="pl-2.5 pr-1 text-[10px] font-medium text-slate-500 whitespace-nowrap">{label}</span>
+      <input type="date" value={from} onChange={e => onFrom(e.target.value)} aria-label={`${label} from`} className={QUERY_DATE_INPUT} />
+      <span className="text-slate-300 text-xs">–</span>
+      <input type="date" value={to} onChange={e => onTo(e.target.value)} aria-label={`${label} to`} className={QUERY_DATE_INPUT} />
+    </div>
+  )
+}
+
+function QueryStatusPill({ status }: { status: string }) {
+  if (!status) {
+    return (
+      <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-400">
+        Not set
+      </span>
+    )
+  }
+  const map: Record<string, string> = {
+    Active: 'bg-[#BBDCFC] text-[#3B4A59]',
+    Pending: 'bg-[#e1c16e]/20 text-[#8a6d24] border border-[#e1c16e]/40',
+    Inactive: 'bg-slate-400 text-white',
+    Canceled: 'bg-[#bb5757]/10 text-[#bb5757] border border-[#bb5757]/25',
+    Cancelled: 'bg-[#bb5757]/10 text-[#bb5757] border border-[#bb5757]/25',
+    Expired: 'bg-danger-light text-danger border border-danger-border',
+    Open: 'bg-[#e1c16e]/20 text-[#8a6d24]',
+    Closed: 'bg-slate-100 text-slate-600',
+    Onboarding: 'bg-[#12518c]/10 text-[#12518c]',
+  }
+  return (
+    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${map[status] ?? 'bg-slate-100 text-slate-600'}`}>
+      {status}
+    </span>
+  )
+}
+
+function QueryViewButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+    >
+      View
+    </button>
+  )
+}
+
+function QueryEmptyState({ message, onClear }: { message: string; onClear?: () => void }) {
+  return (
+    <div className="px-4 py-16 text-center">
+      <p className="text-sm font-medium text-slate-600">{message}</p>
+      <p className="text-xs text-slate-400 mt-1">Try a different search, or clear filters to see all records.</p>
+      {onClear && (
+        <button type="button" onClick={onClear} className="mt-3 h-9 px-4 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
+          Clear filters
+        </button>
+      )}
+    </div>
+  )
+}
+
+function QueryQuickChip({
+  label,
+  count,
+  active,
+  tone = 'default',
+  onClick,
+}: {
+  label: string
+  count: number
+  active: boolean
+  tone?: 'default' | 'danger' | 'warning'
+  onClick: () => void
+}) {
+  const tones = {
+    default: active ? 'bg-[#12518c] text-white border-[#12518c]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#12518c]/40',
+    danger: active ? 'bg-[#bb5757] text-white border-[#bb5757]' : 'bg-white text-[#bb5757] border-[#bb5757]/30 hover:bg-danger-light',
+    warning: active ? 'bg-[#a1802b] text-white border-[#a1802b]' : 'bg-white text-[#a1802b] border-[#e1c16e]/50 hover:bg-[#e1c16e]/15',
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-semibold border transition-colors ${tones[tone]}`}
+    >
+      {label}
+      <span className={`min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold leading-4 ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-600'}`}>
+        {count}
+      </span>
+    </button>
+  )
+}
+
+function QueryFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 h-7 pl-2.5 pr-1 rounded-full bg-[#12518c]/10 text-[#12518c] text-[11px] font-semibold">
+      {label}
+      <button type="button" onClick={onRemove} className="w-5 h-5 inline-flex items-center justify-center rounded-full hover:bg-[#12518c]/15" aria-label={`Remove ${label}`}>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M2 2l6 6M8 2L2 8" />
+        </svg>
+      </button>
+    </span>
+  )
+}
+
+function QuerySubNav({
+  active,
+  onChange,
+}: {
+  active: (typeof QUERY_VIEWS)[number]
+  onChange: (view: (typeof QUERY_VIEWS)[number]) => void
+}) {
+  return (
+    <aside className="w-[232px] shrink-0 bg-white border-r border-slate-200 overflow-y-auto">
+      <div className="px-4 pt-5 pb-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Query</p>
+      </div>
+      {QUERY_NAV_GROUPS.map(group => (
+        <div key={group.group} className="px-2 pb-3">
+          <p className="px-3 pb-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{group.group}</p>
+          <div className="flex flex-col gap-0.5">
+            {group.items.map(item => {
+              const selected = active === item
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => onChange(item)}
+                  className={`relative w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors ${
+                    selected ? 'text-[#12518c] font-semibold bg-[#12518c]/10' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  {selected && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-[#12518c]" />}
+                  <span className="truncate">{item}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </aside>
+  )
+}
+
+function QueryPage({
+  activeView,
+  companies,
+  onOpenCompany,
+}: {
+  activeView: (typeof QUERY_VIEWS)[number]
+  companies: CompanyRow[]
+  onOpenCompany: (id: number, tab?: (typeof COMPANY_DETAIL_TABS)[number]) => void
+}) {
+  return (
+    <div className="animate-[fadeIn_0.25s_ease-out]">
+      {activeView === 'Client Licenses' ? (
+        <QueryClientLicensesPage onOpenCompany={onOpenCompany} />
+      ) : activeView === 'Licenses w/o Report Setting' ? (
+        <QueryLicensesWithoutReportPage onOpenCompany={onOpenCompany} />
+      ) : activeView === 'Account Activity' ? (
+        <QueryAccountActivityPage companies={companies} onOpenCompany={onOpenCompany} />
+      ) : activeView === 'Scope' ? (
+        <QueryScopePage companies={companies} onOpenCompany={onOpenCompany} />
+      ) : (
+        <QueryWorkStopPage companies={companies} onOpenCompany={onOpenCompany} />
+      )}
+    </div>
+  )
+}
+
+function QueryClientLicensesPage({
+  onOpenCompany,
+}: {
+  onOpenCompany: (id: number, tab?: (typeof COMPANY_DETAIL_TABS)[number]) => void
+}) {
+  const source = QUERY_LICENSES
+  const [search, setSearch] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('')
+  const [specialistFilter, setSpecialistFilter] = useState('')
+  const [stateFilter, setStateFilter] = useState('')
+  const [funcFilter, setFuncFilter] = useState('')
+  const [itemFilter, setItemFilter] = useState('')
+  const [itemNameFilter, setItemNameFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [renewalTiming, setRenewalTiming] = useState('')
+  const [renewalFrom, setRenewalFrom] = useState('')
+  const [renewalTo, setRenewalTo] = useState('')
+  const [expirationFrom, setExpirationFrom] = useState('')
+  const [expirationTo, setExpirationTo] = useState('')
+  const [missingNumber, setMissingNumber] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [page, setPage] = useState(1)
+
+  const cols = useTableColumns([
+    { key: 'companyId', label: 'Company ID', defaultVisible: false },
+    { key: 'company', label: 'Company' },
+    { key: 'state', label: 'State' },
+    { key: 'func', label: 'Function' },
+    { key: 'item', label: 'Item' },
+    { key: 'itemName', label: 'Item Name' },
+    { key: 'licenseNo', label: 'License/Permit Number' },
+    { key: 'renewalDue', label: 'Renewal Due Date' },
+    { key: 'expiration', label: 'Expiration Date' },
+    { key: 'status', label: 'Status' },
+    { key: 'actions', label: 'Actions' },
+  ])
+
+  const companies = [...new Set(source.map(row => row.company))].sort()
+  const specialists = [...new Set(source.map(row => row.specialist))].sort()
+  const states = [...new Set(source.map(row => row.state))].sort()
+  const funcs = [...new Set(source.map(row => row.func))].sort()
+  const items = [...new Set(source.map(row => row.item).filter(Boolean))].sort()
+  const itemNames = [...new Set(source.map(row => row.itemName).filter(Boolean))].sort()
+
+  const expiredCount = source.filter(row => row.actionIn === 'Expired').length
+  const expiringCount = source.filter(row => {
+    const days = Number(row.actionIn)
+    return Number.isFinite(days) && days > 0 && days <= 30
+  }).length
+  const pendingCount = source.filter(row => row.status === 'Pending').length
+  const inactiveCount = source.filter(row => row.status === 'Inactive').length
+  const canceledCount = source.filter(row => row.status === 'Canceled').length
+  const statusExpiredCount = source.filter(row => row.status === 'Expired').length
+  const missingCount = source.filter(row => !row.licenseNo).length
+
+  const matchesFilters = (row: QueryLicenseRow) =>
+    (!companyFilter || row.company === companyFilter) &&
+    (!specialistFilter || row.specialist === specialistFilter) &&
+    (!stateFilter || row.state === stateFilter) &&
+    (!funcFilter || row.func === funcFilter) &&
+    (!itemFilter || row.item === itemFilter) &&
+    (!itemNameFilter || row.itemName === itemNameFilter) &&
+    (!statusFilter || row.status === statusFilter) &&
+    (!missingNumber || !row.licenseNo) &&
+    matchesRenewalTiming(row, renewalTiming) &&
+    inQueryDateRange(row.renewalDue, renewalFrom, renewalTo) &&
+    inQueryDateRange(row.expiration, expirationFrom, expirationTo)
+
+  const exportRows = source.filter(matchesFilters)
+  const q = search.toLowerCase().trim()
+  const filtered = exportRows.filter(row =>
+    queryIncludes(q, String(row.companyId), row.company, row.state, row.func, row.item, row.itemName, row.licenseNo, row.status, row.specialist),
+  )
+  const pageCount = Math.max(1, Math.ceil(filtered.length / QUERY_PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const paged = filtered.slice((safePage - 1) * QUERY_PAGE_SIZE, safePage * QUERY_PAGE_SIZE)
+  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * QUERY_PAGE_SIZE + 1
+  const rangeEnd = Math.min(safePage * QUERY_PAGE_SIZE, filtered.length)
+
+  const advancedCount = [specialistFilter, funcFilter, itemFilter, itemNameFilter, renewalTiming, renewalFrom, renewalTo, expirationFrom, expirationTo].filter(Boolean).length
+  const filtersActive = !!(
+    search || companyFilter || specialistFilter || stateFilter || funcFilter || itemFilter || itemNameFilter ||
+    statusFilter || renewalTiming || renewalFrom || renewalTo || expirationFrom || expirationTo || missingNumber
+  )
+
+  const clearFilters = () => {
+    setSearch('')
+    setCompanyFilter('')
+    setSpecialistFilter('')
+    setStateFilter('')
+    setFuncFilter('')
+    setItemFilter('')
+    setItemNameFilter('')
+    setStatusFilter('')
+    setRenewalTiming('')
+    setRenewalFrom('')
+    setRenewalTo('')
+    setExpirationFrom('')
+    setExpirationTo('')
+    setMissingNumber(false)
+    setPage(1)
+  }
+
+  const bump = (setter: (value: string) => void) => (value: string) => {
+    setter(value)
+    setPage(1)
+  }
+
+  const toggleChip = (key: 'expired' | 'expiring' | 'pending' | 'inactive' | 'canceled' | 'statusExpired' | 'missing') => {
+    if (key === 'expired') setRenewalTiming(prev => (prev === 'Expired' ? '' : 'Expired'))
+    if (key === 'expiring') setRenewalTiming(prev => (prev === 'Next 30 days' ? '' : 'Next 30 days'))
+    if (key === 'pending') setStatusFilter(prev => (prev === 'Pending' ? '' : 'Pending'))
+    if (key === 'inactive') setStatusFilter(prev => (prev === 'Inactive' ? '' : 'Inactive'))
+    if (key === 'canceled') setStatusFilter(prev => (prev === 'Canceled' ? '' : 'Canceled'))
+    if (key === 'statusExpired') setStatusFilter(prev => (prev === 'Expired' ? '' : 'Expired'))
+    if (key === 'missing') setMissingNumber(prev => !prev)
+    setPage(1)
+  }
+
+  const filterChips: { key: string; label: string; onRemove: () => void }[] = [
+    search ? { key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') } : null,
+    companyFilter ? { key: 'company', label: companyFilter, onRemove: () => setCompanyFilter('') } : null,
+    specialistFilter ? { key: 'specialist', label: specialistFilter, onRemove: () => setSpecialistFilter('') } : null,
+    stateFilter ? { key: 'state', label: `State: ${stateFilter}`, onRemove: () => setStateFilter('') } : null,
+    funcFilter ? { key: 'func', label: funcFilter, onRemove: () => setFuncFilter('') } : null,
+    itemFilter ? { key: 'item', label: itemFilter, onRemove: () => setItemFilter('') } : null,
+    itemNameFilter ? { key: 'itemName', label: itemNameFilter, onRemove: () => setItemNameFilter('') } : null,
+    statusFilter ? { key: 'status', label: statusFilter, onRemove: () => setStatusFilter('') } : null,
+    renewalTiming ? { key: 'timing', label: renewalTiming, onRemove: () => setRenewalTiming('') } : null,
+    missingNumber ? { key: 'missing', label: 'Missing license #', onRemove: () => setMissingNumber(false) } : null,
+    (renewalFrom || renewalTo) ? { key: 'renewal', label: `Renewal ${renewalFrom || '…'} – ${renewalTo || '…'}`, onRemove: () => { setRenewalFrom(''); setRenewalTo('') } } : null,
+    (expirationFrom || expirationTo) ? { key: 'exp', label: `Expiration ${expirationFrom || '…'} – ${expirationTo || '…'}`, onRemove: () => { setExpirationFrom(''); setExpirationTo('') } } : null,
+  ].filter((chip): chip is { key: string; label: string; onRemove: () => void } => Boolean(chip))
+
+  return (
+    <>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-slate-900">Client Licenses</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Find licenses across companies, then jump into the company record.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <QueryQuickChip label="Expired" count={expiredCount} active={renewalTiming === 'Expired'} tone="danger" onClick={() => toggleChip('expired')} />
+        <QueryQuickChip label="Expiring soon" count={expiringCount} active={renewalTiming === 'Next 30 days'} tone="warning" onClick={() => toggleChip('expiring')} />
+        <QueryQuickChip label="Pending" count={pendingCount} active={statusFilter === 'Pending'} onClick={() => toggleChip('pending')} />
+        <QueryQuickChip label="Inactive" count={inactiveCount} active={statusFilter === 'Inactive'} onClick={() => toggleChip('inactive')} />
+        <QueryQuickChip label="Canceled" count={canceledCount} active={statusFilter === 'Canceled'} onClick={() => toggleChip('canceled')} />
+        <QueryQuickChip label="Status expired" count={statusExpiredCount} active={statusFilter === 'Expired'} onClick={() => toggleChip('statusExpired')} />
+        <QueryQuickChip label="Missing license #" count={missingCount} active={missingNumber} onClick={() => toggleChip('missing')} />
+      </div>
+
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <AddressSearchInput
+              value={search}
+              onChange={value => { setSearch(value); setPage(1) }}
+              placeholder="Search company, state, or license #"
+              className="w-full sm:w-72"
+            />
+            <FilterSelect label="Company" value={companyFilter} onChange={bump(setCompanyFilter)} options={companies} />
+            <FilterSelect label="State" value={stateFilter} onChange={bump(setStateFilter)} options={states} />
+            <FilterSelect label="Status" value={statusFilter} onChange={bump(setStatusFilter)} options={[...QUERY_LICENSE_STATUSES]} />
+            <button
+              type="button"
+              onClick={() => setMoreOpen(open => !open)}
+              className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border transition-colors ${
+                moreOpen || advancedCount
+                  ? 'border-[#12518c] text-[#12518c] bg-[#12518c]/10'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              More filters
+              {advancedCount > 0 && (
+                <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#12518c] text-white text-[10px] font-bold leading-4">{advancedCount}</span>
+              )}
+            </button>
+            {filtersActive && (
+              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
+                Clear
+              </button>
+            )}
+            <div className="ml-auto flex items-center gap-2">
+              <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={QUERY_COL_BTN} />
+              <button
+                type="button"
+                title="Search is not included in the export"
+                onClick={() => downloadQueryCsv(
+                  'client-licenses.csv',
+                  ['Company ID', 'Company', 'State', 'Function', 'Item', 'Item Name', 'License/Permit Number', 'Renewal Due Date', 'Expiration Date', 'Status'],
+                  exportRows.map(row => [String(row.companyId), row.company, row.state, row.func, row.item, row.itemName, row.licenseNo, row.renewalDue, row.expiration, row.status]),
+                )}
+                className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors shrink-0"
+              >
+                Export{exportRows.length ? ` · ${exportRows.length}` : ''}
+              </button>
+            </div>
+          </div>
+
+          {moreOpen && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <FilterSelect label="Specialist" value={specialistFilter} onChange={bump(setSpecialistFilter)} options={specialists} />
+              <FilterSelect label="Function" value={funcFilter} onChange={bump(setFuncFilter)} options={funcs} />
+              <FilterSelect label="Item" value={itemFilter} onChange={bump(setItemFilter)} options={items} />
+              <FilterSelect label="Item name" value={itemNameFilter} onChange={bump(setItemNameFilter)} options={itemNames} />
+              <FilterSelect label="Renewal timing" value={renewalTiming} onChange={bump(setRenewalTiming)} options={[...QUERY_RENEWAL_TIMING]} />
+              <QueryDateRange label="Renewal" from={renewalFrom} to={renewalTo} onFrom={bump(setRenewalFrom)} onTo={bump(setRenewalTo)} />
+              <QueryDateRange label="Expiration" from={expirationFrom} to={expirationTo} onFrom={bump(setExpirationFrom)} onTo={bump(setExpirationTo)} />
+            </div>
+          )}
+
+          {filterChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {filterChips.map(chip => (
+                <QueryFilterChip key={chip.key} label={chip.label} onRemove={() => { chip.onRemove(); setPage(1) }} />
+              ))}
+            </div>
+          )}
+
+          {search && (
+            <p className="text-[11px] text-slate-400">
+              Showing {filtered.length} of {exportRows.length} licenses. Search is not included in export.
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-slate-50/40">
+          <p className="text-xs text-slate-500">
+            {filtered.length === 0 ? 'No results' : (
+              <>
+                Showing <span className="font-semibold text-slate-700">{rangeStart}–{rangeEnd}</span> of <span className="font-semibold text-slate-700">{filtered.length}</span>
+              </>
+            )}
+          </p>
+        </div>
+
+        <div className="overflow-auto max-h-[calc(100vh-22rem)]">
+          <table className="w-full min-w-[1100px]">
+            <thead>
+              <tr className="border-y border-slate-100">
+                {cols.show('companyId') && <th className={`${QUERY_TH} text-left`}>Company ID</th>}
+                {cols.show('company') && <th className={`${QUERY_TH} text-left`}>Company</th>}
+                {cols.show('state') && <th className={`${QUERY_TH} text-left`}>State</th>}
+                {cols.show('func') && <th className={`${QUERY_TH} text-left`}>Function</th>}
+                {cols.show('item') && <th className={`${QUERY_TH} text-left`}>Item</th>}
+                {cols.show('itemName') && <th className={`${QUERY_TH} text-left`}>Item Name</th>}
+                {cols.show('licenseNo') && <th className={`${QUERY_TH} text-left`}>License/Permit Number</th>}
+                {cols.show('renewalDue') && <th className={`${QUERY_TH} text-left`}>Renewal Due Date</th>}
+                {cols.show('expiration') && <th className={`${QUERY_TH} text-left`}>Expiration Date</th>}
+                {cols.show('status') && <th className={`${QUERY_TH} text-left`}>Status</th>}
+                {cols.show('actions') && <th className={`${QUERY_TH} text-right pr-5`}>Actions</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {paged.length === 0 ? (
+                <tr>
+                  <td colSpan={Math.max(1, cols.visibleCount)}>
+                    <QueryEmptyState message="No licenses match this query." onClear={filtersActive ? clearFilters : undefined} />
+                  </td>
+                </tr>
+              ) : (
+                paged.map((row, i) => (
+                    <tr key={row.id} className={`border-b border-slate-100 transition-colors ${i % 2 ? 'bg-slate-50/40 hover:bg-[#12518c]/5' : 'bg-white hover:bg-[#12518c]/5'}`}>
+                      {cols.show('companyId') && <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">{row.companyId}</td>}
+                      {cols.show('company') && (
+                        <td className="px-4 py-3">
+                          <button type="button" onClick={() => onOpenCompany(row.companyId, 'Licenses & Reporting')} className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] hover:underline text-left">
+                            {row.company}
+                          </button>
+                        </td>
+                      )}
+                      {cols.show('state') && <td className="px-4 py-3 text-sm text-slate-700">{row.state}</td>}
+                      {cols.show('func') && <td className="px-4 py-3 text-sm text-slate-600">{row.func}</td>}
+                      {cols.show('item') && <td className="px-4 py-3 text-sm text-slate-600">{row.item || '—'}</td>}
+                      {cols.show('itemName') && <td className="px-4 py-3 text-sm text-slate-600 max-w-[200px] truncate" title={row.itemName}>{row.itemName || '—'}</td>}
+                      {cols.show('licenseNo') && <td className="px-4 py-3 text-sm text-slate-700 font-medium tabular-nums">{row.licenseNo || '—'}</td>}
+                      {cols.show('renewalDue') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{row.renewalDue || '—'}</td>
+                      )}
+                      {cols.show('expiration') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{row.expiration || '—'}</td>}
+                      {cols.show('status') && (
+                        <td className="px-4 py-3">
+                          <QueryStatusPill status={row.status} />
+                        </td>
+                      )}
+                      {cols.show('actions') && (
+                        <td className="px-4 py-3 pr-5 text-right">
+                          <QueryViewButton onClick={() => onOpenCompany(row.companyId, 'Licenses & Reporting')} />
+                        </td>
+                      )}
+                    </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <AddressTableFooter total={filtered.length} page={safePage} onPageChange={setPage} pageCount={pageCount} />
+      </section>
+    </>
+  )
+}
+
+function QueryLicensesWithoutReportPage({
+  onOpenCompany,
+}: {
+  onOpenCompany: (id: number, tab?: (typeof COMPANY_DETAIL_TABS)[number]) => void
+}) {
+  const source = QUERY_LICENSES.filter(row => !row.hasReportSetting)
+  const [search, setSearch] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('')
+  const [stateFilter, setStateFilter] = useState('')
+  const [funcFilter, setFuncFilter] = useState('')
+  const [itemNameFilter, setItemNameFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [missingName, setMissingName] = useState(false)
+  const [missingStatus, setMissingStatus] = useState(false)
+  const [expiredOnly, setExpiredOnly] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [page, setPage] = useState(1)
+
+  const cols = useTableColumns([
+    { key: 'companyId', label: 'Company ID' },
+    { key: 'company', label: 'Company' },
+    { key: 'state', label: 'State' },
+    { key: 'func', label: 'Function' },
+    { key: 'itemName', label: 'Item Name' },
+    { key: 'status', label: 'Status' },
+    { key: 'actions', label: 'Actions' },
+  ])
+
+  const companies = [...new Set(source.map(row => row.company))].sort()
+  const states = [...new Set(source.map(row => row.state))].sort()
+  const funcs = [...new Set(source.map(row => row.func))].sort()
+  const itemNames = [...new Set(source.map(row => row.itemName).filter(Boolean))].sort()
+
+  const missingNameCount = source.filter(row => !row.itemName).length
+  const missingStatusCount = source.filter(row => !row.status).length
+  const pendingCount = source.filter(row => row.status === 'Pending').length
+  const inactiveCount = source.filter(row => row.status === 'Inactive').length
+  const canceledCount = source.filter(row => row.status === 'Canceled').length
+  const expiredCount = source.filter(row => row.actionIn === 'Expired').length
+
+  const matchesFilters = (row: QueryLicenseRow) =>
+    (!companyFilter || row.company === companyFilter) &&
+    (!stateFilter || row.state === stateFilter) &&
+    (!funcFilter || row.func === funcFilter) &&
+    (!itemNameFilter || row.itemName === itemNameFilter) &&
+    (!statusFilter || row.status === statusFilter) &&
+    (!missingName || !row.itemName) &&
+    (!missingStatus || !row.status) &&
+    (!expiredOnly || row.actionIn === 'Expired')
+
+  const exportRows = source.filter(matchesFilters)
+  const q = search.toLowerCase().trim()
+  const filtered = exportRows.filter(row =>
+    queryIncludes(q, String(row.companyId), row.company, row.state, row.func, row.item, row.itemName, row.status),
+  )
+  const pageCount = Math.max(1, Math.ceil(filtered.length / QUERY_PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const paged = filtered.slice((safePage - 1) * QUERY_PAGE_SIZE, safePage * QUERY_PAGE_SIZE)
+  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * QUERY_PAGE_SIZE + 1
+  const rangeEnd = Math.min(safePage * QUERY_PAGE_SIZE, filtered.length)
+
+  const advancedCount = [itemNameFilter, statusFilter].filter(Boolean).length
+  const filtersActive = !!(search || companyFilter || stateFilter || funcFilter || itemNameFilter || statusFilter || missingName || missingStatus || expiredOnly)
+
+  const clearFilters = () => {
+    setSearch('')
+    setCompanyFilter('')
+    setStateFilter('')
+    setFuncFilter('')
+    setItemNameFilter('')
+    setStatusFilter('')
+    setMissingName(false)
+    setMissingStatus(false)
+    setExpiredOnly(false)
+    setPage(1)
+  }
+
+  const bump = (setter: (value: string) => void) => (value: string) => {
+    setter(value)
+    setPage(1)
+  }
+
+  const filterChips: { key: string; label: string; onRemove: () => void }[] = [
+    search ? { key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') } : null,
+    companyFilter ? { key: 'company', label: companyFilter, onRemove: () => setCompanyFilter('') } : null,
+    stateFilter ? { key: 'state', label: `State: ${stateFilter}`, onRemove: () => setStateFilter('') } : null,
+    funcFilter ? { key: 'func', label: funcFilter, onRemove: () => setFuncFilter('') } : null,
+    itemNameFilter ? { key: 'itemName', label: itemNameFilter, onRemove: () => setItemNameFilter('') } : null,
+    statusFilter ? { key: 'status', label: statusFilter, onRemove: () => setStatusFilter('') } : null,
+    missingName ? { key: 'missingName', label: 'Missing item name', onRemove: () => setMissingName(false) } : null,
+    missingStatus ? { key: 'missingStatus', label: 'Status not set', onRemove: () => setMissingStatus(false) } : null,
+    expiredOnly ? { key: 'expired', label: 'Expired', onRemove: () => setExpiredOnly(false) } : null,
+  ].filter((chip): chip is { key: string; label: string; onRemove: () => void } => Boolean(chip))
+
+  return (
+    <>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-slate-900">Licenses w/o Report Setting</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Licenses that still need a report setting. Open a company to add reporting on Licenses & Reporting.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <QueryQuickChip label="Missing item name" count={missingNameCount} active={missingName} tone="warning" onClick={() => { setMissingName(v => !v); setPage(1) }} />
+        {missingStatusCount > 0 && (
+          <QueryQuickChip label="Status not set" count={missingStatusCount} active={missingStatus} onClick={() => { setMissingStatus(v => !v); setPage(1) }} />
+        )}
+        <QueryQuickChip label="Pending" count={pendingCount} active={statusFilter === 'Pending'} onClick={() => { setStatusFilter(v => (v === 'Pending' ? '' : 'Pending')); setPage(1) }} />
+        <QueryQuickChip label="Inactive" count={inactiveCount} active={statusFilter === 'Inactive'} onClick={() => { setStatusFilter(v => (v === 'Inactive' ? '' : 'Inactive')); setPage(1) }} />
+        <QueryQuickChip label="Canceled" count={canceledCount} active={statusFilter === 'Canceled'} onClick={() => { setStatusFilter(v => (v === 'Canceled' ? '' : 'Canceled')); setPage(1) }} />
+        <QueryQuickChip label="Expired" count={expiredCount} active={expiredOnly} tone="danger" onClick={() => { setExpiredOnly(v => !v); setPage(1) }} />
+      </div>
+
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <AddressSearchInput
+              value={search}
+              onChange={value => { setSearch(value); setPage(1) }}
+              placeholder="Search company, state, or item name"
+              className="w-full sm:w-72"
+            />
+            <FilterSelect label="Company" value={companyFilter} onChange={bump(setCompanyFilter)} options={companies} />
+            <FilterSelect label="State" value={stateFilter} onChange={bump(setStateFilter)} options={states} />
+            <FilterSelect label="Function" value={funcFilter} onChange={bump(setFuncFilter)} options={funcs} />
+            <button
+              type="button"
+              onClick={() => setMoreOpen(open => !open)}
+              className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border transition-colors ${
+                moreOpen || advancedCount
+                  ? 'border-[#12518c] text-[#12518c] bg-[#12518c]/10'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              More filters
+              {advancedCount > 0 && (
+                <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#12518c] text-white text-[10px] font-bold leading-4">{advancedCount}</span>
+              )}
+            </button>
+            {filtersActive && (
+              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
+                Clear
+              </button>
+            )}
+            <div className="ml-auto flex items-center gap-2">
+              <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={QUERY_COL_BTN} />
+              <button
+                type="button"
+                title="Search is not included in the export"
+                onClick={() => downloadQueryCsv(
+                  'licenses-without-report-setting.csv',
+                  ['Company ID', 'Company', 'State', 'Function', 'Item Name', 'Status'],
+                  exportRows.map(row => [String(row.companyId), row.company, row.state, row.func, row.itemName, row.status]),
+                )}
+                className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors shrink-0"
+              >
+                Export{exportRows.length ? ` · ${exportRows.length}` : ''}
+              </button>
+            </div>
+          </div>
+
+          {moreOpen && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <FilterSelect label="Item name" value={itemNameFilter} onChange={bump(setItemNameFilter)} options={itemNames} />
+              <FilterSelect label="Status" value={statusFilter} onChange={bump(setStatusFilter)} options={[...QUERY_LICENSE_STATUSES]} />
+            </div>
+          )}
+
+          {filterChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {filterChips.map(chip => (
+                <QueryFilterChip key={chip.key} label={chip.label} onRemove={() => { chip.onRemove(); setPage(1) }} />
+              ))}
+            </div>
+          )}
+
+          {search && (
+            <p className="text-[11px] text-slate-400">
+              Showing {filtered.length} of {exportRows.length} licenses. Search is not included in export.
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-slate-50/40">
+          <p className="text-xs text-slate-500">
+            {filtered.length === 0 ? 'No results' : (
+              <>
+                Showing <span className="font-semibold text-slate-700">{rangeStart}–{rangeEnd}</span> of <span className="font-semibold text-slate-700">{filtered.length}</span> without a report setting
+              </>
+            )}
+          </p>
+        </div>
+
+        <div className="overflow-auto max-h-[calc(100vh-22rem)]">
+          <table className="w-full min-w-[900px]">
+            <thead>
+              <tr className="border-y border-slate-100">
+                {cols.show('companyId') && <th className={`${QUERY_TH} text-left`}>Company ID</th>}
+                {cols.show('company') && <th className={`${QUERY_TH} text-left`}>Company</th>}
+                {cols.show('state') && <th className={`${QUERY_TH} text-left`}>State</th>}
+                {cols.show('func') && <th className={`${QUERY_TH} text-left`}>Function</th>}
+                {cols.show('itemName') && <th className={`${QUERY_TH} text-left`}>Item Name</th>}
+                {cols.show('status') && <th className={`${QUERY_TH} text-left`}>Status</th>}
+                {cols.show('actions') && <th className={`${QUERY_TH} text-right pr-5`}>Actions</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {paged.length === 0 ? (
+                <tr>
+                  <td colSpan={Math.max(1, cols.visibleCount)}>
+                    <QueryEmptyState message="No licenses are missing a report setting for this query." onClear={filtersActive ? clearFilters : undefined} />
+                  </td>
+                </tr>
+              ) : (
+                paged.map((row, i) => (
+                    <tr key={row.id} className={`border-b border-slate-100 transition-colors ${i % 2 ? 'bg-slate-50/40 hover:bg-[#12518c]/5' : 'bg-white hover:bg-[#12518c]/5'}`}>
+                      {cols.show('companyId') && <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">{row.companyId}</td>}
+                      {cols.show('company') && (
+                        <td className="px-4 py-3">
+                          <button type="button" onClick={() => onOpenCompany(row.companyId, 'Licenses & Reporting')} className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] hover:underline text-left">
+                            {row.company}
+                          </button>
+                        </td>
+                      )}
+                      {cols.show('state') && <td className="px-4 py-3 text-sm text-slate-700">{row.state}</td>}
+                      {cols.show('func') && <td className="px-4 py-3 text-sm text-slate-600">{row.func}</td>}
+                      {cols.show('itemName') && (
+                        <td className="px-4 py-3 text-sm max-w-[220px] truncate" title={row.itemName || undefined}>
+                          {row.itemName ? <span className="text-slate-600">{row.itemName}</span> : <span className="text-slate-400">—</span>}
+                        </td>
+                      )}
+                      {cols.show('status') && (
+                        <td className="px-4 py-3">
+                          <QueryStatusPill status={row.status} />
+                        </td>
+                      )}
+                      {cols.show('actions') && (
+                        <td className="px-4 py-3 pr-5 text-right">
+                          <QueryViewButton onClick={() => onOpenCompany(row.companyId, 'Licenses & Reporting')} />
+                        </td>
+                      )}
+                    </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <AddressTableFooter total={filtered.length} page={safePage} onPageChange={setPage} pageCount={pageCount} />
+      </section>
+    </>
+  )
+}
+
+function QueryAccountActivityPage({
+  companies,
+  onOpenCompany,
+}: {
+  companies: CompanyRow[]
+  onOpenCompany: (id: number) => void
+}) {
+  const rows = COMPANY_ACCOUNT_ACTIVITY.map((activity, index) => {
+    const company = companies[index % companies.length]
+    return { ...activity, companyId: company.id, company: company.name }
+  })
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const cols = useTableColumns([
+    { key: 'companyId', label: 'Company ID', defaultVisible: false },
+    { key: 'company', label: 'Company' },
+    { key: 'date', label: 'Date' },
+    { key: 'subject', label: 'Subject' },
+    { key: 'type', label: 'Type' },
+    { key: 'status', label: 'Status' },
+    { key: 'flag', label: 'Flag' },
+    { key: 'category', label: 'Category' },
+  ])
+  const q = search.toLowerCase().trim()
+  const filtered = rows.filter(row => {
+    const matchesSearch = queryIncludes(q, String(row.companyId), row.company, row.subject, row.type, row.status, row.category)
+    return matchesSearch && (!typeFilter || row.type === typeFilter) && (!statusFilter || row.status === statusFilter)
+  })
+  const pageCount = Math.max(1, Math.ceil(filtered.length / QUERY_PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const paged = filtered.slice((safePage - 1) * QUERY_PAGE_SIZE, safePage * QUERY_PAGE_SIZE)
+
+  return (
+    <>
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-slate-900">Account Activity</h1>
+        <p className="mt-1 text-sm text-slate-500">Issues, notes, and tasks across client companies.</p>
+      </div>
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <TableSectionHeader title="Account Activity">
+          <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} placeholder="Search Here" />
+          <FilterSelect label="Select Type" value={typeFilter} onChange={v => { setTypeFilter(v); setPage(1) }} options={ACTIVITY_TYPES} />
+          <FilterSelect label="Select Status" value={statusFilter} onChange={v => { setStatusFilter(v); setPage(1) }} options={ACTIVITY_STATUSES} />
+          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={QUERY_COL_BTN} />
+          <button
+            type="button"
+            onClick={() => downloadQueryCsv(
+              'query-account-activity.csv',
+              ['Company ID', 'Company', 'Date', 'Subject', 'Type', 'Status', 'Flag', 'Category'],
+              filtered.map(row => [String(row.companyId), row.company, row.date, row.subject, row.type, row.status, row.flag, row.category]),
+            )}
+            className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors shrink-0"
+          >
+            Export
+          </button>
+        </TableSectionHeader>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px]">
+            <thead>
+              <tr className="border-y border-slate-100 bg-slate-50/60">
+                {cols.show('companyId') && <th className={`${QUERY_TH} text-left`}>Company ID</th>}
+                {cols.show('company') && <th className={`${QUERY_TH} text-left`}>Company</th>}
+                {cols.show('date') && <th className={`${QUERY_TH} text-left`}>Date</th>}
+                {cols.show('subject') && <th className={`${QUERY_TH} text-left`}>Subject</th>}
+                {cols.show('type') && <th className={`${QUERY_TH} text-left`}>Type</th>}
+                {cols.show('status') && <th className={`${QUERY_TH} text-left`}>Status</th>}
+                {cols.show('flag') && <th className={`${QUERY_TH} text-left`}>Flag</th>}
+                {cols.show('category') && <th className={`${QUERY_TH} text-left`}>Category</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((row, i) => (
+                <tr key={row.id} className={`border-b border-slate-100 ${i % 2 ? 'bg-slate-50/40' : 'bg-white'} hover:bg-[#12518c]/5`}>
+                  {cols.show('companyId') && <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">{row.companyId}</td>}
+                  {cols.show('company') && (
+                    <td className="px-4 py-3">
+                      <button type="button" onClick={() => onOpenCompany(row.companyId)} className="text-sm font-medium text-[#12518c] hover:underline text-left">{row.company}</button>
+                    </td>
+                  )}
+                  {cols.show('date') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{row.date}</td>}
+                  {cols.show('subject') && <td className="px-4 py-3 text-sm text-slate-700">{row.subject}</td>}
+                  {cols.show('type') && <td className="px-4 py-3 text-sm text-slate-600">{row.type}</td>}
+                  {cols.show('status') && <td className="px-4 py-3"><QueryStatusPill status={row.status === 'Closed' ? row.status : row.status} /></td>}
+                  {cols.show('flag') && <td className="px-4 py-3 text-sm text-slate-600">{row.flag}</td>}
+                  {cols.show('category') && <td className="px-4 py-3 text-sm text-slate-600">{row.category}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <AddressTableFooter total={filtered.length} page={safePage} onPageChange={setPage} pageCount={pageCount} />
+      </section>
+    </>
+  )
+}
+
+function QueryScopePage({
+  companies,
+  onOpenCompany,
+}: {
+  companies: CompanyRow[]
+  onOpenCompany: (id: number) => void
+}) {
+  const rows = COMPANY_SCOPE.map((scope, index) => {
+    const company = companies[index % companies.length]
+    return { ...scope, companyId: company.id, company: company.name }
+  })
+  const [search, setSearch] = useState('')
+  const [deptFilter, setDeptFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const cols = useTableColumns([
+    { key: 'companyId', label: 'Company ID', defaultVisible: false },
+    { key: 'company', label: 'Company' },
+    { key: 'department', label: 'Department' },
+    { key: 'serviceLevel', label: 'Service Level' },
+    { key: 'serviceType', label: 'Service Type' },
+    { key: 'subServiceType', label: 'Sub-Service Type' },
+    { key: 'status', label: 'Status' },
+    { key: 'specialists', label: 'Specialists' },
+    { key: 'managedBy', label: 'Managed By' },
+  ])
+  const q = search.toLowerCase().trim()
+  const filtered = rows.filter(row => {
+    const matchesSearch = queryIncludes(q, String(row.companyId), row.company, row.department, row.serviceType, row.status, row.specialists)
+    return matchesSearch && (!deptFilter || row.department === deptFilter) && (!statusFilter || row.status === statusFilter)
+  })
+  const pageCount = Math.max(1, Math.ceil(filtered.length / QUERY_PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const paged = filtered.slice((safePage - 1) * QUERY_PAGE_SIZE, safePage * QUERY_PAGE_SIZE)
+
+  return (
+    <>
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-slate-900">Scope</h1>
+        <p className="mt-1 text-sm text-slate-500">Service scope records across client companies.</p>
+      </div>
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <TableSectionHeader title="Scope">
+          <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} placeholder="Search Here" />
+          <FilterSelect label="Select Department" value={deptFilter} onChange={v => { setDeptFilter(v); setPage(1) }} options={SCOPE_DEPARTMENTS} />
+          <FilterSelect label="Select Status" value={statusFilter} onChange={v => { setStatusFilter(v); setPage(1) }} options={SCOPE_STATUSES} />
+          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={QUERY_COL_BTN} />
+          <button
+            type="button"
+            onClick={() => downloadQueryCsv(
+              'query-scope.csv',
+              ['Company ID', 'Company', 'Department', 'Service Level', 'Service Type', 'Sub-Service Type', 'Status', 'Specialists', 'Managed By'],
+              filtered.map(row => [String(row.companyId), row.company, row.department, row.serviceLevel, row.serviceType, row.subServiceType, row.status, row.specialists, row.managedBy]),
+            )}
+            className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors shrink-0"
+          >
+            Export
+          </button>
+        </TableSectionHeader>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[960px]">
+            <thead>
+              <tr className="border-y border-slate-100 bg-slate-50/60">
+                {cols.show('companyId') && <th className={`${QUERY_TH} text-left`}>Company ID</th>}
+                {cols.show('company') && <th className={`${QUERY_TH} text-left`}>Company</th>}
+                {cols.show('department') && <th className={`${QUERY_TH} text-left`}>Department</th>}
+                {cols.show('serviceLevel') && <th className={`${QUERY_TH} text-left`}>Service Level</th>}
+                {cols.show('serviceType') && <th className={`${QUERY_TH} text-left`}>Service Type</th>}
+                {cols.show('subServiceType') && <th className={`${QUERY_TH} text-left`}>Sub-Service Type</th>}
+                {cols.show('status') && <th className={`${QUERY_TH} text-left`}>Status</th>}
+                {cols.show('specialists') && <th className={`${QUERY_TH} text-left`}>Specialists</th>}
+                {cols.show('managedBy') && <th className={`${QUERY_TH} text-left`}>Managed By</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((row, i) => (
+                <tr key={row.id} className={`border-b border-slate-100 ${i % 2 ? 'bg-slate-50/40' : 'bg-white'} hover:bg-[#12518c]/5`}>
+                  {cols.show('companyId') && <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">{row.companyId}</td>}
+                  {cols.show('company') && (
+                    <td className="px-4 py-3">
+                      <button type="button" onClick={() => onOpenCompany(row.companyId)} className="text-sm font-medium text-[#12518c] hover:underline text-left">{row.company}</button>
+                    </td>
+                  )}
+                  {cols.show('department') && <td className="px-4 py-3 text-sm text-slate-600">{row.department}</td>}
+                  {cols.show('serviceLevel') && <td className="px-4 py-3 text-sm text-slate-600">{row.serviceLevel}</td>}
+                  {cols.show('serviceType') && <td className="px-4 py-3 text-sm text-slate-600">{row.serviceType}</td>}
+                  {cols.show('subServiceType') && <td className="px-4 py-3 text-sm text-slate-600">{row.subServiceType}</td>}
+                  {cols.show('status') && <td className="px-4 py-3"><QueryStatusPill status={row.status} /></td>}
+                  {cols.show('specialists') && <td className="px-4 py-3 text-sm text-slate-600">{row.specialists}</td>}
+                  {cols.show('managedBy') && <td className="px-4 py-3 text-sm text-slate-600">{row.managedBy || '—'}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <AddressTableFooter total={filtered.length} page={safePage} onPageChange={setPage} pageCount={pageCount} />
+      </section>
+    </>
+  )
+}
+
+function QueryWorkStopPage({
+  companies,
+  onOpenCompany,
+}: {
+  companies: CompanyRow[]
+  onOpenCompany: (id: number) => void
+}) {
+  const flagged = companies.filter(company => company.alert === 'Work Stop' || company.alert === 'Pending')
+  const rows = (flagged.length ? flagged : companies.slice(0, 3)).map((company, index) => {
+    const stop = COMPANY_WORK_STOP[index % COMPANY_WORK_STOP.length]
+    return {
+      id: company.id,
+      companyId: company.id,
+      company: company.name,
+      specialist: company.specialist,
+      alert: company.alert ?? 'Work Stop',
+      effectiveDate: stop.effectiveDate,
+      endDate: stop.endDate,
+      dayCount: stop.dayCount,
+    }
+  })
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const cols = useTableColumns([
+    { key: 'companyId', label: 'Company ID', defaultVisible: false },
+    { key: 'company', label: 'Company' },
+    { key: 'status', label: 'Status' },
+    { key: 'effectiveDate', label: 'Effective Date' },
+    { key: 'endDate', label: 'End Date' },
+    { key: 'dayCount', label: 'Day Count' },
+    { key: 'specialist', label: 'Specialist' },
+  ])
+  const q = search.toLowerCase().trim()
+  const filtered = rows.filter(row => {
+    const matchesSearch = queryIncludes(q, String(row.companyId), row.company, row.alert, row.specialist)
+    return matchesSearch && (!statusFilter || row.alert === statusFilter)
+  })
+  const pageCount = Math.max(1, Math.ceil(filtered.length / QUERY_PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const paged = filtered.slice((safePage - 1) * QUERY_PAGE_SIZE, safePage * QUERY_PAGE_SIZE)
+
+  return (
+    <>
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-slate-900">Work Stop</h1>
+        <p className="mt-1 text-sm text-slate-500">Companies currently blocked or pending a work stop.</p>
+      </div>
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <TableSectionHeader title="Work Stop">
+          <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} placeholder="Search Here" />
+          <FilterSelect label="Select Status" value={statusFilter} onChange={v => { setStatusFilter(v); setPage(1) }} options={[...WORK_STOP_STATUSES]} />
+          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={QUERY_COL_BTN} />
+          <button
+            type="button"
+            onClick={() => downloadQueryCsv(
+              'query-work-stop.csv',
+              ['Company ID', 'Company', 'Status', 'Effective Date', 'End Date', 'Day Count', 'Specialist'],
+              filtered.map(row => [String(row.companyId), row.company, row.alert, row.effectiveDate, row.endDate, String(row.dayCount), row.specialist]),
+            )}
+            className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors shrink-0"
+          >
+            Export
+          </button>
+        </TableSectionHeader>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px]">
+            <thead>
+              <tr className="border-y border-slate-100 bg-slate-50/60">
+                {cols.show('companyId') && <th className={`${QUERY_TH} text-left`}>Company ID</th>}
+                {cols.show('company') && <th className={`${QUERY_TH} text-left`}>Company</th>}
+                {cols.show('status') && <th className={`${QUERY_TH} text-left`}>Status</th>}
+                {cols.show('effectiveDate') && <th className={`${QUERY_TH} text-left`}>Effective Date</th>}
+                {cols.show('endDate') && <th className={`${QUERY_TH} text-left`}>End Date</th>}
+                {cols.show('dayCount') && <th className={`${QUERY_TH} text-left`}>Day Count</th>}
+                {cols.show('specialist') && <th className={`${QUERY_TH} text-left`}>Specialist</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((row, i) => (
+                <tr key={row.id} className={`border-b border-slate-100 ${row.alert === 'Work Stop' ? 'bg-danger-light hover:bg-danger-lighter' : i % 2 ? 'bg-slate-50/40 hover:bg-[#12518c]/5' : 'bg-white hover:bg-[#12518c]/5'}`}>
+                  {cols.show('companyId') && <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">{row.companyId}</td>}
+                  {cols.show('company') && (
+                    <td className="px-4 py-3">
+                      <button type="button" onClick={() => onOpenCompany(row.companyId)} className={`text-sm font-medium hover:underline text-left ${row.alert === 'Work Stop' ? 'text-danger' : 'text-[#12518c]'}`}>{row.company}</button>
+                    </td>
+                  )}
+                  {cols.show('status') && (
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${row.alert === 'Work Stop' ? 'bg-danger-light text-danger border border-danger-border' : 'bg-[#e1c16e]/15 text-[#8a6d24] border border-[#e1c16e]/40'}`}>
+                        {row.alert}
+                      </span>
+                    </td>
+                  )}
+                  {cols.show('effectiveDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{row.effectiveDate}</td>}
+                  {cols.show('endDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{row.endDate || '—'}</td>}
+                  {cols.show('dayCount') && <td className="px-4 py-3 text-sm text-slate-700 tabular-nums">{row.dayCount}</td>}
+                  {cols.show('specialist') && <td className="px-4 py-3 text-sm text-slate-600">{row.specialist}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <AddressTableFooter total={filtered.length} page={safePage} onPageChange={setPage} pageCount={pageCount} />
+      </section>
+    </>
+  )
+}
+
 function WorkInProgressPage({ title }: { title?: string }) {
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center animate-[fadeIn_0.25s_ease-out]">
       <div className="w-16 h-16 rounded-2xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center mb-5">
@@ -1496,7 +7085,7 @@ function DashboardPage({
           { label: 'Active Licenses', value: '24', change: '+2 this month', color: 'bg-[#12518c]/10 text-[#12518c]' },
           { label: 'Expired', value: '5', change: 'Needs attention', color: 'bg-danger-light text-danger' },
           { label: 'Renewing Soon', value: '12', change: 'Next 30 days', color: 'bg-[#e1c16e]/15 text-[#a1802b]' },
-          { label: 'Favorite Companies', value: '1', change: 'Pinned', color: 'bg-emerald-50 text-emerald-600' },
+          { label: 'Favorite Companies', value: '1', change: 'Pinned', color: 'bg-[#BBDCFC] text-[#3B4A59]' },
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-4">
             <div className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md mb-3 ${stat.color}`}>
@@ -1834,7 +7423,7 @@ function NotesPreviewModal({
 
 function CellarToast({ message }: { message: string }) {
   return createPortal(
-    <div className="fixed bottom-6 right-6 z-[10000] flex items-center gap-2.5 px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-medium shadow-lg animate-[fadeIn_0.2s_ease-out]">
+    <div className="fixed bottom-6 right-6 z-[10000] flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#BBDCFC] text-[#12518c] text-sm font-medium shadow-lg animate-[fadeIn_0.2s_ease-out]">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3.5 8.5l3 3 6-6" />
       </svg>
@@ -1887,6 +7476,7 @@ function CellarPage({
     { key: 'updatedData', label: 'Updated Data' },
     { key: 'notes', label: 'Notes' },
     { key: 'requestedBy', label: 'Requested By' },
+    { key: 'action', label: 'Action' },
   ])
   const pendingCols = useTableColumns([
     { key: 'company', label: 'Company' },
@@ -1896,6 +7486,7 @@ function CellarPage({
     { key: 'newValue', label: 'New Value' },
     { key: 'status', label: 'Status' },
     { key: 'requestedBy', label: 'Requested By' },
+    { key: 'actions', label: 'Actions' },
   ])
   const finalCols = useTableColumns([
     { key: 'company', label: 'Company/Contact Name' },
@@ -1907,6 +7498,7 @@ function CellarPage({
     { key: 'requestedBy', label: 'Requested By' },
     { key: 'specialist', label: 'Specialist' },
     { key: 'status', label: 'Status' },
+    { key: 'action', label: 'Action' },
   ])
   const PAGE_SIZE = 10
 
@@ -2264,13 +7856,13 @@ function CellarPage({
                   {finalCols.show('requestedBy') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
                   {finalCols.show('specialist') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Specialist</th>}
                   {finalCols.show('status') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Status</th>}
-                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap w-[100px]">Action</th>
+                  {finalCols.show('action') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap w-[100px]">Action</th>}
                 </tr>
               </thead>
               <tbody>
                 {pagedFinalDecisions.length === 0 ? (
                   <tr>
-                    <td colSpan={finalCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">
+                    <td colSpan={Math.max(1, finalCols.visibleCount)} className="px-4 py-12 text-center text-sm text-slate-400">
                       No final decisions found.
                     </td>
                   </tr>
@@ -2340,6 +7932,7 @@ function CellarPage({
                           </div>
                         </td>
                       )}
+                      {finalCols.show('action') && (
                       <td className="px-3 py-3 pr-4">
                         <div className="flex items-center justify-center">
                           <button
@@ -2356,6 +7949,7 @@ function CellarPage({
                           </button>
                         </div>
                       </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -2363,7 +7957,7 @@ function CellarPage({
             </table>
           </div>
 
-          <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/40">
+          <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100 bg-slate-50/40">
             <span className="text-sm text-slate-500">
               Total: <span className="font-semibold text-slate-700">{filteredFinalDecisions.length}</span>
             </span>
@@ -2452,13 +8046,13 @@ function CellarPage({
                   {actionItemCols.show('updatedData') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Updated Data</th>}
                   {actionItemCols.show('notes') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Notes</th>}
                   {actionItemCols.show('requestedBy') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
-                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap w-[150px]">Action</th>
+                  {actionItemCols.show('action') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap w-[150px]">Action</th>}
                 </tr>
               </thead>
               <tbody>
                 {filteredActionItems.length === 0 ? (
                   <tr>
-                    <td colSpan={actionItemCols.visibleCount + 2} className="px-4 py-12 text-center text-sm text-slate-400">No action items found.</td>
+                    <td colSpan={actionItemCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No action items found.</td>
                   </tr>
                 ) : (
                   filteredActionItems.map((row, i) => {
@@ -2518,6 +8112,7 @@ function CellarPage({
                             </div>
                           </td>
                         )}
+                        {actionItemCols.show('action') && (
                         <td className="px-3 py-3 pr-4">
                           <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                             <button
@@ -2536,6 +8131,7 @@ function CellarPage({
                             </button>
                           </div>
                         </td>
+                        )}
                       </tr>
                     )
                   })
@@ -2609,13 +8205,13 @@ function CellarPage({
                   {pendingCols.show('newValue') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">New Value</th>}
                   {pendingCols.show('status') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Status</th>}
                   {pendingCols.show('requestedBy') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
-                  <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide w-[150px]">Actions</th>
+                  {pendingCols.show('actions') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide w-[150px]">Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {filteredPending.length === 0 ? (
                   <tr>
-                    <td colSpan={pendingCols.visibleCount + 2} className="px-4 py-12 text-center text-sm text-slate-400">No pending changes found.</td>
+                    <td colSpan={pendingCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No pending changes found.</td>
                   </tr>
                 ) : (
                   filteredPending.map((row, i) => (
@@ -2672,6 +8268,7 @@ function CellarPage({
                           </div>
                         </td>
                       )}
+                      {pendingCols.show('actions') && (
                       <td className="px-3 py-3 pr-4">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
@@ -2697,6 +8294,7 @@ function CellarPage({
                           </button>
                         </div>
                       </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -2745,7 +8343,7 @@ function PeoplePage({
       p.email.toLowerCase().includes(q) ||
       p.company.toLowerCase().includes(q)
     return (
-      (!typeFilter || p.type === typeFilter) &&
+      (!typeFilter || getPersonTypes(p).includes(typeFilter as PersonContactType)) &&
       matchesSearch &&
       (!categoryFilter || p.category === categoryFilter)
     )
@@ -2767,7 +8365,7 @@ function PeoplePage({
   const exportPeople = () => {
     const rows = [
       ['Name', 'Email', 'Company/Agency Name', 'Type', 'Category'],
-      ...filtered.map(p => [p.name, p.email, p.company, p.type, p.category]),
+      ...filtered.map(p => [p.name, p.email, p.company, getPersonTypes(p).join('; '), p.category]),
     ]
     const csv = rows.map(row => row.map(value => `"${value.replace(/"/g, '""')}"`).join(',')).join('\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
@@ -2780,8 +8378,11 @@ function PeoplePage({
 
   return (
     <>
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-slate-900">People</h1>
+      </div>
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <TableSectionHeader title="People" subtitle="Manage contacts across clients, agencies, vendors, and industry partners">
+        <TableSectionHeader title="All People" subtitle="Manage contacts across clients, agencies, vendors, and industry partners">
           <div className="relative">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="5" cy="5" r="3.5" />
@@ -2881,14 +8482,16 @@ function PeoplePage({
                     {peopleCols.show('company') && <td className={`px-4 py-3 text-sm ${person.alert === 'Work Stop' ? 'text-danger' : 'text-slate-600'}`}>{person.company}</td>}
                     {peopleCols.show('type') && (
                       <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          person.type === 'Client' ? 'bg-sky-50 text-sky-700' :
-                          person.type === 'Agency' ? 'bg-violet-50 text-violet-700' :
-                          person.type === 'Vendor' ? 'bg-[#e1c16e]/15 text-[#8a6d24]' :
-                          'bg-emerald-50 text-emerald-700'
-                        }`}>
-                          {person.type}
-                        </span>
+                        <div className="flex flex-wrap items-center justify-center gap-1">
+                          {getPersonTypes(person).map(type => (
+                            <span
+                              key={type}
+                              className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${personTypeBadgeClass(type)}`}
+                            >
+                              {type}
+                            </span>
+                          ))}
+                        </div>
                       </td>
                     )}
                     {peopleCols.show('category') && <td className={`px-4 py-3 text-sm ${person.alert === 'Work Stop' ? 'text-danger' : 'text-slate-600'}`}>{person.category}</td>}
@@ -3006,8 +8609,11 @@ function AgenciesPage({
 
   return (
     <>
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-slate-900">Agencies</h1>
+      </div>
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
-        <TableSectionHeader title="Agencies" subtitle="Directory of federal and state alcoholic beverage control agencies">
+        <TableSectionHeader title="All Agencies" subtitle="Directory of federal and state alcoholic beverage control agencies">
           <AddressSearchInput
             value={search}
             onChange={v => {
@@ -3174,7 +8780,7 @@ function AgenciesPage({
                           className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
                             agency.jurisdiction === 'Federal'
                               ? 'bg-[#12518c]/10 text-[#12518c]'
-                              : 'bg-emerald-50 text-emerald-700'
+                              : 'bg-[#BBDCFC] text-[#3B4A59]'
                           }`}
                         >
                           {agency.jurisdiction}
@@ -3481,7 +9087,7 @@ function AgencyDetailPage({
                   className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold ${
                     agency.jurisdiction === 'Federal'
                       ? 'bg-[#12518c]/10 text-[#12518c]'
-                      : 'bg-emerald-50 text-emerald-700'
+                      : 'bg-[#BBDCFC] text-[#3B4A59]'
                   }`}
                 >
                   {agency.jurisdiction}
@@ -3657,7 +9263,7 @@ function AgencySummaryTab({
                   className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
                     agency.jurisdiction === 'Federal'
                       ? 'bg-[#12518c]/10 text-[#12518c]'
-                      : 'bg-emerald-50 text-emerald-700'
+                      : 'bg-[#BBDCFC] text-[#3B4A59]'
                   }`}
                 >
                   {agency.jurisdiction}
@@ -5605,7 +11211,7 @@ function AddPersonPage({
 }) {
   const [openSection, setOpenSection] = useState('General Information')
   const [form, setForm] = useState({
-    typeOfContact: '' as '' | PersonRow['type'],
+    types: [] as PersonContactType[],
     sal: '',
     firstName: '',
     middleName: '',
@@ -5629,19 +11235,52 @@ function AddPersonPage({
     personalZip: '',
     personalCountry: 'United States',
     notes: '',
+    ssn: '',
+    dlNo: '',
+    stateIssued: '',
+    dob: '',
+    placeOfBirth: '',
+    usCitizen: false,
+    height: '',
+    weight: '',
+    eyeColor: '',
+    hairColor: '',
+    maritalStatus: '',
+    spouseFullName: '',
+    marriageDate: '',
+    marriageState: '',
+    marriageCity: '',
+    jobTitle: '',
+    company: '',
+    empCity: '',
+    empFrom: '',
+    empTo: '',
+    currentEmployment: false,
+    interestInLicense: '',
+    licenseRevoked: '',
+    arrested: '',
   })
-  const [errors, setErrors] = useState({ typeOfContact: false, firstName: false, lastName: false })
+  const [errors, setErrors] = useState({ types: false, firstName: false, lastName: false })
+  const isClient = form.types.includes('Client')
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm(prev => ({ ...prev, [key]: value }))
-    if (key === 'typeOfContact' || key === 'firstName' || key === 'lastName') {
+    if (key === 'firstName' || key === 'lastName') {
       setErrors(prev => ({ ...prev, [key]: false }))
+    }
+  }
+
+  const setTypes = (types: PersonContactType[]) => {
+    setForm(prev => ({ ...prev, types }))
+    if (types.length) setErrors(prev => ({ ...prev, types: false }))
+    if (!types.includes('Client') && (CLIENT_ONLY_SECTIONS as readonly string[]).includes(openSection)) {
+      setOpenSection('General Information')
     }
   }
 
   const submit = () => {
     const next = {
-      typeOfContact: !form.typeOfContact,
+      types: form.types.length === 0,
       firstName: !form.firstName.trim(),
       lastName: !form.lastName.trim(),
     }
@@ -5660,8 +11299,9 @@ function AddPersonPage({
       id: Date.now(),
       name,
       email,
-      company: form.role.trim() || '—',
-      type: form.typeOfContact as PersonRow['type'],
+      company: form.company.trim() || form.role.trim() || '—',
+      type: primaryPersonType(form.types),
+      types: form.types,
       category: 'Individual',
       alert: null,
     })
@@ -5672,7 +11312,7 @@ function AddPersonPage({
       <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Add New Person</h1>
-          <p className="mt-1 text-sm text-slate-500">Enter contact details, business and personal address information.</p>
+          <p className="mt-1 text-sm text-slate-500">Choose the type of contact first, then enter details for this person.</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
           <button
@@ -5701,15 +11341,13 @@ function AddPersonPage({
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4">
               <div>
-                <DetailSelect
+                <ContactTypeMultiSelect
                   label="Type of Contact *"
-                  value={form.typeOfContact}
-                  onChange={v => set('typeOfContact', v as PersonRow['type'])}
-                  editing
-                  options={['Client', 'Agency', 'Vendor', 'Industry']}
-                  placeholder="Select…"
+                  values={form.types}
+                  onChange={setTypes}
+                  invalid={errors.types}
                 />
-                {errors.typeOfContact && <p className="mt-1 text-[11px] text-[#bb5757]">Type of contact is required.</p>}
+                {errors.types && <p className="mt-1 text-[11px] text-[#bb5757]">Type of contact is required.</p>}
               </div>
               <DetailSelect label="Sal" value={form.sal} onChange={v => set('sal', v)} editing options={['Mr', 'Mrs', 'Ms', 'Dr', 'Prof']} placeholder="Select…" />
               <div>
@@ -5828,6 +11466,115 @@ function AddPersonPage({
               </div>
             </label>
           </DetailSection>
+
+          {isClient && (
+            <>
+              <DetailSection
+                title="Personal Information"
+                open={openSection === 'Personal Information'}
+                onToggle={() => setOpenSection('Personal Information')}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4">
+                  <DetailField label="Social Security Number" value={form.ssn} onChange={v => set('ssn', v)} editing placeholder="XXX-XX-XXXX" />
+                  <DetailField label="Driver's License No" value={form.dlNo} onChange={v => set('dlNo', v)} editing />
+                  <DetailSelect label="State Issued" value={form.stateIssued} onChange={v => set('stateIssued', v)} editing options={US_STATES} placeholder="Select…" />
+                  <DetailField label="Date of Birth" value={form.dob} onChange={v => set('dob', v)} editing placeholder="MM/DD/YYYY" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-x-4 gap-y-4 mt-4">
+                  <DetailField label="Place of Birth" value={form.placeOfBirth} onChange={v => set('placeOfBirth', v)} editing />
+                  <label className="block min-w-0">
+                    <span className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-[11px] font-medium text-slate-500 leading-tight">US Citizen</span>
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={form.usCitizen}
+                      onClick={() => set('usCitizen', !form.usCitizen)}
+                      className={`relative w-10 h-5 rounded-full transition-colors mt-1.5 ${form.usCitizen ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.usCitizen ? 'translate-x-5' : ''}`} />
+                    </button>
+                  </label>
+                  <DetailField label="Height" value={form.height} onChange={v => set('height', v)} editing />
+                  <DetailField label="Weight" value={form.weight} onChange={v => set('weight', v)} editing />
+                  <DetailField label="Eye Color" value={form.eyeColor} onChange={v => set('eyeColor', v)} editing />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4 mt-4">
+                  <DetailField label="Hair Color" value={form.hairColor} onChange={v => set('hairColor', v)} editing />
+                </div>
+              </DetailSection>
+
+              <DetailSection
+                title="Marital Information"
+                open={openSection === 'Marital Information'}
+                onToggle={() => setOpenSection('Marital Information')}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4">
+                  <DetailSelect label="Marital Status" value={form.maritalStatus} onChange={v => set('maritalStatus', v)} editing options={['Single', 'Married', 'Divorced', 'Widowed', 'Separated']} placeholder="Select…" />
+                  <DetailField label="Spouse Full Name" value={form.spouseFullName} onChange={v => set('spouseFullName', v)} editing />
+                  <DetailField label="Marriage Date" value={form.marriageDate} onChange={v => set('marriageDate', v)} editing placeholder="MM/DD/YYYY" />
+                  <DetailSelect label="Marriage State" value={form.marriageState} onChange={v => set('marriageState', v)} editing options={US_STATES} placeholder="Select…" />
+                  <DetailField label="Marriage City" value={form.marriageCity} onChange={v => set('marriageCity', v)} editing />
+                </div>
+              </DetailSection>
+
+              <DetailSection
+                title="Employment Information"
+                open={openSection === 'Employment Information'}
+                onToggle={() => setOpenSection('Employment Information')}
+              >
+                <div className="mb-4">
+                  <DetailField label="Job Title" value={form.jobTitle} onChange={v => set('jobTitle', v)} editing />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4">
+                  <DetailField label="Company" value={form.company} onChange={v => set('company', v)} editing />
+                  <DetailField label="City" value={form.empCity} onChange={v => set('empCity', v)} editing />
+                  <DetailField label="From" value={form.empFrom} onChange={v => set('empFrom', v)} editing placeholder="MM/DD/YYYY" />
+                  <DetailField label="To" value={form.empTo} onChange={v => set('empTo', v)} editing={!form.currentEmployment} placeholder="MM/DD/YYYY" readOnly={form.currentEmployment} />
+                </div>
+                <label className="inline-flex items-center gap-2 text-xs text-slate-600 mt-4">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={form.currentEmployment}
+                    onClick={() => set('currentEmployment', !form.currentEmployment)}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${form.currentEmployment ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.currentEmployment ? 'translate-x-5' : ''}`} />
+                  </button>
+                  Current Employment
+                </label>
+              </DetailSection>
+
+              <DetailSection
+                title="Questionnaire"
+                open={openSection === 'Questionnaire'}
+                onToggle={() => setOpenSection('Questionnaire')}
+              >
+                <div className="space-y-4">
+                  <OwnershipRadioGroup
+                    label="Do you have (or have you ever had) any direct or indirect interest in an alcoholic beverage license?"
+                    value={form.interestInLicense}
+                    onChange={v => set('interestInLicense', v)}
+                    options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
+                  />
+                  <OwnershipRadioGroup
+                    label="Have you (or any company you where/are involved in) had an alcoholic beverage license revoked, suspended or denied?"
+                    value={form.licenseRevoked}
+                    onChange={v => set('licenseRevoked', v)}
+                    options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
+                  />
+                  <OwnershipRadioGroup
+                    label="Have you ever been arrested, charged, convicted or placed on probation?"
+                    value={form.arrested}
+                    onChange={v => set('arrested', v)}
+                    options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
+                  />
+                </div>
+              </DetailSection>
+            </>
+          )}
         </div>
       </div>
 
@@ -5929,7 +11676,7 @@ function PersonDetailPage({
               <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${workStopActive ? 'text-danger' : 'text-slate-600'}`}>
                 <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>Person ID</span> {personId}</span>
                 <span className={workStopActive ? 'text-danger/40' : 'text-slate-300'}>·</span>
-                <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>Type</span> {person.type}</span>
+                <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>Type</span> {getPersonTypes(person).join(', ')}</span>
                 <span className={workStopActive ? 'text-danger/40' : 'text-slate-300'}>·</span>
                 <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>Category</span> {person.category}</span>
               </div>
@@ -6138,7 +11885,7 @@ function PersonAssociationCard({
                     {cols.show('companyStatus') && (
                       <td className="px-4 py-3">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          row.companyStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                          row.companyStatus === 'Active' ? 'bg-[#BBDCFC] text-[#3B4A59]' : 'bg-slate-100 text-slate-600'
                         }`}>
                           {row.companyStatus}
                         </span>
@@ -6834,6 +12581,75 @@ function PersonAddNoteModal({
   )
 }
 
+function PersonViewNoteModal({
+  note,
+  onClose,
+}: {
+  note: (typeof PERSON_NOTES)[number]
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  return (
+    <AddressModalShell maxWidth="max-w-lg" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
+              <circle cx="8" cy="8" r="2" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900">View Note</h3>
+            <p className="text-[11px] text-slate-500">Read-only note details for this person</p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="px-5 py-5 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <OwnershipFormLabel>Type</OwnershipFormLabel>
+            <div className="h-[42px] flex items-center">
+              <PersonNoteTypeBadge type={note.type} />
+            </div>
+          </div>
+          <OwnershipFormField label="Author" value={note.author} onChange={() => {}} readOnly />
+        </div>
+
+        <div>
+          <OwnershipFormLabel>Note</OwnershipFormLabel>
+          <div className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/80 text-sm text-slate-800 leading-relaxed whitespace-pre-wrap min-h-[120px]">
+            {note.note || 'No note provided.'}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
 function PersonNoteDeleteModal({
   noteText,
   noteType,
@@ -6915,6 +12731,7 @@ function PersonNotesPage() {
   const [page, setPage] = useState(1)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingNote, setEditingNote] = useState<(typeof PERSON_NOTES)[number] | null>(null)
+  const [viewingNote, setViewingNote] = useState<(typeof PERSON_NOTES)[number] | null>(null)
   const [deleteNoteId, setDeleteNoteId] = useState<number | null>(null)
   const [nextId, setNextId] = useState(() => Math.max(0, ...PERSON_NOTES.map(n => n.id)) + 1)
 
@@ -6986,7 +12803,8 @@ function PersonNotesPage() {
               filtered.map((note, i) => (
                 <tr
                   key={note.id}
-                  className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
+                  onClick={() => setViewingNote(note)}
+                  className={`border-b border-slate-100 transition-colors cursor-pointer hover:bg-[#12518c]/5 ${
                     i % 2 === 1 ? 'bg-slate-50/40' : 'bg-[#f8fafc]'
                   }`}
                 >
@@ -6997,7 +12815,7 @@ function PersonNotesPage() {
                     </td>
                   )}
                   {cols.show('author') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{note.author}</td>}
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-1">
                       <button
                         type="button"
@@ -7037,6 +12855,13 @@ function PersonNotesPage() {
         <PersonAddNoteModal
           onClose={() => setShowAddModal(false)}
           onSave={addNote}
+        />
+      )}
+
+      {viewingNote && (
+        <PersonViewNoteModal
+          note={viewingNote}
+          onClose={() => setViewingNote(null)}
         />
       )}
 
@@ -7116,6 +12941,7 @@ function AddCompanyPage({
       alert: null,
       type: form.companyType as CompanyRow['type'],
       starred: false,
+      specialist: '',
     })
   }
 
@@ -7292,6 +13118,7 @@ function CompaniesPage({
   const [typeFilter, setTypeFilter] = useState('')
   const [alertFilter, setAlertFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [specialistFilter, setSpecialistFilter] = useState('')
   const [page, setPage] = useState(1)
   const total = 550
 
@@ -7308,17 +13135,19 @@ function CompaniesPage({
       matchesSearch &&
       (!typeFilter || c.type === typeFilter) &&
       matchesAlert &&
-      (!statusFilter || c.status === statusFilter)
+      (!statusFilter || c.status === statusFilter) &&
+      (!specialistFilter || c.specialist === specialistFilter)
     )
   })
 
-  const filtersActive = !!(search || typeFilter || alertFilter || statusFilter)
+  const filtersActive = !!(search || typeFilter || alertFilter || statusFilter || specialistFilter)
 
   const clearFilters = () => {
     setSearch('')
     setTypeFilter('')
     setAlertFilter('')
     setStatusFilter('')
+    setSpecialistFilter('')
     setPage(1)
   }
 
@@ -7378,6 +13207,15 @@ function CompaniesPage({
             value={statusFilter}
             onChange={v => {
               setStatusFilter(v)
+              setPage(1)
+            }}
+          />
+          <Select
+            placeholder="Specialist"
+            options={[...COMPANY_SPECIALISTS]}
+            value={specialistFilter}
+            onChange={v => {
+              setSpecialistFilter(v)
               setPage(1)
             }}
           />
@@ -7777,7 +13615,7 @@ function CompanySummaryPage({
                         <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{row.subType}</td>
                         <td className="px-2 py-2.5 text-xs text-slate-600 truncate" title={row.serviceType}>{row.serviceType}</td>
                         <td className="px-2 py-2.5">
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-500 text-white">{row.status}</span>
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">{row.status}</span>
                         </td>
                         <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{row.specialists}</td>
                       </tr>
@@ -9859,7 +15697,7 @@ function AddOwnershipPage({
                           <td className="px-3 py-2.5 text-sm text-slate-600 whitespace-nowrap">{e.current ? '—' : formatEmploymentDate(e.to)}</td>
                           <td className="px-3 py-2.5">
                             {e.current ? (
-                              <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700">Current</span>
+                              <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">Current</span>
                             ) : (
                               <span className="text-xs text-slate-400">—</span>
                             )}
@@ -10673,6 +16511,8 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   )
 
   const activeCount = licenses.filter(l => l.status === 'Active').length
+  const pendingCount = licenses.filter(l => l.status === 'Pending').length
+  const inactiveCount = licenses.filter(l => l.status === 'Inactive').length
   const expiredCount = licenses.filter(l => l.actionIn === 'Expired').length
   const canceledCount = licenses.filter(l => l.status === 'Canceled').length
   const reportActiveCount = reportRows.filter(r => r.active).length
@@ -10740,41 +16580,67 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       {/* Sub-tabs */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="flex items-center gap-0 px-2 border-b border-slate-100">
-          {(['Licensing Summary', 'Reporting Summary'] as const).map(t => {
-            const active = subTab === t
-            return (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setSubTab(t)}
-                className={`relative px-4 py-3 text-xs font-semibold whitespace-nowrap transition-colors ${
-                  active ? 'text-[#12518c]' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                {t}
-                <span
-                  className={`absolute left-2 right-2 bottom-0 h-0.5 rounded-full ${
-                    active ? 'bg-[#12518c]' : 'bg-transparent'
+        <div className="flex items-center gap-3 px-2 pr-4 border-b border-slate-100">
+          <div className="flex items-center gap-0 min-w-0">
+            {(['Licensing Summary', 'Reporting Summary'] as const).map(t => {
+              const active = subTab === t
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setSubTab(t)}
+                  className={`relative px-4 py-3 text-xs font-semibold whitespace-nowrap transition-colors ${
+                    active ? 'text-[#12518c]' : 'text-slate-500 hover:text-slate-800'
                   }`}
-                />
-              </button>
-            )
-          })}
+                >
+                  {t}
+                  <span
+                    className={`absolute left-2 right-2 bottom-0 h-0.5 rounded-full ${
+                      active ? 'bg-[#12518c]' : 'bg-transparent'
+                    }`}
+                  />
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0 py-2">
+            {subTab === 'Licensing Summary' ? (
+              <>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#BBDCFC] text-[11px] font-semibold text-[#3B4A59]">
+                  Active <span className="tabular-nums">{activeCount}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#e1c16e]/20 text-[11px] font-semibold text-[#8a6d24]">
+                  Pending <span className="tabular-nums">{pendingCount}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-400 text-[11px] font-semibold text-white">
+                  Inactive <span className="tabular-nums">{inactiveCount}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-danger-light text-[11px] font-semibold text-[#bb5757]">
+                  Expired <span className="tabular-nums">{expiredCount}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#bb5757]/10 text-[11px] font-semibold text-[#bb5757]">
+                  Canceled <span className="tabular-nums">{canceledCount}</span>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#BBDCFC] text-[11px] font-semibold text-[#3B4A59]">
+                  Active <span className="tabular-nums">{reportActiveCount}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">
+                  Inactive <span className="tabular-nums">{reportInactiveCount}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-[11px] font-semibold text-sky-700">
+                  Total <span className="tabular-nums">{filteredReports.length}</span>
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
         {subTab === 'Licensing Summary' ? (
           <>
             <TableSectionHeader title="Licensing Summary" subtitle={`Company ID ${companyId} · permits, bonds, and state licenses`}>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-[11px] font-semibold text-emerald-700">
-                Active <span className="tabular-nums">{activeCount}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-danger-light text-[11px] font-semibold text-[#bb5757]">
-                Expired <span className="tabular-nums">{expiredCount}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">
-                Canceled <span className="tabular-nums">{canceledCount}</span>
-              </span>
               <AddressSearchInput value={search} onChange={v => setSearch(v)} />
               <FilterSelect value={stateFilter} onChange={v => setStateFilter(v)} className={filterSelectClassName(stateFilter)}>
                 <option value="">State / State Code</option>
@@ -10790,8 +16656,9 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
               </FilterSelect>
               <FilterSelect value={statusFilter} onChange={v => setStatusFilter(v)} className={filterSelectClassName(statusFilter)}>
                 <option value="">Item Status</option>
-                <option value="Active">Active</option>
-                <option value="Canceled">Canceled</option>
+                {QUERY_LICENSE_STATUSES.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
               </FilterSelect>
               <FilterSelect value={renewalFilter} onChange={v => setRenewalFilter(v)} className={filterSelectClassName(renewalFilter)}>
                 <option value="">Renewal Timing</option>
@@ -10866,17 +16733,11 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                           ) : Number(l.actionIn) <= 30 ? (
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#e1c16e]/30 text-[#8a6d24]">{l.actionIn}d</span>
                           ) : (
-                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">{l.actionIn}d</span>
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">{l.actionIn}d</span>
                           )}
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            l.status === 'Active'
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}>
-                            {l.status}
-                          </span>
+                          <QueryStatusPill status={l.status} />
                         </td>
                         <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap max-w-[140px] truncate" title={l.comment}>{l.comment || '—'}</td>
                         <td className="px-3 py-3">
@@ -10918,15 +16779,6 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
         ) : (
           <>
             <TableSectionHeader title="Reporting Summary" subtitle={`Company ID ${companyId} · filing schedules, credentials, and due dates`}>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-[11px] font-semibold text-emerald-700">
-                Active <span className="tabular-nums">{reportActiveCount}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">
-                Inactive <span className="tabular-nums">{reportInactiveCount}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-[11px] font-semibold text-sky-700">
-                Total <span className="tabular-nums">{filteredReports.length}</span>
-              </span>
               <AddressSearchInput value={reportSearch} onChange={v => { setReportSearch(v); setReportPage(1) }} />
               <FilterSelect value={reportStateFilter} onChange={v => { setReportStateFilter(v); setReportPage(1) }} className={filterSelectClassName(reportStateFilter)}>
                 <option value="">State</option>
@@ -11442,7 +17294,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
 
   const statusClass = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-emerald-50 text-emerald-700'
+      case 'Active': return 'bg-[#BBDCFC] text-[#3B4A59]'
       case 'Prospect': return 'bg-sky-50 text-sky-700'
       case 'Onboarding': return 'bg-[#e1c16e]/15 text-[#8a6d24]'
       case 'Offboarding': return 'bg-orange-50 text-orange-700'
@@ -11458,7 +17310,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12518c]/10 text-[10px] font-semibold text-[#12518c]">
             OOS <span className="tabular-nums">{scopes.filter(s => s.department === 'OOS').length}</span>
           </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 text-[10px] font-semibold text-teal-700">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#BBDCFC] text-[10px] font-semibold text-[#3B4A59]">
             OPS <span className="tabular-nums">{scopes.filter(s => s.department === 'OPS').length}</span>
           </span>
           <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
@@ -11957,7 +17809,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
 
   const changeTypeClass = (type: string) => {
     switch (type) {
-      case 'Add': return 'bg-emerald-50 text-emerald-700'
+      case 'Add': return 'bg-[#BBDCFC] text-[#3B4A59]'
       case 'Update': return 'bg-sky-50 text-sky-700'
       case 'Delete': return 'bg-danger-light text-[#bb5757]'
       default: return 'bg-slate-100 text-slate-600'
@@ -12101,7 +17953,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                           </button>
                         )}
                         {e.changeType === 'Delete' && e.restored && (
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700" title="Item restored">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#BBDCFC] text-[#3B4A59]" title="Item restored">
                             Restored
                           </span>
                         )}
@@ -12216,7 +18068,7 @@ function ViewChangeLogModal({
 }) {
   const changeTypeClass = (type: string) => {
     switch (type) {
-      case 'Add': return 'bg-emerald-50 text-emerald-700'
+      case 'Add': return 'bg-[#BBDCFC] text-[#3B4A59]'
       case 'Update': return 'bg-sky-50 text-sky-700'
       case 'Delete': return 'bg-danger-light text-[#bb5757]'
       default: return 'bg-slate-100 text-slate-600'
@@ -12524,7 +18376,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
 
   const flagClass = (flag: string) => {
     switch (flag) {
-      case 'Green': return 'bg-emerald-50 text-emerald-700 ring-emerald-200/60'
+      case 'Green': return 'bg-[#BBDCFC] text-[#3B4A59] ring-[#BBDCFC]'
       case 'Yellow': return 'bg-[#e1c16e]/15 text-[#8a6d24] ring-[#e1c16e]/60'
       case 'Red': return 'bg-danger-light text-[#bb5757] ring-danger-border/60'
       case 'Blue': return 'bg-sky-50 text-sky-700 ring-sky-200/60'
@@ -12944,7 +18796,7 @@ function BackgroundDetailsModal({
 
   const flagClass = (flag: string) => {
     switch (flag) {
-      case 'Green': return 'bg-emerald-50 text-emerald-700 ring-emerald-200/60'
+      case 'Green': return 'bg-[#BBDCFC] text-[#3B4A59] ring-[#BBDCFC]'
       case 'Yellow': return 'bg-[#e1c16e]/15 text-[#8a6d24] ring-[#e1c16e]/60'
       case 'Red': return 'bg-danger-light text-[#bb5757] ring-danger-border/60'
       case 'Blue': return 'bg-sky-50 text-sky-700 ring-sky-200/60'
@@ -14416,7 +20268,7 @@ function AddLicenseModal({
                 required
                 value={form.status}
                 onChange={v => set('status', v)}
-                options={['Active', 'Inactive']}
+                options={[...QUERY_LICENSE_STATUSES]}
                 placeholder="Select…"
               />
             )}
@@ -14719,11 +20571,7 @@ function ViewLicenseModal({
                 <ViewField label="Item" value={license.item} />
                 <div>
                   <p className="mb-1 text-[11px] font-medium text-slate-500">Status</p>
-                  <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                    license.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {license.status}
-                  </span>
+                  <QueryStatusPill status={license.status} />
                 </div>
               </div>
             </div>
@@ -14779,7 +20627,7 @@ function ViewLicenseModal({
                   {license.actionIn === 'Expired' ? (
                     <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#bb5757] text-white">Expired</span>
                   ) : (
-                    <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">{license.actionIn} days</span>
+                    <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">{license.actionIn} days</span>
                   )}
                 </div>
               </div>
@@ -16459,6 +22307,27 @@ function TableAddNewButton({
   )
 }
 
+function toolbarChildText(node: ReactNode): string {
+  if (node == null || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(toolbarChildText).join(' ')
+  if (isValidElement(node)) {
+    const props = node.props as { children?: ReactNode }
+    return toolbarChildText(props.children)
+  }
+  return ''
+}
+
+function isTableToolbarAction(child: ReactNode): boolean {
+  if (!isValidElement(child)) return false
+  if (child.type === ColumnSettingsDropdown || child.type === TableAddNewButton) return true
+  if (child.type !== 'button') return false
+  const props = child.props as { children?: ReactNode }
+  const text = toolbarChildText(props.children).replace(/\s+/g, ' ').trim().toLowerCase()
+  if (text === 'clear' || text.startsWith('clear ')) return false
+  return true
+}
+
 function TableSectionHeader({
   title,
   subtitle,
@@ -16470,17 +22339,31 @@ function TableSectionHeader({
   children?: ReactNode
   leading?: ReactNode
 }) {
+  const childList = Children.toArray(children)
+  const filters = childList.filter(child => !isTableToolbarAction(child))
+  const actions = childList.filter(child => isTableToolbarAction(child))
+  const showTitle = childList.length === 0
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex flex-wrap items-center gap-2 min-w-0">
         {leading}
-        <span className="w-1 h-4 rounded-full bg-[#12518c] shrink-0" aria-hidden />
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-[#12518c]">{title}</h2>
-          {subtitle ? <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p> : null}
-        </div>
+        {showTitle ? (
+          <>
+            <span className="w-1 h-4 rounded-full bg-[#12518c] shrink-0" aria-hidden />
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-[#12518c]">{title}</h2>
+              {subtitle ? <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p> : null}
+            </div>
+          </>
+        ) : null}
+        {filters.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">{filters}</div>
+        ) : null}
       </div>
-      {children ? <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">{children}</div> : null}
+      {actions.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">{actions}</div>
+      ) : null}
     </div>
   )
 }
@@ -16538,13 +22421,16 @@ function AddressTableFooter({
   total,
   page,
   onPageChange,
+  pageCount,
 }: {
   total: number
   page: number
   onPageChange: (p: number) => void
+  pageCount?: number
 }) {
+  const lastPage = Math.max(1, pageCount ?? page)
   return (
-    <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/40">
+    <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100 bg-slate-50/40">
       <span className="text-sm text-slate-500">
         Total: <span className="font-semibold text-slate-700">{total}</span>
       </span>
@@ -16568,7 +22454,8 @@ function AddressTableFooter({
         <button
           type="button"
           className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-white disabled:opacity-40"
-          disabled
+          disabled={page >= lastPage}
+          onClick={() => onPageChange(Math.min(lastPage, page + 1))}
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M5 3l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
@@ -16985,6 +22872,134 @@ function DetailSelect({
   )
 }
 
+function ContactTypeMultiSelect({
+  label,
+  values,
+  onChange,
+  invalid,
+}: {
+  label: string
+  values: PersonContactType[]
+  onChange: (values: PersonContactType[]) => void
+  invalid?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) {
+      setMenuPos(null)
+      return
+    }
+    const updatePos = () => {
+      const rect = buttonRef.current!.getBoundingClientRect()
+      setMenuPos({ top: rect.bottom + 6, left: rect.left, width: rect.width })
+    }
+    updatePos()
+    window.addEventListener('scroll', updatePos, true)
+    window.addEventListener('resize', updatePos)
+    return () => {
+      window.removeEventListener('scroll', updatePos, true)
+      window.removeEventListener('resize', updatePos)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const toggle = (type: PersonContactType) => {
+    onChange(values.includes(type) ? values.filter(v => v !== type) : [...values, type])
+  }
+
+  const menu = open && menuPos && createPortal(
+    <div
+      ref={menuRef}
+      role="listbox"
+      aria-multiselectable="true"
+      style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, width: Math.max(menuPos.width, 220) }}
+      className="z-[9999] rounded-xl border border-slate-200 bg-white py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+    >
+      {PERSON_CONTACT_TYPES.map(type => {
+        const selected = values.includes(type)
+        return (
+          <button
+            key={type}
+            type="button"
+            role="option"
+            aria-selected={selected}
+            onClick={() => toggle(type)}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <span
+              className={`w-4 h-4 rounded-[3px] flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
+                selected ? 'bg-[#12518c] text-white shadow-sm' : 'border border-slate-300 bg-white'
+              }`}
+            >
+              {selected && (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 5.2L4.2 7.5 8 2.5" />
+                </svg>
+              )}
+            </span>
+            <span className="font-medium">{type}</span>
+          </button>
+        )
+      })}
+    </div>,
+    document.body
+  )
+
+  return (
+    <div className="block min-w-0">
+      <span className="block text-[11px] font-medium text-slate-500 mb-1.5 leading-tight">{label}</span>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className={`${detailControlClass} appearance-none pr-8 text-left flex items-center gap-1.5 min-h-9 h-auto py-1.5 ${
+          invalid
+            ? 'border-[#bb5757] focus:ring-[#bb5757]/20 focus:border-[#bb5757]'
+            : 'bg-white border-slate-300 text-slate-900'
+        }`}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'right 0.75rem center',
+          backgroundSize: '12px',
+        }}
+      >
+        {values.length === 0 ? (
+          <span className="text-slate-400">Select…</span>
+        ) : (
+          <span className="flex flex-wrap gap-1 pr-2">
+            {values.map(type => (
+              <span
+                key={type}
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${personTypeBadgeClass(type)}`}
+              >
+                {type}
+              </span>
+            ))}
+          </span>
+        )}
+      </button>
+      {menu}
+    </div>
+  )
+}
+
 function SummaryCard({
   title,
   count,
@@ -17028,7 +23043,7 @@ function CompanyStatusBadge({ status, alert }: { status: 'Archived' | 'Active' |
   }
   const map = {
     Archived: 'bg-[#bb5757] text-white border-transparent',
-    Active: 'bg-teal-500 text-white border-transparent',
+    Active: 'bg-[#BBDCFC] text-[#3B4A59] border-transparent',
     Inactive: 'bg-slate-400 text-white border-transparent',
   }
   return (
@@ -17038,9 +23053,9 @@ function CompanyStatusBadge({ status, alert }: { status: 'Archived' | 'Active' |
   )
 }
 
-function useTableColumns<T extends string>(columnDefs: readonly { key: T; label: string }[]) {
+function useTableColumns<T extends string>(columnDefs: readonly { key: T; label: string; defaultVisible?: boolean }[]) {
   const [visible, setVisible] = useState(() =>
-    Object.fromEntries(columnDefs.map(c => [c.key, true])) as Record<T, boolean>
+    Object.fromEntries(columnDefs.map(c => [c.key, c.defaultVisible !== false])) as Record<T, boolean>
   )
 
   const toggle = (key: string) => {
@@ -17075,7 +23090,27 @@ function ColumnSettingsDropdown({
 }) {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) {
+      setMenuPos(null)
+      return
+    }
+    const updatePos = () => {
+      const rect = buttonRef.current!.getBoundingClientRect()
+      setMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+    }
+    updatePos()
+    window.addEventListener('scroll', updatePos, true)
+    window.addEventListener('resize', updatePos)
+    return () => {
+      window.removeEventListener('scroll', updatePos, true)
+      window.removeEventListener('resize', updatePos)
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) {
@@ -17084,7 +23119,9 @@ function ColumnSettingsDropdown({
     }
     const id = requestAnimationFrame(() => setMounted(true))
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => {
@@ -17093,9 +23130,53 @@ function ColumnSettingsDropdown({
     }
   }, [open])
 
+  const menu = open && menuPos && createPortal(
+    <div
+      ref={menuRef}
+      role="menu"
+      style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }}
+      className={`z-[9999] w-56 origin-top-right rounded-xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-200 ease-out ${
+        mounted ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-1'
+      }`}
+    >
+      <div className="px-3.5 py-2.5 border-b border-slate-100">
+        <p className="text-[10px] font-semibold tracking-[0.12em] text-slate-400 uppercase">Show / Hide</p>
+      </div>
+      <div className="py-2 max-h-[min(420px,calc(100vh-96px))] overflow-y-auto">
+        {columns.map(col => (
+          <button
+            key={col.key}
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={col.visible}
+            onClick={() => onToggle(col.key)}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <span
+              className={`w-4 h-4 rounded-[3px] flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
+                col.visible
+                  ? 'bg-slate-600 text-white shadow-sm'
+                  : 'border border-slate-300 bg-white'
+              }`}
+            >
+              {col.visible && (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 5.2L4.2 7.5 8 2.5" />
+                </svg>
+              )}
+            </span>
+            <span className="font-medium">{col.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>,
+    document.body
+  )
+
   return (
-    <div ref={ref} className="relative">
+    <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(o => !o)}
         title="Column settings"
@@ -17109,46 +23190,7 @@ function ColumnSettingsDropdown({
       >
         <GridViewIcon />
       </button>
-
-      {open && (
-        <div
-          role="menu"
-          className={`absolute right-0 top-full mt-2 z-50 w-48 origin-top-right rounded-xl border border-slate-200 bg-white py-2 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-200 ease-out ${
-            mounted ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-1'
-          }`}
-        >
-          <div className="px-3.5 pb-2 mb-1 border-b border-slate-100">
-            <p className="text-[10px] font-semibold tracking-[0.12em] text-slate-400 uppercase">Show / Hide</p>
-          </div>
-          <div className="py-0.5">
-            {columns.map(col => (
-              <button
-                key={col.key}
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={col.visible}
-                onClick={() => onToggle(col.key)}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <span
-                  className={`w-4 h-4 rounded-[3px] flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
-                    col.visible
-                      ? 'bg-slate-600 text-white shadow-sm'
-                      : 'border border-slate-300 bg-white'
-                  }`}
-                >
-                  {col.visible && (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M2 5.2L4.2 7.5 8 2.5" />
-                    </svg>
-                  )}
-                </span>
-                <span className="font-medium">{col.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {menu}
     </div>
   )
 }
@@ -17265,7 +23307,7 @@ function AlertDropdown({ status, onChange }: { status: AlertStatus; onChange: (s
 function StatusBadge({ status, alert }: { status: string; alert?: boolean }) {
   const map: Record<string, string> = {
     Archived: 'bg-slate-100 text-slate-600 border-slate-200',
-    Active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    Active: 'bg-[#BBDCFC] text-[#3B4A59] border-transparent',
     Expired: 'bg-danger-light text-danger border-danger-border',
   }
   const classes = alert
@@ -17449,6 +23491,14 @@ function AgencyIcon({ active }: { active: boolean }) {
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
       <path d="M2 14V7l6-5 6 5v7H2z" />
       <rect x="6" y="10" width="4" height="4" />
+    </svg>
+  )
+}
+
+function PipelineIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+      <path d="M2 3h12L10.5 8v5l-5 2V8L2 3z" />
     </svg>
   )
 }
