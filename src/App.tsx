@@ -858,12 +858,18 @@ const PERSON_DETAIL_TABS = ['Summary', 'Detail', 'Business Addresses', 'Change L
 
 const AGENCY_DETAIL_TABS = ['Summary', 'Addresses', 'Contacts', 'License Types'] as const
 
-const PERSON_NOTE_TYPES = ['Flag', 'Note', 'Task'] as const
-
 const PERSON_NOTES = [
-  { id: 1, type: 'Flag', note: 'Remember This !', author: 'Hammad Iftikhar' },
-  { id: 2, type: 'Note', note: 'Aaron confirmed as primary DTC contact for Amaze Holdings.', author: 'Alissa DeLaRiva' },
+  { id: 1, type: 'Flag', note: 'Remember This !', author: 'Hammad Iftikhar', createdAt: '09/04/2026 02:14:08 PM' },
+  { id: 2, type: 'Note', note: 'Aaron confirmed as primary DTC contact for Amaze Holdings.', author: 'Alissa DeLaRiva', createdAt: '08/22/2026 10:05:33 AM' },
 ]
+
+function formatPersonNoteTimestamp(date = new Date()) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const hours24 = date.getHours()
+  const hours12 = hours24 % 12 || 12
+  const ampm = hours24 >= 12 ? 'PM' : 'AM'
+  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())}/${date.getFullYear()} ${pad(hours12)}:${pad(date.getMinutes())}:${pad(date.getSeconds())} ${ampm}`
+}
 
 const PERSON_CHANGE_LOG = [
   {
@@ -2238,6 +2244,7 @@ export default function App() {
           ) : activeNav === 'People' ? (
             addingPerson ? (
               <AddPersonPage
+                companies={companies}
                 onCancel={() => setAddingPerson(false)}
                 onSave={person => {
                   setPeople(prev => [person, ...prev])
@@ -2257,15 +2264,10 @@ export default function App() {
                   setPeople(prev => prev.filter(p => p.id !== selectedPerson.id))
                   clearPersonSelection()
                 }}
-                onAlertChange={status => {
-                  setSelectedPerson(prev => (prev ? { ...prev, alert: status } : prev))
-                  setPeople(prev => prev.map(p => (p.id === selectedPerson.id ? { ...p, alert: status } : p)))
-                }}
               />
             ) : (
               <PeoplePage
                 people={people}
-                onPeopleChange={setPeople}
                 onSelectPerson={handleSelectPerson}
                 onAddPerson={() => setAddingPerson(true)}
               />
@@ -6160,7 +6162,6 @@ function QueryClientLicensesPage({
 }) {
   const source = QUERY_LICENSES
   const [search, setSearch] = useState('')
-  const [companyFilter, setCompanyFilter] = useState('')
   const [specialistFilter, setSpecialistFilter] = useState('')
   const [stateFilter, setStateFilter] = useState('')
   const [funcFilter, setFuncFilter] = useState('')
@@ -6190,7 +6191,6 @@ function QueryClientLicensesPage({
     { key: 'actions', label: 'Actions' },
   ])
 
-  const companies = [...new Set(source.map(row => row.company))].sort()
   const specialists = [...new Set(source.map(row => row.specialist))].sort()
   const states = [...new Set(source.map(row => row.state))].sort()
   const funcs = [...new Set(source.map(row => row.func))].sort()
@@ -6209,7 +6209,6 @@ function QueryClientLicensesPage({
   const missingCount = source.filter(row => !row.licenseNo).length
 
   const matchesFilters = (row: QueryLicenseRow) =>
-    (!companyFilter || row.company === companyFilter) &&
     (!specialistFilter || row.specialist === specialistFilter) &&
     (!stateFilter || row.state === stateFilter) &&
     (!funcFilter || row.func === funcFilter) &&
@@ -6234,13 +6233,12 @@ function QueryClientLicensesPage({
 
   const advancedCount = [specialistFilter, funcFilter, itemFilter, itemNameFilter, renewalTiming, renewalFrom, renewalTo, expirationFrom, expirationTo].filter(Boolean).length
   const filtersActive = !!(
-    search || companyFilter || specialistFilter || stateFilter || funcFilter || itemFilter || itemNameFilter ||
+    search || specialistFilter || stateFilter || funcFilter || itemFilter || itemNameFilter ||
     statusFilter || renewalTiming || renewalFrom || renewalTo || expirationFrom || expirationTo || missingNumber
   )
 
   const clearFilters = () => {
     setSearch('')
-    setCompanyFilter('')
     setSpecialistFilter('')
     setStateFilter('')
     setFuncFilter('')
@@ -6274,7 +6272,6 @@ function QueryClientLicensesPage({
 
   const filterChips: { key: string; label: string; onRemove: () => void }[] = [
     search ? { key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') } : null,
-    companyFilter ? { key: 'company', label: companyFilter, onRemove: () => setCompanyFilter('') } : null,
     specialistFilter ? { key: 'specialist', label: specialistFilter, onRemove: () => setSpecialistFilter('') } : null,
     stateFilter ? { key: 'state', label: `State: ${stateFilter}`, onRemove: () => setStateFilter('') } : null,
     funcFilter ? { key: 'func', label: funcFilter, onRemove: () => setFuncFilter('') } : null,
@@ -6313,9 +6310,8 @@ function QueryClientLicensesPage({
               value={search}
               onChange={value => { setSearch(value); setPage(1) }}
               placeholder="Search company, state, or license #"
-              className="w-full sm:w-72"
+              className="w-full sm:w-80"
             />
-            <FilterSelect label="Company" value={companyFilter} onChange={bump(setCompanyFilter)} options={companies} />
             <FilterSelect label="State" value={stateFilter} onChange={bump(setStateFilter)} options={states} />
             <FilterSelect label="Status" value={statusFilter} onChange={bump(setStatusFilter)} options={[...QUERY_LICENSE_STATUSES]} />
             <button
@@ -6464,7 +6460,6 @@ function QueryLicensesWithoutReportPage({
 }) {
   const source = QUERY_LICENSES.filter(row => !row.hasReportSetting)
   const [search, setSearch] = useState('')
-  const [companyFilter, setCompanyFilter] = useState('')
   const [stateFilter, setStateFilter] = useState('')
   const [funcFilter, setFuncFilter] = useState('')
   const [itemNameFilter, setItemNameFilter] = useState('')
@@ -6485,7 +6480,6 @@ function QueryLicensesWithoutReportPage({
     { key: 'actions', label: 'Actions' },
   ])
 
-  const companies = [...new Set(source.map(row => row.company))].sort()
   const states = [...new Set(source.map(row => row.state))].sort()
   const funcs = [...new Set(source.map(row => row.func))].sort()
   const itemNames = [...new Set(source.map(row => row.itemName).filter(Boolean))].sort()
@@ -6498,7 +6492,6 @@ function QueryLicensesWithoutReportPage({
   const expiredCount = source.filter(row => row.actionIn === 'Expired').length
 
   const matchesFilters = (row: QueryLicenseRow) =>
-    (!companyFilter || row.company === companyFilter) &&
     (!stateFilter || row.state === stateFilter) &&
     (!funcFilter || row.func === funcFilter) &&
     (!itemNameFilter || row.itemName === itemNameFilter) &&
@@ -6519,11 +6512,10 @@ function QueryLicensesWithoutReportPage({
   const rangeEnd = Math.min(safePage * QUERY_PAGE_SIZE, filtered.length)
 
   const advancedCount = [itemNameFilter, statusFilter].filter(Boolean).length
-  const filtersActive = !!(search || companyFilter || stateFilter || funcFilter || itemNameFilter || statusFilter || missingName || missingStatus || expiredOnly)
+  const filtersActive = !!(search || stateFilter || funcFilter || itemNameFilter || statusFilter || missingName || missingStatus || expiredOnly)
 
   const clearFilters = () => {
     setSearch('')
-    setCompanyFilter('')
     setStateFilter('')
     setFuncFilter('')
     setItemNameFilter('')
@@ -6541,7 +6533,6 @@ function QueryLicensesWithoutReportPage({
 
   const filterChips: { key: string; label: string; onRemove: () => void }[] = [
     search ? { key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') } : null,
-    companyFilter ? { key: 'company', label: companyFilter, onRemove: () => setCompanyFilter('') } : null,
     stateFilter ? { key: 'state', label: `State: ${stateFilter}`, onRemove: () => setStateFilter('') } : null,
     funcFilter ? { key: 'func', label: funcFilter, onRemove: () => setFuncFilter('') } : null,
     itemNameFilter ? { key: 'itemName', label: itemNameFilter, onRemove: () => setItemNameFilter('') } : null,
@@ -6578,9 +6569,8 @@ function QueryLicensesWithoutReportPage({
               value={search}
               onChange={value => { setSearch(value); setPage(1) }}
               placeholder="Search company, state, or item name"
-              className="w-full sm:w-72"
+              className="w-full sm:w-80"
             />
-            <FilterSelect label="Company" value={companyFilter} onChange={bump(setCompanyFilter)} options={companies} />
             <FilterSelect label="State" value={stateFilter} onChange={bump(setStateFilter)} options={states} />
             <FilterSelect label="Function" value={funcFilter} onChange={bump(setFuncFilter)} options={funcs} />
             <button
@@ -7082,8 +7072,8 @@ function DashboardPage({
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Active Licenses', value: '24', change: '+2 this month', color: 'bg-[#12518c]/10 text-[#12518c]' },
-          { label: 'Expired', value: '5', change: 'Needs attention', color: 'bg-danger-light text-danger' },
+          { label: 'New Active Licenses', value: '24', change: '+2 this month', color: 'bg-[#12518c]/10 text-[#12518c]' },
+          { label: 'Expired', value: '5', change: 'Needs attention (expired and past due)', color: 'bg-danger-light text-danger' },
           { label: 'Renewing Soon', value: '12', change: 'Next 30 days', color: 'bg-[#e1c16e]/15 text-[#a1802b]' },
           { label: 'Favorite Companies', value: '1', change: 'Pinned', color: 'bg-[#BBDCFC] text-[#3B4A59]' },
         ].map(stat => (
@@ -7097,12 +7087,13 @@ function DashboardPage({
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 mb-5 overflow-hidden">
-        <TableSectionHeader title="My Favorite Companies" subtitle="Pinned for quick access">
+      <div className="mb-5">
+        <h2 className="text-base font-semibold text-slate-900 mb-3">My Favorite Companies</h2>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <TableSectionHeader title="My Favorite Companies">
           <SearchInput placeholder="Search here…" />
-          <Select placeholder="Company Type" options={['Bond', 'Client', 'Industry', 'Registered Agent', 'Vendor', 'Warehouse']} />
-          <Select placeholder="Alerts" options={['Pending', 'Work Stop', 'No Alert']} />
           <Select placeholder="Status" options={['Active', 'Inactive', 'Archived']} />
+          <Select placeholder="Alerts" options={['Pending', 'Work Stop', 'No Alert']} />
           <ColumnSettingsDropdown {...favCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
         </TableSectionHeader>
         <div className="overflow-x-auto">
@@ -7165,12 +7156,14 @@ function DashboardPage({
             </tbody>
           </table>
         </div>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <TableSectionHeader title="License Renewals" subtitle={`${RENEWALS.length} renewals due in the next 30 days`}>
+      <div>
+        <h2 className="text-base font-semibold text-slate-900 mb-3">Renewals Due in the Next 30 Days</h2>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <TableSectionHeader title="Renewals Due in the Next 30 Days">
           <SearchInput placeholder="Search here…" />
-          <Select placeholder="Company" />
           <Select placeholder="License Type" />
           <Select placeholder="Function" />
           <ColumnSettingsDropdown {...renewalCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
@@ -7227,6 +7220,7 @@ function DashboardPage({
               <path d="M2 7h10M8 3l4 4-4 4" />
             </svg>
           </button>
+        </div>
         </div>
       </div>
     </>
@@ -8311,12 +8305,10 @@ function CellarPage({
 
 function PeoplePage({
   people,
-  onPeopleChange,
   onSelectPerson,
   onAddPerson,
 }: {
   people: PersonRow[]
-  onPeopleChange: (people: PersonRow[] | ((prev: PersonRow[]) => PersonRow[])) => void
   onSelectPerson: (person: PersonRow) => void
   onAddPerson: () => void
 }) {
@@ -8358,10 +8350,6 @@ function PeoplePage({
     setPage(1)
   }
 
-  const setAlertStatus = (id: number, status: AlertStatus) => {
-    onPeopleChange(prev => prev.map(p => (p.id === id ? { ...p, alert: status } : p)))
-  }
-
   const exportPeople = () => {
     const rows = [
       ['Name', 'Email', 'Company/Agency Name', 'Type', 'Category'],
@@ -8392,7 +8380,7 @@ function PeoplePage({
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
               placeholder="Search by name, email, or company/agency"
-              className="h-9 w-full sm:w-72 pl-8 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]"
+              className="h-9 w-full sm:w-80 pl-8 pr-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]"
             />
           </div>
           <FilterSelect
@@ -8498,10 +8486,7 @@ function PeoplePage({
                     {peopleCols.show('alerts') && (
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center">
-                          <AlertDropdown
-                            status={person.alert}
-                            onChange={status => setAlertStatus(person.id, status)}
-                          />
+                          <AlertDropdown status={person.alert} readOnly />
                         </div>
                       </td>
                     )}
@@ -8538,11 +8523,11 @@ function AgenciesPage({
   const [nextId, setNextId] = useState(() => Math.max(0, ...AGENCIES_INIT.map(a => a.id)) + 1)
 
   const cols = useTableColumns([
-    { key: 'name', label: 'Agency Name' },
-    { key: 'website', label: 'Website' },
-    { key: 'cityCounty', label: 'City/County' },
     { key: 'stateCode', label: 'State Code' },
+    { key: 'name', label: 'Agency Name' },
+    { key: 'cityCounty', label: 'City/County' },
     { key: 'jurisdiction', label: 'Agency Type' },
+    { key: 'website', label: 'Website' },
   ])
   const colBtn = 'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
 
@@ -8669,6 +8654,11 @@ function AgenciesPage({
           <table className="w-full min-w-[960px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
+                {cols.show('stateCode') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">
+                    State Code
+                  </th>
+                )}
                 {cols.show('name') && (
                   <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
                     <button
@@ -8693,24 +8683,19 @@ function AgenciesPage({
                     </button>
                   </th>
                 )}
-                {cols.show('website') && (
-                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
-                    Website
-                  </th>
-                )}
                 {cols.show('cityCounty') && (
                   <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
                     City/County
                   </th>
                 )}
-                {cols.show('stateCode') && (
-                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">
-                    State Code
-                  </th>
-                )}
                 {cols.show('jurisdiction') && (
                   <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">
                     Agency Type
+                  </th>
+                )}
+                {cols.show('website') && (
+                  <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
+                    Website
                   </th>
                 )}
                 <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-24">
@@ -8733,6 +8718,13 @@ function AgenciesPage({
                       i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
                     }`}
                   >
+                    {cols.show('stateCode') && (
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                        <span className="inline-flex min-w-[2.25rem] justify-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide bg-slate-100 text-slate-700 border border-slate-200">
+                          {agency.stateCode}
+                        </span>
+                      </td>
+                    )}
                     {cols.show('name') && (
                       <td className="px-4 py-3 text-sm font-medium max-w-[320px]">
                         <button
@@ -8743,6 +8735,24 @@ function AgenciesPage({
                         >
                           {agency.name}
                         </button>
+                      </td>
+                    )}
+                    {cols.show('cityCounty') && (
+                      <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
+                        {agency.cityCounty || '—'}
+                      </td>
+                    )}
+                    {cols.show('jurisdiction') && (
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            agency.jurisdiction === 'Federal'
+                              ? 'bg-[#12518c]/10 text-[#12518c]'
+                              : 'bg-[#BBDCFC] text-[#3B4A59]'
+                          }`}
+                        >
+                          {agency.jurisdiction}
+                        </span>
                       </td>
                     )}
                     {cols.show('website') && (
@@ -8760,31 +8770,6 @@ function AgenciesPage({
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}
-                      </td>
-                    )}
-                    {cols.show('cityCounty') && (
-                      <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
-                        {agency.cityCounty || '—'}
-                      </td>
-                    )}
-                    {cols.show('stateCode') && (
-                      <td className="px-4 py-3 whitespace-nowrap text-center">
-                        <span className="inline-flex min-w-[2.25rem] justify-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide bg-slate-100 text-slate-700 border border-slate-200">
-                          {agency.stateCode}
-                        </span>
-                      </td>
-                    )}
-                    {cols.show('jurisdiction') && (
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                            agency.jurisdiction === 'Federal'
-                              ? 'bg-[#12518c]/10 text-[#12518c]'
-                              : 'bg-[#BBDCFC] text-[#3B4A59]'
-                          }`}
-                        >
-                          {agency.jurisdiction}
-                        </span>
                       </td>
                     )}
                     <td className="px-4 py-3">
@@ -9513,7 +9498,7 @@ function AgencyContactsTab({
               setSearch(v)
               setPage(1)
             }}
-            className="w-full sm:w-72 shrink-0"
+            className="w-full sm:w-80 shrink-0"
           />
           <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
           <TableAddNewButton onClick={openAdd} />
@@ -11123,7 +11108,7 @@ function AgencyLicenseTypesTab({
             setSearch(v)
             setPage(1)
           }}
-          className="w-full sm:w-72 shrink-0"
+          className="w-full sm:w-80 shrink-0"
         />
         <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={colBtn} />
       </TableSectionHeader>
@@ -11203,15 +11188,18 @@ function AgencyLicenseTypesTab({
 }
 
 function AddPersonPage({
+  companies,
   onCancel,
   onSave,
 }: {
+  companies: CompanyRow[]
   onCancel: () => void
   onSave: (person: PersonRow) => void
 }) {
   const [openSection, setOpenSection] = useState('General Information')
   const [form, setForm] = useState({
     types: [] as PersonContactType[],
+    clientCompany: '',
     sal: '',
     firstName: '',
     middleName: '',
@@ -11260,20 +11248,28 @@ function AddPersonPage({
     licenseRevoked: '',
     arrested: '',
   })
-  const [errors, setErrors] = useState({ types: false, firstName: false, lastName: false })
+  const [errors, setErrors] = useState({ types: false, company: false, firstName: false, lastName: false })
   const isClient = form.types.includes('Client')
+  const companyOptions = Array.from(new Set(
+    companies.map(c => (c.dba ? `${c.name} (${c.dba})` : c.name)),
+  )).sort((a, b) => a.localeCompare(b))
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm(prev => ({ ...prev, [key]: value }))
-    if (key === 'firstName' || key === 'lastName') {
-      setErrors(prev => ({ ...prev, [key]: false }))
+    if (key === 'firstName' || key === 'lastName' || key === 'clientCompany') {
+      setErrors(prev => ({ ...prev, [key === 'clientCompany' ? 'company' : key]: false }))
     }
   }
 
   const setTypes = (types: PersonContactType[]) => {
-    setForm(prev => ({ ...prev, types }))
-    if (types.length) setErrors(prev => ({ ...prev, types: false }))
-    if (!types.includes('Client') && (CLIENT_ONLY_SECTIONS as readonly string[]).includes(openSection)) {
+    const clientSelected = types.includes('Client')
+    setForm(prev => ({ ...prev, types, clientCompany: clientSelected ? prev.clientCompany : '' }))
+    setErrors(prev => ({
+      ...prev,
+      types: types.length ? false : prev.types,
+      company: clientSelected ? prev.company : false,
+    }))
+    if (!clientSelected && (CLIENT_ONLY_SECTIONS as readonly string[]).includes(openSection)) {
       setOpenSection('General Information')
     }
   }
@@ -11281,6 +11277,7 @@ function AddPersonPage({
   const submit = () => {
     const next = {
       types: form.types.length === 0,
+      company: isClient && !form.clientCompany.trim(),
       firstName: !form.firstName.trim(),
       lastName: !form.lastName.trim(),
     }
@@ -11299,7 +11296,7 @@ function AddPersonPage({
       id: Date.now(),
       name,
       email,
-      company: form.company.trim() || form.role.trim() || '—',
+      company: (isClient ? form.clientCompany.trim() : '') || form.company.trim() || form.role.trim() || '—',
       type: primaryPersonType(form.types),
       types: form.types,
       category: 'Individual',
@@ -11349,6 +11346,20 @@ function AddPersonPage({
                 />
                 {errors.types && <p className="mt-1 text-[11px] text-[#bb5757]">Type of contact is required.</p>}
               </div>
+              {isClient && (
+                <div>
+                  <DetailSelect
+                    label="Company *"
+                    value={form.clientCompany}
+                    onChange={v => set('clientCompany', v)}
+                    editing
+                    options={companyOptions}
+                    placeholder="Select…"
+                    invalid={errors.company}
+                  />
+                  {errors.company && <p className="mt-1 text-[11px] text-[#bb5757]">Company is required.</p>}
+                </div>
+              )}
               <DetailSelect label="Sal" value={form.sal} onChange={v => set('sal', v)} editing options={['Mr', 'Mrs', 'Ms', 'Dr', 'Prof']} placeholder="Select…" />
               <div>
                 <DetailField label="First Name *" value={form.firstName} onChange={v => set('firstName', v)} editing />
@@ -11393,6 +11404,7 @@ function AddPersonPage({
                 editing
                 options={US_STATES}
                 placeholder="Select…"
+                clearable
               />
               <DetailSelect
                 label="City"
@@ -11401,9 +11413,10 @@ function AddPersonPage({
                 editing
                 options={citiesForState(form.businessState, form.businessCity)}
                 placeholder={form.businessState ? 'Select…' : 'Select state first…'}
+                clearable
               />
               <DetailField label="Zip Code" value={form.businessZip} onChange={v => set('businessZip', v)} editing />
-              <DetailSelect label="Country" value={form.businessCountry} onChange={v => set('businessCountry', v)} editing options={COUNTRY_OPTIONS} />
+              <DetailSelect label="Country" value={form.businessCountry} onChange={v => set('businessCountry', v)} editing options={COUNTRY_OPTIONS} placeholder="Select…" clearable />
             </div>
           </DetailSection>
 
@@ -11480,9 +11493,9 @@ function AddPersonPage({
                   <DetailSelect label="State Issued" value={form.stateIssued} onChange={v => set('stateIssued', v)} editing options={US_STATES} placeholder="Select…" />
                   <DetailField label="Date of Birth" value={form.dob} onChange={v => set('dob', v)} editing placeholder="MM/DD/YYYY" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-x-4 gap-y-4 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_repeat(4,minmax(0,1fr))] gap-x-4 gap-y-4 mt-4">
                   <DetailField label="Place of Birth" value={form.placeOfBirth} onChange={v => set('placeOfBirth', v)} editing />
-                  <label className="block min-w-0">
+                  <label className="block w-max">
                     <span className="flex items-center justify-between gap-2 mb-1.5">
                       <span className="text-[11px] font-medium text-slate-500 leading-tight">US Citizen</span>
                     </span>
@@ -11491,7 +11504,7 @@ function AddPersonPage({
                       role="switch"
                       aria-checked={form.usCitizen}
                       onClick={() => set('usCitizen', !form.usCitizen)}
-                      className={`relative w-10 h-5 rounded-full transition-colors mt-1.5 ${form.usCitizen ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${form.usCitizen ? 'bg-[#12518c]' : 'bg-slate-300'}`}
                     >
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.usCitizen ? 'translate-x-5' : ''}`} />
                     </button>
@@ -11499,8 +11512,6 @@ function AddPersonPage({
                   <DetailField label="Height" value={form.height} onChange={v => set('height', v)} editing />
                   <DetailField label="Weight" value={form.weight} onChange={v => set('weight', v)} editing />
                   <DetailField label="Eye Color" value={form.eyeColor} onChange={v => set('eyeColor', v)} editing />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4 mt-4">
                   <DetailField label="Hair Color" value={form.hairColor} onChange={v => set('hairColor', v)} editing />
                 </div>
               </DetailSection>
@@ -11604,20 +11615,18 @@ function PersonDetailPage({
   onTabChange,
   onBack,
   onDelete,
-  onAlertChange,
 }: {
   person: PersonRow
   tab: (typeof PERSON_DETAIL_TABS)[number]
   onTabChange: (tab: (typeof PERSON_DETAIL_TABS)[number]) => void
   onBack: () => void
   onDelete: () => void
-  onAlertChange: (status: AlertStatus) => void
 }) {
+  const [currentOpen, setCurrentOpen] = useState(true)
   const [pastOpen, setPastOpen] = useState(true)
-  const [alertStatus, setAlertStatus] = useState<AlertStatus>(person.alert)
   const [detailEditRequest, setDetailEditRequest] = useState(0)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const workStopActive = alertStatus === 'Work Stop'
+  const workStopActive = person.alert === 'Work Stop'
   const personId = 2000 + person.id
   const role = person.category === 'Shared Email' ? 'Shared Contact' : 'Client Contact'
 
@@ -11631,11 +11640,6 @@ function PersonDetailPage({
     },
   ]
   const pastAssociations: typeof currentAssociations = []
-
-  const applyAlert = (status: AlertStatus) => {
-    setAlertStatus(status)
-    onAlertChange(status)
-  }
 
   return (
     <div className="space-y-5 animate-[fadeIn_0.25s_ease-out]">
@@ -11671,7 +11675,7 @@ function PersonDetailPage({
                 }`}>
                   {role}
                 </span>
-                <AlertDropdown status={alertStatus} onChange={applyAlert} />
+                <AlertDropdown status={person.alert} readOnly />
               </div>
               <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${workStopActive ? 'text-danger' : 'text-slate-600'}`}>
                 <span><span className={workStopActive ? 'text-danger-muted' : 'text-slate-400'}>Person ID</span> {personId}</span>
@@ -11792,7 +11796,13 @@ function PersonDetailPage({
           </section>
 
           <div className="space-y-4">
-            <PersonAssociationCard title="Current Company Associations" rows={currentAssociations} />
+            <PersonAssociationCard
+              title="Current Company Associations"
+              rows={currentAssociations}
+              collapsible
+              open={currentOpen}
+              onToggle={() => setCurrentOpen(o => !o)}
+            />
             <PersonAssociationCard
               title="Past Company Associations"
               rows={pastAssociations}
@@ -11841,19 +11851,26 @@ function PersonAssociationCard({
   ])
 
   return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="p-1 rounded-md text-slate-400 hover:bg-slate-100"
+            aria-label={open ? 'Collapse' : 'Expand'}
+            aria-expanded={open}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" className={open ? '' : 'rotate-180'}>
+              <path d="M2.5 7.5L6 4l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        ) : null}
+        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+      </div>
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <TableSectionHeader
         title={title}
-        subtitle={rows.length ? `${rows.length} linked records` : undefined}
-        leading={
-          collapsible ? (
-            <button type="button" onClick={onToggle} className="p-1 rounded-md text-slate-400 hover:bg-slate-100" aria-label="Toggle">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" className={open ? '' : 'rotate-180'}>
-                <path d="M2.5 7.5L6 4l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          ) : undefined
-        }
       >
         <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
       </TableSectionHeader>
@@ -11906,6 +11923,7 @@ function PersonAssociationCard({
         </div>
       )}
     </section>
+    </div>
   )
 }
 
@@ -12026,7 +12044,7 @@ function PersonDetailFieldsPage({
             <button
               type="button"
               onClick={saveEditing}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                 <path d="M2 6.5l2.5 2.5L10 3" />
@@ -12054,17 +12072,19 @@ function PersonDetailFieldsPage({
           open={openSection === 'Basic Information'}
           onToggle={() => setOpenSection('Basic Information')}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-x-4 gap-y-4">
             <DetailSelect label="Type of Contact" value={form.typeOfContact} onChange={v => set('typeOfContact', v as PersonRow['type'])} editing={editing} options={['Client', 'Agency', 'Vendor', 'Industry']} />
             <DetailSelect label="Salutation (Sal)" value={form.sal} onChange={v => set('sal', v)} editing={editing} options={['Mr', 'Mrs', 'Ms', 'Dr', 'Prof']} placeholder="Select…" />
             <DetailField label="First Name" value={form.firstName} onChange={v => set('firstName', v)} editing={editing} />
             <DetailField label="Middle Name" value={form.middleName} onChange={v => set('middleName', v)} editing={editing} />
             <DetailField label="Last Name" value={form.lastName} onChange={v => set('lastName', v)} editing={editing} />
             <DetailSelect label="Suffix" value={form.suffix} onChange={v => set('suffix', v)} editing={editing} options={['Jr', 'Sr', 'II', 'III', 'IV']} placeholder="Select…" />
-            <DetailField label="TTB PQ#" value={form.ttbPq} onChange={v => set('ttbPq', v)} editing={editing} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4 mt-4">
             <DetailField label="Nickname/Preferred First Name" value={form.nickname} onChange={v => set('nickname', v)} editing={editing} />
             <DetailField label="Alias/Former Name" value={form.alias} onChange={v => set('alias', v)} editing={editing} />
             <DetailField label="Internal Remark" value={form.internalRemark} onChange={v => set('internalRemark', v)} editing={editing} />
+            <DetailField label="TTB PQ#" value={form.ttbPq} onChange={v => set('ttbPq', v)} editing={editing} />
           </div>
         </DetailSection>
 
@@ -12120,9 +12140,9 @@ function PersonDetailFieldsPage({
             <DetailSelect label="State Issued" value={form.stateIssued} onChange={v => set('stateIssued', v)} editing={editing} options={US_STATES} placeholder="Select…" />
             <DetailField label="Date of Birth" value={form.dob} onChange={v => set('dob', v)} editing={editing} placeholder="MM/DD/YYYY" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-x-4 gap-y-4 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_repeat(4,minmax(0,1fr))] gap-x-4 gap-y-4 mt-4">
             <DetailField label="Place of Birth" value={form.placeOfBirth} onChange={v => set('placeOfBirth', v)} editing={editing} />
-            <label className="block min-w-0">
+            <label className="block w-max">
               <span className="flex items-center justify-between gap-2 mb-1.5">
                 <span className="text-[11px] font-medium text-slate-500 leading-tight">US Citizen</span>
               </span>
@@ -12132,7 +12152,7 @@ function PersonDetailFieldsPage({
                 aria-checked={form.usCitizen}
                 disabled={!editing}
                 onClick={() => set('usCitizen', !form.usCitizen)}
-                className={`relative w-10 h-5 rounded-full transition-colors mt-1.5 disabled:opacity-60 ${form.usCitizen ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+                className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-60 ${form.usCitizen ? 'bg-[#12518c]' : 'bg-slate-300'}`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.usCitizen ? 'translate-x-5' : ''}`} />
               </button>
@@ -12140,8 +12160,6 @@ function PersonDetailFieldsPage({
             <DetailField label="Height" value={form.height} onChange={v => set('height', v)} editing={editing} />
             <DetailField label="Weight" value={form.weight} onChange={v => set('weight', v)} editing={editing} />
             <DetailField label="Eye Color" value={form.eyeColor} onChange={v => set('eyeColor', v)} editing={editing} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4 mt-4">
             <DetailField label="Hair Color" value={form.hairColor} onChange={v => set('hairColor', v)} editing={editing} />
           </div>
         </DetailSection>
@@ -12226,7 +12244,7 @@ function PersonDetailFieldsPage({
         >
           <label className="block min-w-0">
             <span className="flex items-center justify-between gap-2 mb-1.5">
-              <span className="text-[11px] font-medium text-slate-500 leading-tight">Note Heading</span>
+              <span className="text-[11px] font-medium text-slate-500 leading-tight">Note</span>
             </span>
             <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
               <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-slate-100 bg-slate-50/80">
@@ -12452,32 +12470,18 @@ function PersonChangeLogPage() {
   )
 }
 
-function PersonNoteTypeBadge({ type }: { type: string }) {
-  const styles: Record<string, string> = {
-    Flag: 'bg-amber-50 text-amber-800 border-amber-200',
-    Note: 'bg-[#12518c]/10 text-[#12518c] border-[#12518c]/20',
-    Task: 'bg-violet-50 text-violet-800 border-violet-200',
-  }
-  return (
-    <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium border ${styles[type] ?? 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-      {type}
-    </span>
-  )
-}
-
 function PersonAddNoteModal({
   onClose,
   onSave,
   initial,
 }: {
   onClose: () => void
-  onSave: (note: { type: string; note: string }) => void
-  initial?: { type: string; note: string }
+  onSave: (note: { note: string }) => void
+  initial?: { note: string }
 }) {
   const isEdit = Boolean(initial)
-  const [type, setType] = useState(initial?.type ?? '')
   const [note, setNote] = useState(initial?.note ?? '')
-  const [errors, setErrors] = useState({ type: false, note: false })
+  const [errors, setErrors] = useState({ note: false })
   const noteRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -12488,21 +12492,12 @@ function PersonAddNoteModal({
     return () => document.removeEventListener('keydown', handleKey)
   }, [onClose])
 
-  const validate = () => {
-    const next = { type: !type.trim(), note: !note.trim() }
-    setErrors(next)
-    return !Object.values(next).some(Boolean)
-  }
-
   const handleSave = () => {
-    if (!validate()) return
-    onSave({ type: type.trim(), note: note.trim() })
-  }
-
-  const handleTypeChange = (v: string) => {
-    setType(v)
-    if (errors.type) setErrors(prev => ({ ...prev, type: false }))
-    if (v && noteRef.current) noteRef.current.focus()
+    if (!note.trim()) {
+      setErrors({ note: true })
+      return
+    }
+    onSave({ note: note.trim() })
   }
 
   return (
@@ -12516,7 +12511,7 @@ function PersonAddNoteModal({
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'Edit Note' : 'Add Note'}</h3>
-            <p className="text-[11px] text-slate-500">{isEdit ? 'Update this note for the person' : 'Add a flag, note, or task for this person'}</p>
+            <p className="text-[11px] text-slate-500">{isEdit ? 'Update this note for the person' : 'Add a note for this person'}</p>
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
@@ -12528,25 +12523,13 @@ function PersonAddNoteModal({
 
       <div className="px-5 py-5 space-y-4">
         <div>
-          <OwnershipFormSelect
-            label="Type"
-            required
-            value={type}
-            onChange={handleTypeChange}
-            options={[...PERSON_NOTE_TYPES]}
-            placeholder="Select…"
-          />
-          {errors.type && <p className="mt-1 text-[11px] text-[#bb5757]">Type is required.</p>}
-        </div>
-
-        <div>
           <OwnershipFormLabel required>Note</OwnershipFormLabel>
           <textarea
             ref={noteRef}
             value={note}
             onChange={e => {
               setNote(e.target.value)
-              if (errors.note) setErrors(prev => ({ ...prev, note: false }))
+              if (errors.note) setErrors({ note: false })
             }}
             rows={5}
             placeholder="Enter your note…"
@@ -12571,7 +12554,7 @@ function PersonAddNoteModal({
         <button
           type="button"
           onClick={handleSave}
-          disabled={!type.trim() || !note.trim()}
+          disabled={!note.trim()}
           className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isEdit ? 'Update' : 'Save'}
@@ -12620,12 +12603,7 @@ function PersonViewNoteModal({
 
       <div className="px-5 py-5 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <OwnershipFormLabel>Type</OwnershipFormLabel>
-            <div className="h-[42px] flex items-center">
-              <PersonNoteTypeBadge type={note.type} />
-            </div>
-          </div>
+          <OwnershipFormField label="Date / Time" value={note.createdAt} onChange={() => {}} readOnly />
           <OwnershipFormField label="Author" value={note.author} onChange={() => {}} readOnly />
         </div>
 
@@ -12693,11 +12671,8 @@ function PersonNoteDeleteModal({
           </button>
         </div>
         <div className="mt-3 w-full rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
-          <div className="flex items-center gap-2 mb-1">
-            {noteType && <PersonNoteTypeBadge type={noteType} />}
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Preview</span>
-          </div>
-          <p className="text-sm text-slate-700 leading-relaxed line-clamp-3" title={preview}>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Preview</span>
+          <p className="text-sm text-slate-700 leading-relaxed line-clamp-3 mt-1" title={preview}>
             {truncated}
           </p>
         </div>
@@ -12737,7 +12712,7 @@ function PersonNotesPage() {
 
   const filtered = notes.filter(n => {
     const q = search.toLowerCase()
-    return !q || [n.type, n.note, n.author].some(v => v.toLowerCase().includes(q))
+    return !q || [n.note, n.author, n.createdAt].some(v => v.toLowerCase().includes(q))
   })
 
   const confirmDeleteNote = () => {
@@ -12746,9 +12721,9 @@ function PersonNotesPage() {
     setDeleteNoteId(null)
   }
 
-  const addNote = (data: { type: string; note: string }) => {
+  const addNote = (data: { note: string }) => {
     setNotes(prev => [
-      { id: nextId, type: data.type, note: data.note, author: 'Hammad Iftikhar' },
+      { id: nextId, type: 'Note', note: data.note, author: 'Hammad Iftikhar', createdAt: formatPersonNoteTimestamp() },
       ...prev,
     ])
     setNextId(id => id + 1)
@@ -12756,21 +12731,21 @@ function PersonNotesPage() {
     setPage(1)
   }
 
-  const updateNote = (data: { type: string; note: string }) => {
+  const updateNote = (data: { note: string }) => {
     if (!editingNote) return
-    setNotes(prev => prev.map(n => (n.id === editingNote.id ? { ...n, type: data.type, note: data.note } : n)))
+    setNotes(prev => prev.map(n => (n.id === editingNote.id ? { ...n, note: data.note } : n)))
     setEditingNote(null)
   }
 
   const cols = useTableColumns([
     { key: 'note', label: 'Note' },
-    { key: 'type', label: 'Type' },
+    { key: 'createdAt', label: 'Date / Time' },
     { key: 'author', label: 'Author' },
   ])
   const noteToDelete = deleteNoteId != null ? notes.find(n => n.id === deleteNoteId) : undefined
   return (
     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
-      <TableSectionHeader title="Notes" subtitle="Flags, tasks, and notes for this person">
+      <TableSectionHeader title="Notes" subtitle="Notes for this person">
         <AddressSearchInput
           value={search}
           onChange={v => {
@@ -12787,7 +12762,7 @@ function PersonNotesPage() {
           <thead>
             <tr className="border-y border-slate-100 bg-slate-50/60">
               {cols.show('note') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Note</th>}
-              {cols.show('type') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Type</th>}
+              {cols.show('createdAt') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Date / Time</th>}
               {cols.show('author') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Author</th>}
               <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-24">Actions</th>
             </tr>
@@ -12809,11 +12784,7 @@ function PersonNotesPage() {
                   }`}
                 >
                   {cols.show('note') && <td className="px-4 py-3 text-sm text-slate-700">{note.note}</td>}
-                  {cols.show('type') && (
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <PersonNoteTypeBadge type={note.type} />
-                    </td>
-                  )}
+                  {cols.show('createdAt') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{note.createdAt}</td>}
                   {cols.show('author') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{note.author}</td>}
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-1">
@@ -12867,7 +12838,7 @@ function PersonNotesPage() {
 
       {editingNote && (
         <PersonAddNoteModal
-          initial={{ type: editingNote.type, note: editingNote.note }}
+          initial={{ note: editingNote.note }}
           onClose={() => setEditingNote(null)}
           onSave={updateNote}
         />
@@ -12876,7 +12847,6 @@ function PersonNotesPage() {
       {noteToDelete && (
         <PersonNoteDeleteModal
           noteText={noteToDelete.note}
-          noteType={noteToDelete.type}
           onCancel={() => setDeleteNoteId(null)}
           onConfirm={confirmDeleteNote}
         />
@@ -13115,7 +13085,6 @@ function CompaniesPage({
   const companyCols = useTableColumns(COMPANY_COLUMNS)
 
   const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
   const [alertFilter, setAlertFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [specialistFilter, setSpecialistFilter] = useState('')
@@ -13133,18 +13102,16 @@ function CompaniesPage({
       (alertFilter === 'No Alert' ? c.alert == null : c.alert === alertFilter)
     return (
       matchesSearch &&
-      (!typeFilter || c.type === typeFilter) &&
       matchesAlert &&
       (!statusFilter || c.status === statusFilter) &&
       (!specialistFilter || c.specialist === specialistFilter)
     )
   })
 
-  const filtersActive = !!(search || typeFilter || alertFilter || statusFilter || specialistFilter)
+  const filtersActive = !!(search || alertFilter || statusFilter || specialistFilter)
 
   const clearFilters = () => {
     setSearch('')
-    setTypeFilter('')
     setAlertFilter('')
     setStatusFilter('')
     setSpecialistFilter('')
@@ -13184,11 +13151,11 @@ function CompaniesPage({
             }}
           />
           <Select
-            placeholder="Company Type"
-            options={['Bond', 'Client', 'Industry', 'Registered Agent', 'Vendor', 'Warehouse']}
-            value={typeFilter}
+            placeholder="Status"
+            options={['Active', 'Inactive', 'Archived']}
+            value={statusFilter}
             onChange={v => {
-              setTypeFilter(v)
+              setStatusFilter(v)
               setPage(1)
             }}
           />
@@ -13198,15 +13165,6 @@ function CompaniesPage({
             value={alertFilter}
             onChange={v => {
               setAlertFilter(v)
-              setPage(1)
-            }}
-          />
-          <Select
-            placeholder="Status"
-            options={['Active', 'Inactive', 'Archived']}
-            value={statusFilter}
-            onChange={v => {
-              setStatusFilter(v)
               setPage(1)
             }}
           />
@@ -15636,9 +15594,9 @@ function AddOwnershipPage({
                 <OwnershipFormSelect label="State Issued" value={personForm.dlState} onChange={v => setPerson('dlState', v)} readOnly={readOnly} options={US_STATES} />
                 <OwnershipFormField label="Date of Birth" value={personForm.dob} onChange={v => setPerson('dob', v)} readOnly={readOnly} placeholder="MM/DD/YYYY" type="date" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_repeat(4,minmax(0,1fr))] gap-4">
                 <OwnershipFormField label="Place of Birth" value={personForm.placeOfBirth} onChange={v => setPerson('placeOfBirth', v)} readOnly={readOnly} />
-                <label className="block">
+                <label className="block w-max">
                   <OwnershipFormLabel>US Citizen</OwnershipFormLabel>
                   <button
                     type="button"
@@ -15646,7 +15604,7 @@ function AddOwnershipPage({
                     aria-checked={personForm.usCitizen}
                     disabled={readOnly}
                     onClick={() => setPerson('usCitizen', !personForm.usCitizen)}
-                    className={`relative w-10 h-5 rounded-full transition-colors mt-1 ${personForm.usCitizen ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${personForm.usCitizen ? 'bg-[#12518c]' : 'bg-slate-300'}`}
                   >
                     <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${personForm.usCitizen ? 'translate-x-5' : ''}`} />
                   </button>
@@ -15654,8 +15612,6 @@ function AddOwnershipPage({
                 <OwnershipFormField label="Height" value={personForm.height} onChange={v => setPerson('height', v)} readOnly={readOnly} />
                 <OwnershipFormField label="Weight" value={personForm.weight} onChange={v => setPerson('weight', v)} readOnly={readOnly} />
                 <OwnershipFormField label="Eye Color" value={personForm.eyeColor} onChange={v => setPerson('eyeColor', v)} readOnly={readOnly} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <OwnershipFormField label="Hair Color" value={personForm.hairColor} onChange={v => setPerson('hairColor', v)} readOnly={readOnly} />
               </div>
             </OwnershipFormSection>
@@ -22333,16 +22289,18 @@ function TableSectionHeader({
   subtitle,
   children,
   leading,
+  showTitle: showTitleProp,
 }: {
   title: string
   subtitle?: string
   children?: ReactNode
   leading?: ReactNode
+  showTitle?: boolean
 }) {
   const childList = Children.toArray(children)
   const filters = childList.filter(child => !isTableToolbarAction(child))
   const actions = childList.filter(child => isTableToolbarAction(child))
-  const showTitle = childList.length === 0
+  const showTitle = showTitleProp ?? childList.length === 0
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
@@ -22368,11 +22326,14 @@ function TableSectionHeader({
   )
 }
 
+const SEARCH_FIELD_CLASS =
+  'h-9 w-full pl-8 pr-3 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] transition-colors'
+
 function AddressSearchInput({
   value,
   onChange,
   placeholder = 'Search Here',
-  className = 'w-72',
+  className = 'w-80',
 }: {
   value: string
   onChange: (v: string) => void
@@ -22381,7 +22342,7 @@ function AddressSearchInput({
 }) {
   return (
     <div className={`relative ${className}`}>
-      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
         <circle cx="5" cy="5" r="3.5" />
         <path d="M8 8l2.5 2.5" strokeLinecap="round" />
       </svg>
@@ -22390,7 +22351,7 @@ function AddressSearchInput({
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-9 w-full pl-8 pr-3 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c] transition-all"
+        className={SEARCH_FIELD_CLASS}
       />
     </div>
   )
@@ -22570,7 +22531,7 @@ function CompanyDetailPage({
             <button
               type="button"
               onClick={saveEditing}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                 <path d="M2 6.5l2.5 2.5L10 3" />
@@ -22839,6 +22800,8 @@ function DetailSelect({
   editing,
   options,
   placeholder = 'Select…',
+  invalid,
+  clearable,
 }: {
   label: string
   value: string
@@ -22846,28 +22809,55 @@ function DetailSelect({
   editing: boolean
   options: string[]
   placeholder?: string
+  invalid?: boolean
+  clearable?: boolean
 }) {
+  const showClear = Boolean(clearable && editing && value)
   return (
     <label className="block min-w-0">
       <span className="block text-[11px] font-medium text-slate-500 mb-1.5 leading-tight">{label}</span>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        disabled={!editing}
-        className={`${detailControlClass} appearance-none pr-8 bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat ${
-          editing
-            ? 'bg-white border-slate-300 text-slate-900 cursor-pointer'
-            : 'bg-slate-50/80 border-slate-200 text-slate-700 cursor-default'
-        }`}
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-        }}
-      >
-        {!value && <option value="">{placeholder}</option>}
-        {options.map(opt => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          disabled={!editing}
+          className={`${detailControlClass} appearance-none bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat ${
+            showClear ? 'pr-16' : 'pr-8'
+          } ${
+            invalid
+              ? 'bg-white border-[#bb5757] text-slate-900 cursor-pointer'
+              : editing
+              ? 'bg-white border-slate-300 text-slate-900 cursor-pointer'
+              : 'bg-slate-50/80 border-slate-200 text-slate-700 cursor-default'
+          }`}
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+          }}
+        >
+          <option value="">{placeholder}</option>
+          {options.map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+        {showClear && (
+          <button
+            type="button"
+            title="Clear"
+            aria-label={`Clear ${label}`}
+            onMouseDown={e => e.preventDefault()}
+            onClick={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              onChange('')
+            }}
+            className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <path d="M2 2l6 6M8 2l-6 6" />
+            </svg>
+          </button>
+        )}
+      </div>
     </label>
   )
 }
@@ -23197,7 +23187,15 @@ function ColumnSettingsDropdown({
 
 /* ── Mini components ─────────────────────────────────────────────── */
 
-function AlertDropdown({ status, onChange }: { status: AlertStatus; onChange: (s: AlertStatus) => void }) {
+function AlertDropdown({
+  status,
+  onChange,
+  readOnly = false,
+}: {
+  status: AlertStatus
+  onChange?: (s: AlertStatus) => void
+  readOnly?: boolean
+}) {
   const [open, setOpen] = useState(false)
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -23239,6 +23237,17 @@ function AlertDropdown({ status, onChange }: { status: AlertStatus; onChange: (s
       ? { label: 'Work Stop', bg: 'bg-danger-light', text: 'text-danger', border: 'border-danger-border', dot: 'bg-danger' }
       : { label: 'No Alert', bg: 'bg-slate-50', text: 'text-slate-400', border: 'border-slate-200', dot: 'bg-slate-300' }
 
+  const badgeClass = `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${badge.bg} ${badge.text} ${badge.border}`
+
+  if (readOnly) {
+    return (
+      <span className={badgeClass}>
+        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${badge.dot}`} />
+        {badge.label}
+      </span>
+    )
+  }
+
   const menu = open && menuPos && createPortal(
     <div
       ref={menuRef}
@@ -23246,7 +23255,7 @@ function AlertDropdown({ status, onChange }: { status: AlertStatus; onChange: (s
       className="z-[9999] bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 w-44 text-sm"
     >
       <button
-        onClick={() => { onChange('Pending'); setOpen(false) }}
+        onClick={() => { onChange?.('Pending'); setOpen(false) }}
         className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 text-slate-700 transition-colors"
       >
         <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
@@ -23258,7 +23267,7 @@ function AlertDropdown({ status, onChange }: { status: AlertStatus; onChange: (s
         Set to Pending
       </button>
       <button
-        onClick={() => { onChange('Work Stop'); setOpen(false) }}
+        onClick={() => { onChange?.('Work Stop'); setOpen(false) }}
         className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 text-slate-700 transition-colors"
       >
         <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
@@ -23271,7 +23280,7 @@ function AlertDropdown({ status, onChange }: { status: AlertStatus; onChange: (s
       </button>
       <div className="my-1 border-t border-slate-100" />
       <button
-        onClick={() => { onChange(null); setOpen(false) }}
+        onClick={() => { onChange?.(null); setOpen(false) }}
         className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 text-slate-500 transition-colors"
       >
         <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
@@ -23322,15 +23331,15 @@ function StatusBadge({ status, alert }: { status: string; alert?: boolean }) {
 
 function SearchInput({ placeholder }: { placeholder: string }) {
   return (
-    <div className="relative">
-      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <div className="relative w-80">
+      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
         <circle cx="5" cy="5" r="3.5" />
         <path d="M8 8l2.5 2.5" strokeLinecap="round" />
       </svg>
       <input
         type="text"
         placeholder={placeholder}
-        className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/30 focus:border-[#12518c] w-36 transition-all"
+        className={SEARCH_FIELD_CLASS}
       />
     </div>
   )
