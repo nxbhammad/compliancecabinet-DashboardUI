@@ -10,7 +10,7 @@ const inputBase =
 const inputOk = 'border-slate-300 focus:ring-[#12518c]/25 focus:border-[#12518c]'
 const inputErr = 'border-red-400 focus:ring-red-300/40 focus:border-red-400'
 
-function AuthShell({ children }: { children: ReactNode }) {
+function AuthShell({ children, tagline }: { children: ReactNode; tagline: string }) {
   return (
     <div className="min-h-screen flex flex-col bg-[#eceef0] font-sans">
       <div className="bg-[#c0524d] text-white text-xs font-medium text-center py-1.5 tracking-wide flex-shrink-0">
@@ -30,7 +30,7 @@ function AuthShell({ children }: { children: ReactNode }) {
                 Manage your compliance in one place
               </h1>
               <p className="text-sm text-blue-100/90 mt-4">
-                Total Compliance Service Provider — please use your credentials to login.
+                {tagline}
               </p>
             </div>
 
@@ -116,7 +116,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
 
   if (view === 'forgot') {
     return (
-      <AuthShell>
+      <AuthShell tagline="Total Compliance Service Provider — enter your email to recover your password.">
         <h2 className="text-[26px] font-semibold text-slate-900 tracking-tight text-center">Forgot Password</h2>
         <p className="text-sm text-slate-500 mt-1 mb-7 text-center">
           {recoverySent
@@ -191,7 +191,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
   }
 
   return (
-    <AuthShell>
+    <AuthShell tagline="Total Compliance Service Provider — please use your credentials to login.">
       <h2 className="text-[26px] font-semibold text-slate-900 tracking-tight text-center">Welcome Back</h2>
       <p className="text-sm text-slate-500 mt-1 mb-7 text-center">Please log in to your account to continue.</p>
 

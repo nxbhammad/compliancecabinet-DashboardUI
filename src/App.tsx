@@ -13373,6 +13373,35 @@ function CompanySummaryPage({
   )
 
   const workStopActive = alertStatus === 'Work Stop'
+  const summaryScopeCols = useTableColumns([
+    { key: 'department', label: 'Department' },
+    { key: 'serviceLevel', label: 'Service Level' },
+    { key: 'subType', label: 'Sub-Service' },
+    { key: 'serviceType', label: 'Service Type' },
+    { key: 'status', label: 'Status' },
+    { key: 'specialists', label: 'Specialists' },
+  ])
+  const summaryContactCols = useTableColumns([
+    { key: 'name', label: 'Name' },
+    { key: 'role', label: 'Role' },
+    { key: 'email', label: 'Email' },
+    { key: 'work', label: 'Work' },
+    { key: 'cell', label: 'Cell' },
+  ])
+  const summaryAddressCols = useTableColumns([
+    { key: 'label', label: 'Label' },
+    { key: 'street', label: 'Street' },
+    { key: 'city', label: 'City' },
+    { key: 'state', label: 'State' },
+    { key: 'country', label: 'Country' },
+  ])
+  const summaryRenewalCols = useTableColumns([
+    { key: 'state', label: 'State' },
+    { key: 'function', label: 'Function' },
+    { key: 'item', label: 'Item' },
+    { key: 'expiration', label: 'Expiration Date' },
+    { key: 'actionIn', label: 'Action In' },
+  ])
 
   return (
     <div className="space-y-5 animate-[fadeIn_0.25s_ease-out]">
@@ -13551,31 +13580,34 @@ function CompanySummaryPage({
               count={SERVICE_SCOPE.length}
               fill
               actions={
-                <button type="button" className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors" title="Column settings">
-                  <GridViewIcon />
-                </button>
+                <ColumnSettingsDropdown {...summaryScopeCols.dropdownProps} buttonClassName="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors" />
               }
             >
               <div className="overflow-x-auto -mx-1 h-full">
                 <table className="w-full table-fixed min-w-[520px]">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      {['Department', 'Service Level', 'Sub-Service', 'Service Type', 'Status', 'Specialists'].map(h => (
-                        <th key={h} className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
-                      ))}
+                      {summaryScopeCols.show('department') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Department</th>}
+                      {summaryScopeCols.show('serviceLevel') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Service Level</th>}
+                      {summaryScopeCols.show('subType') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Sub-Service</th>}
+                      {summaryScopeCols.show('serviceType') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Service Type</th>}
+                      {summaryScopeCols.show('status') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Status</th>}
+                      {summaryScopeCols.show('specialists') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Specialists</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {SERVICE_SCOPE.map((row, i) => (
                       <tr key={i} className={i % 2 === 1 ? 'bg-slate-50/80' : 'bg-white'}>
-                        <td className="px-2 py-2.5 text-xs text-slate-700 truncate" title={row.department}>{row.department}</td>
-                        <td className="px-2 py-2.5 text-xs text-slate-600 truncate" title={row.serviceLevel}>{row.serviceLevel}</td>
-                        <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{row.subType}</td>
-                        <td className="px-2 py-2.5 text-xs text-slate-600 truncate" title={row.serviceType}>{row.serviceType}</td>
+                        {summaryScopeCols.show('department') && <td className="px-2 py-2.5 text-xs text-slate-700 truncate" title={row.department}>{row.department}</td>}
+                        {summaryScopeCols.show('serviceLevel') && <td className="px-2 py-2.5 text-xs text-slate-600 truncate" title={row.serviceLevel}>{row.serviceLevel}</td>}
+                        {summaryScopeCols.show('subType') && <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{row.subType}</td>}
+                        {summaryScopeCols.show('serviceType') && <td className="px-2 py-2.5 text-xs text-slate-600 truncate" title={row.serviceType}>{row.serviceType}</td>}
+                        {summaryScopeCols.show('status') && (
                         <td className="px-2 py-2.5">
                           <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">{row.status}</span>
                         </td>
-                        <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{row.specialists}</td>
+                        )}
+                        {summaryScopeCols.show('specialists') && <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{row.specialists}</td>}
                       </tr>
                     ))}
                   </tbody>
@@ -13607,28 +13639,28 @@ function CompanySummaryPage({
               title="Contacts"
               count={COMPANY_CONTACTS.length}
               actions={
-                <button type="button" className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors" title="Column settings">
-                  <GridViewIcon />
-                </button>
+                <ColumnSettingsDropdown {...summaryContactCols.dropdownProps} buttonClassName="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors" />
               }
             >
               <div className="overflow-x-auto">
                 <table className="w-full table-fixed">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      {['Name', 'Role', 'Email', 'Work', 'Cell'].map(h => (
-                        <th key={h} className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
-                      ))}
+                      {summaryContactCols.show('name') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Name</th>}
+                      {summaryContactCols.show('role') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Role</th>}
+                      {summaryContactCols.show('email') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Email</th>}
+                      {summaryContactCols.show('work') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Work</th>}
+                      {summaryContactCols.show('cell') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Cell</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {COMPANY_CONTACTS.map((c, i) => (
                       <tr key={i} className={i % 2 === 1 ? 'bg-slate-50/80' : 'bg-white'}>
-                        <td className="px-2 py-2.5 text-xs font-medium text-[#12518c] truncate" title={c.name}>{c.name}</td>
-                        <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{c.role}</td>
-                        <td className="px-2 py-2.5 text-xs text-slate-600 truncate" title={c.email}>{c.email}</td>
-                        <td className="px-2 py-2.5 text-xs text-slate-500 truncate">{c.work}</td>
-                        <td className="px-2 py-2.5 text-xs text-slate-500 truncate">{c.cell}</td>
+                        {summaryContactCols.show('name') && <td className="px-2 py-2.5 text-xs font-medium text-[#12518c] truncate" title={c.name}>{c.name}</td>}
+                        {summaryContactCols.show('role') && <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{c.role}</td>}
+                        {summaryContactCols.show('email') && <td className="px-2 py-2.5 text-xs text-slate-600 truncate" title={c.email}>{c.email}</td>}
+                        {summaryContactCols.show('work') && <td className="px-2 py-2.5 text-xs text-slate-500 truncate">{c.work}</td>}
+                        {summaryContactCols.show('cell') && <td className="px-2 py-2.5 text-xs text-slate-500 truncate">{c.cell}</td>}
                       </tr>
                     ))}
                   </tbody>
@@ -13640,27 +13672,27 @@ function CompanySummaryPage({
               title="Addresses"
               count={COMPANY_ADDRESSES.length}
               actions={
-                <button type="button" className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors" title="Column settings">
-                  <GridViewIcon />
-                </button>
+                <ColumnSettingsDropdown {...summaryAddressCols.dropdownProps} buttonClassName="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors" />
               }
             >
               <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    {['Label', 'Street', 'City', 'State', 'Country'].map(h => (
-                      <th key={h} className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
-                    ))}
+                    {summaryAddressCols.show('label') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Label</th>}
+                    {summaryAddressCols.show('street') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Street</th>}
+                    {summaryAddressCols.show('city') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">City</th>}
+                    {summaryAddressCols.show('state') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">State</th>}
+                    {summaryAddressCols.show('country') && <th className="px-2 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Country</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {COMPANY_ADDRESSES.map((a, i) => (
                     <tr key={i} className={i % 2 === 1 ? 'bg-slate-50/80' : 'bg-white'}>
-                      <td className="px-2 py-2.5 text-xs font-medium text-slate-700 truncate">{a.label}</td>
-                      <td className="px-2 py-2.5 text-xs text-slate-600 truncate" title={a.street}>{a.street}</td>
-                      <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{a.city}</td>
-                      <td className="px-2 py-2.5 text-xs text-slate-600">{a.state}</td>
-                      <td className="px-2 py-2.5 text-xs text-slate-500 truncate" title={a.country}>{a.country}</td>
+                      {summaryAddressCols.show('label') && <td className="px-2 py-2.5 text-xs font-medium text-slate-700 truncate">{a.label}</td>}
+                      {summaryAddressCols.show('street') && <td className="px-2 py-2.5 text-xs text-slate-600 truncate" title={a.street}>{a.street}</td>}
+                      {summaryAddressCols.show('city') && <td className="px-2 py-2.5 text-xs text-slate-600 truncate">{a.city}</td>}
+                      {summaryAddressCols.show('state') && <td className="px-2 py-2.5 text-xs text-slate-600">{a.state}</td>}
+                      {summaryAddressCols.show('country') && <td className="px-2 py-2.5 text-xs text-slate-500 truncate" title={a.country}>{a.country}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -13673,9 +13705,7 @@ function CompanySummaryPage({
             title="Renewals Due in the Next 30 Days"
             count={COMPANY_RENEWALS.length}
             actions={
-              <button type="button" className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors" title="Column settings">
-                <GridViewIcon />
-              </button>
+              <ColumnSettingsDropdown {...summaryRenewalCols.dropdownProps} buttonClassName="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors" />
             }
             bodyClassName="!p-0"
           >
@@ -13683,26 +13713,32 @@ function CompanySummaryPage({
               <table className="w-full">
                 <thead className="bg-white shadow-[0_1px_0_0_#e2e8f0]">
                   <tr>
-                    {['State', 'Function', 'Item', 'Expiration Date', 'Action In'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">{h}</th>
-                    ))}
+                    {summaryRenewalCols.show('state') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">State</th>}
+                    {summaryRenewalCols.show('function') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">Function</th>}
+                    {summaryRenewalCols.show('item') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">Item</th>}
+                    {summaryRenewalCols.show('expiration') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">Expiration Date</th>}
+                    {summaryRenewalCols.show('actionIn') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">Action In</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {COMPANY_RENEWALS.map((r, i) => (
                     <tr key={i} className={`border-t border-slate-50 ${i % 2 === 1 ? 'bg-slate-50/70' : 'bg-white'} hover:bg-[#12518c]/5 transition-colors`}>
+                      {summaryRenewalCols.show('state') && (
                       <td className="px-4 py-2.5">
                         <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">{r.state}</span>
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-600">{r.function}</td>
-                      <td className="px-4 py-2.5 text-xs text-slate-600 truncate max-w-[140px]" title={r.item}>{r.item}</td>
-                      <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">{r.expiration}</td>
+                      )}
+                      {summaryRenewalCols.show('function') && <td className="px-4 py-2.5 text-xs text-slate-600">{r.function}</td>}
+                      {summaryRenewalCols.show('item') && <td className="px-4 py-2.5 text-xs text-slate-600 truncate max-w-[140px]" title={r.item}>{r.item}</td>}
+                      {summaryRenewalCols.show('expiration') && <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">{r.expiration}</td>}
+                      {summaryRenewalCols.show('actionIn') && (
                       <td className="px-4 py-2.5">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-danger-light text-[#bb5757] border border-danger-border">
                           <span className="w-1.5 h-1.5 rounded-full bg-[#bb5757]" />
                           {r.action}
                         </span>
                       </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -13966,6 +14002,8 @@ function CompanyContactsPage({
 
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      <div>
+        <ListingHeading title="Current Contacts" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Current Contacts" subtitle="People linked to this company">
           <AddressSearchInput value={currentSearch} onChange={setCurrentSearch} />
@@ -14061,7 +14099,10 @@ function CompanyContactsPage({
         </div>
         <AddressTableFooter total={filteredCurrent.length} page={currentPage} onPageChange={setCurrentPage} />
       </section>
+      </div>
 
+      <div>
+        <ListingHeading title="Past Contacts" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Past Contacts" subtitle="Historical contacts no longer linked">
           <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
@@ -14122,6 +14163,7 @@ function CompanyContactsPage({
         </div>
         <AddressTableFooter total={filteredPast.length} page={1} onPageChange={() => {}} />
       </section>
+      </div>
 
       {confirmOpen && (
         <AddressConfirmInactiveModal onClose={closeInactiveFlow} onYes={() => { setConfirmOpen(false); setReasonOpen(true) }} onNo={closeInactiveFlow} />
@@ -15845,6 +15887,14 @@ function CompanyOwnershipPage({
   const [editingOwner, setEditingOwner] = useState<OwnershipRow | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [variationOwner, setVariationOwner] = useState<OwnershipRow | null>(null)
+  const ownerCols = useTableColumns([
+    { key: 'name', label: 'Name' },
+    { key: 'type', label: 'Type' },
+    { key: 'title', label: 'Title' },
+    { key: 'ownershipPct', label: 'Ownership %' },
+    { key: 'effectiveDate', label: 'Effective Date' },
+    { key: 'cancellationDate', label: 'Cancellation Date' },
+  ])
 
   const screen = subPage ? 'form' : 'list'
 
@@ -15939,10 +15989,9 @@ function CompanyOwnershipPage({
     )
   }
 
-  const columns = ['Name', 'Type', 'Title', 'Ownership %', 'Effective Date', 'Cancellation Date', 'Actions'] as const
-
   return (
     <div className="animate-[fadeIn_0.25s_ease-out]">
+      <ListingHeading title="Ownership" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Ownership" subtitle="Owners and equity holders for this company">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-xs font-semibold text-slate-700">
@@ -15950,13 +15999,7 @@ function CompanyOwnershipPage({
             <span className="text-[#12518c]">{totalOwnershipPct.toFixed(2)}</span>
           </span>
           <AddressSearchInput value={search} onChange={setSearch} />
-          <button
-            type="button"
-            className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`}
-            title="Column settings"
-          >
-            <GridViewIcon />
-          </button>
+          <ColumnSettingsDropdown {...ownerCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
           <TableAddNewButton onClick={openAdd} />
         </TableSectionHeader>
 
@@ -15964,22 +16007,19 @@ function CompanyOwnershipPage({
           <table className="w-full min-w-[960px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
-                {columns.map((h, i) => (
-                  <th
-                    key={h}
-                    className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                      i === columns.length - 1 ? 'text-center' : 'text-left'
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {ownerCols.show('name') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Name</th>}
+                {ownerCols.show('type') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Type</th>}
+                {ownerCols.show('title') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Title</th>}
+                {ownerCols.show('ownershipPct') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Ownership %</th>}
+                {ownerCols.show('effectiveDate') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Effective Date</th>}
+                {ownerCols.show('cancellationDate') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Cancellation Date</th>}
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-400">No record Found!</td>
+                  <td colSpan={ownerCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No record Found!</td>
                 </tr>
               ) : (
                 filtered.map((o, i) => (
@@ -15989,7 +16029,8 @@ function CompanyOwnershipPage({
                       i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
                     }`}
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">{o.name || '—'}</td>
+                    {ownerCols.show('name') && <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">{o.name || '—'}</td>}
+                    {ownerCols.show('type') && (
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${
                         o.principalType === 'sub-company'
@@ -15999,12 +16040,15 @@ function CompanyOwnershipPage({
                         {o.principalType === 'sub-company' ? 'Sub-Co' : 'Person'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{o.title || '—'}</td>
+                    )}
+                    {ownerCols.show('title') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{o.title || '—'}</td>}
+                    {ownerCols.show('ownershipPct') && (
                     <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">
                       {o.ownershipPct ? `${o.ownershipPct.replace('%', '')}%` : '—'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{o.effectiveDate || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{o.cancellationDate || '—'}</td>
+                    )}
+                    {ownerCols.show('effectiveDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{o.effectiveDate || '—'}</td>}
+                    {ownerCols.show('cancellationDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{o.cancellationDate || '—'}</td>}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-0.5">
                         <button type="button" onClick={() => openView(o)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
@@ -16318,6 +16362,34 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   const [reportLicense, setReportLicense] = useState<LicenseRow | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const licenseCols = useTableColumns([
+    { key: 'state', label: 'State' },
+    { key: 'cityCounty', label: 'City/County' },
+    { key: 'func', label: 'Function' },
+    { key: 'item', label: 'Item' },
+    { key: 'itemName', label: 'Item Name' },
+    { key: 'licenseNo', label: 'License / Permit #' },
+    { key: 'renewalDue', label: 'Renewal Due' },
+    { key: 'expiration', label: 'Expiration' },
+    { key: 'actionIn', label: 'Action In' },
+    { key: 'status', label: 'Status' },
+    { key: 'comment', label: 'Comment' },
+  ])
+  const reportCols = useTableColumns([
+    { key: 'state', label: 'State' },
+    { key: 'func', label: 'Function' },
+    { key: 'filingFrequency', label: 'Filing Frequency' },
+    { key: 'type', label: 'Type' },
+    { key: 'filingType', label: 'Filing Type' },
+    { key: 'accountNo', label: 'Account No' },
+    { key: 'dueDate', label: 'Due Date' },
+    { key: 'login', label: 'Login' },
+    { key: 'password', label: 'Password' },
+    { key: 'pin', label: 'Pin' },
+    { key: 'reportingNotes', label: 'Reporting Notes' },
+    { key: 'filingNotes', label: 'Filing Notes' },
+    { key: 'status', label: 'Status' },
+  ])
 
   const states = [...new Set(licenses.map(l => l.state))].sort()
   const funcs = [...new Set(licenses.map(l => l.func))].sort()
@@ -16406,18 +16478,19 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
       key={r.id}
       className={`border-b border-slate-100 hover:bg-slate-50/80 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'} ${r.active ? '' : 'opacity-60'}`}
     >
-      <td className="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state}</td>
-      <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.func}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.filingFrequency}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.type}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.filingType}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.accountNo || '—'}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.dueDate || '—'}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.login || '—'}</td>
-      <td className="px-4 py-3 whitespace-nowrap"><ReportSecretCell value={r.password} label="password" /></td>
-      <td className="px-4 py-3 whitespace-nowrap"><ReportSecretCell value={r.pin} label="PIN" /></td>
-      <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px] truncate" title={r.reportingNotes}>{r.reportingNotes || '—'}</td>
-      <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px] truncate" title={r.filingNotes}>{r.filingNotes || '—'}</td>
+      {reportCols.show('state') && <td className="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state}</td>}
+      {reportCols.show('func') && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.func}</td>}
+      {reportCols.show('filingFrequency') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.filingFrequency}</td>}
+      {reportCols.show('type') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.type}</td>}
+      {reportCols.show('filingType') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.filingType}</td>}
+      {reportCols.show('accountNo') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.accountNo || '—'}</td>}
+      {reportCols.show('dueDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.dueDate || '—'}</td>}
+      {reportCols.show('login') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.login || '—'}</td>}
+      {reportCols.show('password') && <td className="px-4 py-3 whitespace-nowrap"><ReportSecretCell value={r.password} label="password" /></td>}
+      {reportCols.show('pin') && <td className="px-4 py-3 whitespace-nowrap"><ReportSecretCell value={r.pin} label="PIN" /></td>}
+      {reportCols.show('reportingNotes') && <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px] truncate" title={r.reportingNotes}>{r.reportingNotes || '—'}</td>}
+      {reportCols.show('filingNotes') && <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px] truncate" title={r.filingNotes}>{r.filingNotes || '—'}</td>}
+      {reportCols.show('status') && (
       <td className="px-4 py-3">
         <div className="flex justify-center">
           {opts.actions ? (
@@ -16438,6 +16511,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
           )}
         </div>
       </td>
+      )}
       {opts.actions && (
         <td className="px-4 py-3">
           <div className="flex items-center justify-center gap-0.5">
@@ -16501,39 +16575,9 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     setEditLicense(null)
   }
 
-  const licenseColumns = [
-    'State',
-    'City/County',
-    'Function',
-    'Item',
-    'Item Name',
-    'License / Permit #',
-    'Renewal Due',
-    'Expiration',
-    'Action In',
-    'Status',
-    'Comment',
-    'Actions',
-  ] as const
-
-  const reportColumns = [
-    'State',
-    'Function',
-    'Filing Frequency',
-    'Type',
-    'Filing Type',
-    'Account No',
-    'Due Date',
-    'Login',
-    'Password',
-    'Pin',
-    'Reporting Notes',
-    'Filing Notes',
-    'Status',
-  ] as const
-
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      <ListingHeading title={subTab} />
       {/* Sub-tabs */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 px-2 pr-4 border-b border-slate-100">
@@ -16631,9 +16675,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                   Clear filters
                 </button>
               )}
-              <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
-                <GridViewIcon />
-              </button>
+              <ColumnSettingsDropdown {...licenseCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
               <button
                 type="button"
                 className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
@@ -16648,22 +16690,24 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
               <table className="w-full min-w-[1100px]">
                 <thead>
                   <tr className="border-y border-slate-100 bg-slate-50/60">
-                    {licenseColumns.map((h, i) => (
-                      <th
-                        key={h}
-                        className={`px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                          i === licenseColumns.length - 1 ? 'text-center' : 'text-left'
-                        }`}
-                      >
-                        {h}
-                      </th>
-                    ))}
+                    {licenseCols.show('state') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">State</th>}
+                    {licenseCols.show('cityCounty') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">City/County</th>}
+                    {licenseCols.show('func') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Function</th>}
+                    {licenseCols.show('item') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Item</th>}
+                    {licenseCols.show('itemName') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Item Name</th>}
+                    {licenseCols.show('licenseNo') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">License / Permit #</th>}
+                    {licenseCols.show('renewalDue') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Renewal Due</th>}
+                    {licenseCols.show('expiration') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Expiration</th>}
+                    {licenseCols.show('actionIn') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Action In</th>}
+                    {licenseCols.show('status') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Status</th>}
+                    {licenseCols.show('comment') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Comment</th>}
+                    <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredLicenses.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="px-4 py-12 text-center text-sm text-slate-400">No licenses match your filters.</td>
+                      <td colSpan={licenseCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No licenses match your filters.</td>
                     </tr>
                   ) : (
                     filteredLicenses.map((l, i) => (
@@ -16673,16 +16717,19 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                           i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
                         }`}
                       >
-                        <td className="px-3 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{l.state}</td>
-                        <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.cityCounty || '—'}</td>
+                        {licenseCols.show('state') && <td className="px-3 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{l.state}</td>}
+                        {licenseCols.show('cityCounty') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.cityCounty || '—'}</td>}
+                        {licenseCols.show('func') && (
                         <td className="px-3 py-3 whitespace-nowrap">
                           <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700">{l.func}</span>
                         </td>
-                        <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.item || '—'}</td>
-                        <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap max-w-[180px] truncate" title={l.itemName}>{l.itemName || '—'}</td>
-                        <td className="px-3 py-3 text-sm text-slate-700 font-medium whitespace-nowrap tabular-nums">{l.licenseNo || '—'}</td>
-                        <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.renewalDue || '—'}</td>
-                        <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.expiration || '—'}</td>
+                        )}
+                        {licenseCols.show('item') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.item || '—'}</td>}
+                        {licenseCols.show('itemName') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap max-w-[180px] truncate" title={l.itemName}>{l.itemName || '—'}</td>}
+                        {licenseCols.show('licenseNo') && <td className="px-3 py-3 text-sm text-slate-700 font-medium whitespace-nowrap tabular-nums">{l.licenseNo || '—'}</td>}
+                        {licenseCols.show('renewalDue') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.renewalDue || '—'}</td>}
+                        {licenseCols.show('expiration') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.expiration || '—'}</td>}
+                        {licenseCols.show('actionIn') && (
                         <td className="px-3 py-3 whitespace-nowrap">
                           {l.actionIn === 'Expired' ? (
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#bb5757] text-white">Expired</span>
@@ -16692,10 +16739,13 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">{l.actionIn}d</span>
                           )}
                         </td>
+                        )}
+                        {licenseCols.show('status') && (
                         <td className="px-3 py-3 whitespace-nowrap">
                           <QueryStatusPill status={l.status} />
                         </td>
-                        <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap max-w-[140px] truncate" title={l.comment}>{l.comment || '—'}</td>
+                        )}
+                        {licenseCols.show('comment') && <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap max-w-[140px] truncate" title={l.comment}>{l.comment || '—'}</td>}
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-center gap-0.5">
                             <button type="button" onClick={() => setViewLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
@@ -16769,9 +16819,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                   Clear filters
                 </button>
               )}
-              <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
-                <GridViewIcon />
-              </button>
+              <ColumnSettingsDropdown {...reportCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
               <button
                 type="button"
                 className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
@@ -16786,14 +16834,14 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
               <table className="w-full min-w-[1200px]">
                 <thead>
                   <tr className="border-y border-slate-100 bg-slate-50/60">
-                    {reportColumns.map((h) => (
+                    {reportCols.dropdownProps.columns.filter(c => reportCols.show(c.key)).map(c => (
                       <th
-                        key={h}
+                        key={c.key}
                         className={`px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                          h === 'Status' ? 'text-center' : 'text-left'
+                          c.key === 'status' ? 'text-center' : 'text-left'
                         }`}
                       >
-                        {h}
+                        {c.label}
                       </th>
                     ))}
                     <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Actions</th>
@@ -16802,7 +16850,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <tbody>
                   {filteredReports.length === 0 ? (
                     <tr>
-                      <td colSpan={reportColumns.length + 1} className="px-4 py-12 text-center text-sm text-slate-400">No reports match your filters.</td>
+                      <td colSpan={reportCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No reports match your filters.</td>
                     </tr>
                   ) : (
                     filteredReports.map((r, i) => renderReportRow(r, i, { actions: true }))
@@ -16812,75 +16860,77 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
             </div>
 
             <AddressTableFooter total={filteredReports.length} page={reportPage} onPageChange={setReportPage} />
-
-            {/* Past Reports */}
-            <div className="border-t border-slate-100">
-              <TableSectionHeader title="Past Reports" subtitle={`Archived / inactive filings · ${pastReports.length} total`}>
-                <button
-                  type="button"
-                  onClick={() => setPastReportsOpen(o => !o)}
-                  className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`}
-                  aria-expanded={pastReportsOpen}
-                  title={pastReportsOpen ? 'Collapse' : 'Expand'}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={`transition-transform ${pastReportsOpen ? 'rotate-90' : ''}`}
-                  >
-                    <path d="M6 4l4 4-4 4" />
-                  </svg>
-                </button>
-                <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
-                <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
-                  <GridViewIcon />
-                </button>
-              </TableSectionHeader>
-
-              {pastReportsOpen && (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1120px]">
-                      <thead>
-                        <tr className="border-y border-slate-100 bg-slate-50/60">
-                          {reportColumns.map((h) => (
-                            <th
-                              key={h}
-                              className={`px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                                h === 'Status' ? 'text-center' : 'text-left'
-                              }`}
-                            >
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredPastReports.length === 0 ? (
-                          <tr>
-                            <td colSpan={reportColumns.length} className="px-4 py-12 text-center text-sm text-slate-400">No record found!</td>
-                          </tr>
-                        ) : (
-                          filteredPastReports.map((r, i) => renderReportRow(r, i, { actions: false }))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="px-5 py-3 text-xs text-slate-500 border-t border-slate-100">
-                    Total: <span className="font-semibold text-slate-700">{filteredPastReports.length}</span>
-                  </div>
-                </>
-              )}
-            </div>
           </>
         )}
       </div>
+
+      {subTab === 'Reporting Summary' && (
+        <div>
+          <ListingHeading title="Past Reports" />
+          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <TableSectionHeader title="Past Reports" subtitle={`Archived / inactive filings · ${pastReports.length} total`}>
+              <button
+                type="button"
+                onClick={() => setPastReportsOpen(o => !o)}
+                className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`}
+                aria-expanded={pastReportsOpen}
+                title={pastReportsOpen ? 'Collapse' : 'Expand'}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`transition-transform ${pastReportsOpen ? 'rotate-90' : ''}`}
+                >
+                  <path d="M6 4l4 4-4 4" />
+                </svg>
+              </button>
+              <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
+              <ColumnSettingsDropdown {...reportCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+            </TableSectionHeader>
+
+            {pastReportsOpen && (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1120px]">
+                    <thead>
+                      <tr className="border-y border-slate-100 bg-slate-50/60">
+                        {reportCols.dropdownProps.columns.filter(c => reportCols.show(c.key)).map(c => (
+                          <th
+                            key={c.key}
+                            className={`px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
+                              c.key === 'status' ? 'text-center' : 'text-left'
+                            }`}
+                          >
+                            {c.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredPastReports.length === 0 ? (
+                        <tr>
+                          <td colSpan={reportCols.visibleCount} className="px-4 py-12 text-center text-sm text-slate-400">No record found!</td>
+                        </tr>
+                      ) : (
+                        filteredPastReports.map((r, i) => renderReportRow(r, i, { actions: false }))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-5 py-3 text-xs text-slate-500 border-t border-slate-100">
+                  Total: <span className="font-semibold text-slate-700">{filteredPastReports.length}</span>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
 
       {(addReportOpen || editReport) && (
         <AddReportModal
@@ -17205,6 +17255,15 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
   const [editScope, setEditScope] = useState<ScopeRow | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const scopeCols = useTableColumns([
+    { key: 'department', label: 'Department' },
+    { key: 'serviceLevel', label: 'Service Level' },
+    { key: 'serviceType', label: 'Service Type' },
+    { key: 'subServiceType', label: 'Sub-Service Type' },
+    { key: 'status', label: 'Status' },
+    { key: 'specialists', label: 'Specialists' },
+    { key: 'client', label: 'Client' },
+  ])
 
   const filtered = scopes.filter(s => {
     const q = search.toLowerCase()
@@ -17261,6 +17320,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
 
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      <ListingHeading title="Service Scope" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Service Scope" subtitle={`Company ID ${companyId} · departments, services, and specialists`}>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12518c]/10 text-[10px] font-semibold text-[#12518c]">
@@ -17290,9 +17350,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
               Clear
             </button>
           )}
-          <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
-            <GridViewIcon />
-          </button>
+          <ColumnSettingsDropdown {...scopeCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
           <TableAddNewButton onClick={() => { setEditScope(null); setAddOpen(true) }} />
         </TableSectionHeader>
 
@@ -17300,22 +17358,20 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
           <table className="w-full min-w-[960px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
-                {['Department', 'Service Level', 'Service Type', 'Sub-Service Type', 'Status', 'Specialists', 'Client', 'Action'].map((h, i) => (
-                  <th
-                    key={h}
-                    className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                      i === 7 ? 'text-center' : 'text-left'
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {scopeCols.show('department') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Department</th>}
+                {scopeCols.show('serviceLevel') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Service Level</th>}
+                {scopeCols.show('serviceType') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Service Type</th>}
+                {scopeCols.show('subServiceType') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Sub-Service Type</th>}
+                {scopeCols.show('status') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Status</th>}
+                {scopeCols.show('specialists') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Specialists</th>}
+                {scopeCols.show('client') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Client</th>}
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Action</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-400">No scope records found.</td>
+                  <td colSpan={scopeCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No scope records found.</td>
                 </tr>
               ) : (
                 filtered.map((s, i) => (
@@ -17323,13 +17379,16 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
                     key={s.id}
                     className={`border-b border-slate-100 hover:bg-slate-50/80 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}
                   >
-                    <td className="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{s.department}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{s.serviceLevel}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{s.serviceType}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{s.subServiceType}</td>
+                    {scopeCols.show('department') && <td className="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{s.department}</td>}
+                    {scopeCols.show('serviceLevel') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{s.serviceLevel}</td>}
+                    {scopeCols.show('serviceType') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{s.serviceType}</td>}
+                    {scopeCols.show('subServiceType') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{s.subServiceType}</td>}
+                    {scopeCols.show('status') && (
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusClass(s.status)}`}>{s.status}</span>
                     </td>
+                    )}
+                    {scopeCols.show('specialists') && (
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {s.specialists.split(',').map(sp => sp.trim()).filter(Boolean).map(sp => (
@@ -17339,7 +17398,8 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
                         ))}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{s.client || '—'}</td>
+                    )}
+                    {scopeCols.show('client') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{s.client || '—'}</td>}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button type="button" onClick={() => setViewScope(s)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
@@ -17711,6 +17771,17 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
   const [viewEntry, setViewEntry] = useState<ChangeLogRow | null>(null)
   const [restoreEntry, setRestoreEntry] = useState<ChangeLogRow | null>(null)
   const [sortDesc, setSortDesc] = useState(true)
+  const changeLogCols = useTableColumns([
+    { key: 'statusDate', label: 'Status Date' },
+    { key: 'tab', label: 'Tab' },
+    { key: 'recordName', label: 'Record Name' },
+    { key: 'field', label: 'Field' },
+    { key: 'changeType', label: 'Change Type' },
+    { key: 'previousData', label: 'Previous Data' },
+    { key: 'updatedData', label: 'Updated Data' },
+    { key: 'notes', label: 'Notes' },
+    { key: 'requestedBy', label: 'Requested By' },
+  ])
 
   const dateInputClass =
     'h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]'
@@ -17791,6 +17862,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
 
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      <ListingHeading title="Change Log" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Change Log" subtitle={`Company ID ${companyId} · audit trail of record changes`}>
           <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
@@ -17822,15 +17894,14 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
               Clear
             </button>
           )}
-          <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
-            <GridViewIcon />
-          </button>
+          <ColumnSettingsDropdown {...changeLogCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
         </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1180px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
+                {changeLogCols.show('statusDate') && (
                 <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
                   <button
                     type="button"
@@ -17843,22 +17914,22 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                     </svg>
                   </button>
                 </th>
-                {['Tab', 'Record Name', 'Field', 'Change Type', 'Previous Data', 'Updated Data', 'Notes', 'Requested By', 'Action'].map((h, i) => (
-                  <th
-                    key={h}
-                    className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                      i === 8 ? 'text-center' : 'text-left'
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
+                )}
+                {changeLogCols.show('tab') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Tab</th>}
+                {changeLogCols.show('recordName') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Record Name</th>}
+                {changeLogCols.show('field') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Field</th>}
+                {changeLogCols.show('changeType') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Change Type</th>}
+                {changeLogCols.show('previousData') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Previous Data</th>}
+                {changeLogCols.show('updatedData') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Updated Data</th>}
+                {changeLogCols.show('notes') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Notes</th>}
+                {changeLogCols.show('requestedBy') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Requested By</th>}
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Action</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-400">No change log entries found.</td>
+                  <td colSpan={changeLogCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No change log entries found.</td>
                 </tr>
               ) : (
                 filtered.map((e, i) => (
@@ -17866,31 +17937,43 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                     key={e.id}
                     className={`border-b border-slate-100 hover:bg-slate-50/80 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}
                   >
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{e.statusDate}</td>
-                    <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{e.tab}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap max-w-[180px] truncate" title={e.recordName}>{e.recordName}</td>
+                    {changeLogCols.show('statusDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{e.statusDate}</td>}
+                    {changeLogCols.show('tab') && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{e.tab}</td>}
+                    {changeLogCols.show('recordName') && <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap max-w-[180px] truncate" title={e.recordName}>{e.recordName}</td>}
+                    {changeLogCols.show('field') && (
                     <td className="px-4 py-3 text-sm text-slate-600 max-w-[200px]">
                       <span className="line-clamp-2" title={e.field}>{e.field}</span>
                     </td>
+                    )}
+                    {changeLogCols.show('changeType') && (
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${changeTypeClass(e.changeType)}`}>
                         {e.changeType}
                       </span>
                     </td>
+                    )}
+                    {changeLogCols.show('previousData') && (
                     <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px]">
                       <span className="line-clamp-2" title={e.previousData || undefined}>{e.previousData || '—'}</span>
                     </td>
+                    )}
+                    {changeLogCols.show('updatedData') && (
                     <td className="px-4 py-3 text-sm text-slate-600 max-w-[220px]">
                       <span className="line-clamp-2" title={e.updatedData || undefined}>{e.updatedData || '—'}</span>
                     </td>
+                    )}
+                    {changeLogCols.show('notes') && (
                     <td className="px-4 py-3 text-sm text-slate-500 max-w-[140px]">
                       <span className="line-clamp-2" title={e.notes || undefined}>{e.notes || '—'}</span>
                     </td>
+                    )}
+                    {changeLogCols.show('requestedBy') && (
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600" title={e.requestedBy}>
                         {e.requestedBy}
                       </span>
                     </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         {e.changeType === 'Delete' && !e.restored && (
@@ -18105,6 +18188,12 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
   const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const workStopCols = useTableColumns([
+    { key: 'status', label: 'Status' },
+    { key: 'effectiveDate', label: 'Effective Date' },
+    { key: 'endDate', label: 'End Date' },
+    { key: 'dayCount', label: 'Day Count' },
+  ])
 
   const filtered = rows.filter(r => {
     const q = search.toLowerCase()
@@ -18131,6 +18220,7 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
 
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      <ListingHeading title="Work Stop" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Work Stop" subtitle={`Company ID ${companyId} · pause history and day counts`}>
           <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
@@ -18146,31 +18236,24 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
               Clear
             </button>
           )}
-          <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
-            <GridViewIcon />
-          </button>
+          <ColumnSettingsDropdown {...workStopCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
         </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
-                {['Status', 'Effective Date', 'End Date', 'Day Count', 'Actions'].map((h, i) => (
-                  <th
-                    key={h}
-                    className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                      i === 4 ? 'text-center' : 'text-left'
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {workStopCols.show('status') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Status</th>}
+                {workStopCols.show('effectiveDate') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Effective Date</th>}
+                {workStopCols.show('endDate') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">End Date</th>}
+                {workStopCols.show('dayCount') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Day Count</th>}
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-400">No work stop records found.</td>
+                  <td colSpan={workStopCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No work stop records found.</td>
                 </tr>
               ) : (
                 filtered.map((r, i) => (
@@ -18178,6 +18261,7 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
                     key={r.id}
                     className={`border-b border-slate-100 hover:bg-slate-50/80 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}
                   >
+                    {workStopCols.show('status') && (
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                         r.status === 'Work Stop' ? 'bg-danger-light text-[#bb5757]' : 'bg-[#e1c16e]/15 text-[#8a6d24]'
@@ -18185,9 +18269,10 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
                         {r.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{r.effectiveDate}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{r.endDate || '—'}</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-slate-800 tabular-nums">{r.dayCount}</td>
+                    )}
+                    {workStopCols.show('effectiveDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{r.effectiveDate}</td>}
+                    {workStopCols.show('endDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{r.endDate || '—'}</td>}
+                    {workStopCols.show('dayCount') && <td className="px-4 py-3 text-sm font-semibold text-slate-800 tabular-nums">{r.dayCount}</td>}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center">
                         <button
@@ -18264,6 +18349,16 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editActivity, setEditActivity] = useState<ActivityRow | null>(null)
+  const activityCols = useTableColumns([
+    { key: 'subject', label: 'Subject' },
+    { key: 'date', label: 'Date' },
+    { key: 'type', label: 'Type' },
+    { key: 'status', label: 'Status' },
+    { key: 'flag', label: 'Flag' },
+    { key: 'category', label: 'Category' },
+    { key: 'authors', label: 'Authors' },
+    { key: 'followUp', label: 'Follow Up' },
+  ])
 
   const parseActivityDate = (value: string) => {
     const parsed = new Date(value.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$1-$2'))
@@ -18355,6 +18450,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
 
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      <ListingHeading title="Account Activity" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Account Activity" subtitle={`Company ID ${companyId} · issues, notes, and follow-ups`}>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12518c]/10 text-[10px] font-semibold text-[#12518c]">
@@ -18406,9 +18502,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
               Clear
             </button>
           )}
-          <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
-            <GridViewIcon />
-          </button>
+          <ColumnSettingsDropdown {...activityCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
           <TableAddNewButton onClick={() => { setEditActivity(null); setAddOpen(true) }} />
         </TableSectionHeader>
 
@@ -18416,22 +18510,21 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
           <table className="w-full min-w-[1100px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
-                {['Subject', 'Date', 'Type', 'Status', 'Flag', 'Category', 'Authors', 'Follow Up', 'Actions'].map((h, i) => (
-                  <th
-                    key={h}
-                    className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                      i >= 6 ? 'text-center' : 'text-left'
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {activityCols.show('subject') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Subject</th>}
+                {activityCols.show('date') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Date</th>}
+                {activityCols.show('type') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Type</th>}
+                {activityCols.show('status') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Status</th>}
+                {activityCols.show('flag') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Flag</th>}
+                {activityCols.show('category') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Category</th>}
+                {activityCols.show('authors') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Authors</th>}
+                {activityCols.show('followUp') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Follow Up</th>}
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-400">No activity found.</td>
+                  <td colSpan={activityCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No activity found.</td>
                 </tr>
               ) : (
                 filtered.map((a, i) => (
@@ -18439,6 +18532,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                     key={a.id}
                     className={`border-b border-slate-100 hover:bg-slate-50/80 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}
                   >
+                    {activityCols.show('subject') && (
                     <td className="px-4 py-3 text-sm font-medium max-w-[220px]">
                       <button
                         type="button"
@@ -18449,11 +18543,15 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                         {a.subject}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.date}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.type}</td>
+                    )}
+                    {activityCols.show('date') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.date}</td>}
+                    {activityCols.show('type') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.type}</td>}
+                    {activityCols.show('status') && (
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusClass(a.status)}`}>{a.status}</span>
                     </td>
+                    )}
+                    {activityCols.show('flag') && (
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ring-1 ring-inset ${flagClass(a.flag)}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
@@ -18464,7 +18562,9 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                         {a.flag}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.category}</td>
+                    )}
+                    {activityCols.show('category') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.category}</td>}
+                    {activityCols.show('authors') && (
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         {a.authors.map(author => (
@@ -18474,6 +18574,8 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                         ))}
                       </div>
                     </td>
+                    )}
+                    {activityCols.show('followUp') && (
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center">
                         <button
@@ -18492,6 +18594,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                         </button>
                       </div>
                     </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1 flex-wrap">
                         <button type="button" onClick={() => setViewActivity(a)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
@@ -19407,6 +19510,8 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
       </div>
 
       {/* Current Credentials */}
+      <div>
+        <ListingHeading title="Current Credentials" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Current Credentials" subtitle={`Company ID ${companyId} · active portal logins · ${filtered.length} records`}>
           <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
@@ -19467,8 +19572,11 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
 
         <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
       </section>
+      </div>
 
       {/* Past Credentials */}
+      <div>
+        <ListingHeading title="Past Credentials" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Past Credentials" subtitle={`Archived / inactive logins · ${pastCredentials.length} total`}>
           <button
@@ -19528,6 +19636,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
           </>
         )}
       </section>
+      </div>
 
       {unlockOpen && (
         <UnlockCredentialsModal
@@ -21150,6 +21259,24 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
   const [formMode, setFormMode] = useState<'add' | 'edit' | 'view' | null>(null)
   const [editingAddress, setEditingAddress] = useState<AddressRow | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+  const currentAddrCols = useTableColumns([
+    { key: 'label', label: 'Location Name' },
+    { key: 'street', label: 'Street' },
+    { key: 'city', label: 'City' },
+    { key: 'state', label: 'State' },
+    { key: 'zip', label: 'Zip Code' },
+    { key: 'country', label: 'Country' },
+    { key: 'active', label: 'Active/Inactive' },
+  ])
+  const pastAddrCols = useTableColumns([
+    { key: 'label', label: 'Location Name' },
+    { key: 'street', label: 'Street' },
+    { key: 'city', label: 'City' },
+    { key: 'state', label: 'State' },
+    { key: 'zip', label: 'Zip Code' },
+    { key: 'country', label: 'Country' },
+    { key: 'active', label: 'Active/Inactive' },
+  ])
 
   const filterAddresses = (list: AddressRow[], q: string) =>
     list.filter(a =>
@@ -21242,12 +21369,12 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       {/* Current Addresses */}
+      <div>
+        <ListingHeading title="Current Addresses" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Current Addresses" subtitle="Active locations for this company">
           <AddressSearchInput value={currentSearch} onChange={setCurrentSearch} />
-          <button type="button" className={`${TABLE_COL_BTN} text-slate-500 hover:bg-slate-50`} title="Column settings">
-            <GridViewIcon />
-          </button>
+          <ColumnSettingsDropdown {...currentAddrCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
           <TableAddNewButton onClick={openAdd} />
         </TableSectionHeader>
 
@@ -21255,22 +21382,20 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
           <table className="w-full min-w-[880px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
-                {['Location Name', 'Street', 'City', 'State', 'Zip Code', 'Country', 'Active/Inactive', 'Actions'].map((h, i) => (
-                  <th
-                    key={h}
-                    className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                      i >= 6 ? 'text-center' : 'text-left'
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {currentAddrCols.show('label') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Location Name</th>}
+                {currentAddrCols.show('street') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Street</th>}
+                {currentAddrCols.show('city') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">City</th>}
+                {currentAddrCols.show('state') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">State</th>}
+                {currentAddrCols.show('zip') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Zip Code</th>}
+                {currentAddrCols.show('country') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Country</th>}
+                {currentAddrCols.show('active') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Active/Inactive</th>}
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredCurrent.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-400">
+                  <td colSpan={currentAddrCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">
                     No record Found!
                   </td>
                 </tr>
@@ -21282,12 +21407,13 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
                       i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
                     }`}
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">{a.label}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.street}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{a.city}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{a.state}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{a.zip}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.country}</td>
+                    {currentAddrCols.show('label') && <td className="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">{a.label}</td>}
+                    {currentAddrCols.show('street') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.street}</td>}
+                    {currentAddrCols.show('city') && <td className="px-4 py-3 text-sm text-slate-600">{a.city}</td>}
+                    {currentAddrCols.show('state') && <td className="px-4 py-3 text-sm text-slate-600">{a.state}</td>}
+                    {currentAddrCols.show('zip') && <td className="px-4 py-3 text-sm text-slate-600">{a.zip}</td>}
+                    {currentAddrCols.show('country') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{a.country}</td>}
+                    {currentAddrCols.show('active') && (
                     <td className="px-4 py-3">
                       <div className="flex justify-center">
                         <AddressActiveToggle
@@ -21298,6 +21424,7 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
                         />
                       </div>
                     </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button
@@ -21349,33 +21476,34 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
           onPageChange={setCurrentPage}
         />
       </section>
+      </div>
 
       {/* Past Addresses */}
+      <div>
+        <ListingHeading title="Past Addresses" />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Past Addresses" subtitle="Historical locations no longer in use">
           <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
+          <ColumnSettingsDropdown {...pastAddrCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
         </TableSectionHeader>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50/60">
-                {['Location Name', 'Street', 'City', 'State', 'Zip Code', 'Country', 'Active/Inactive'].map((h, i) => (
-                  <th
-                    key={h}
-                    className={`px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${
-                      i === 6 ? 'text-center' : 'text-left'
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {pastAddrCols.show('label') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Location Name</th>}
+                {pastAddrCols.show('street') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Street</th>}
+                {pastAddrCols.show('city') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">City</th>}
+                {pastAddrCols.show('state') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">State</th>}
+                {pastAddrCols.show('zip') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Zip Code</th>}
+                {pastAddrCols.show('country') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Country</th>}
+                {pastAddrCols.show('active') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Active/Inactive</th>}
               </tr>
             </thead>
             <tbody>
               {filteredPast.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-14 text-center">
+                  <td colSpan={pastAddrCols.visibleCount} className="px-4 py-14 text-center">
                     <p className="text-sm font-medium text-slate-500">No record Found!</p>
                     <p className="text-xs text-slate-400 mt-1">Past addresses will appear here when available</p>
                   </td>
@@ -21383,15 +21511,17 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
               ) : (
                 filteredPast.map((a, i) => (
                   <tr key={a.id} className={`border-b border-slate-100 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}>
-                    <td className="px-4 py-3 text-sm font-medium text-slate-800">{a.label}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{a.street}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{a.city}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{a.state}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{a.zip}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{a.country}</td>
+                    {pastAddrCols.show('label') && <td className="px-4 py-3 text-sm font-medium text-slate-800">{a.label}</td>}
+                    {pastAddrCols.show('street') && <td className="px-4 py-3 text-sm text-slate-600">{a.street}</td>}
+                    {pastAddrCols.show('city') && <td className="px-4 py-3 text-sm text-slate-600">{a.city}</td>}
+                    {pastAddrCols.show('state') && <td className="px-4 py-3 text-sm text-slate-600">{a.state}</td>}
+                    {pastAddrCols.show('zip') && <td className="px-4 py-3 text-sm text-slate-600">{a.zip}</td>}
+                    {pastAddrCols.show('country') && <td className="px-4 py-3 text-sm text-slate-600">{a.country}</td>}
+                    {pastAddrCols.show('active') && (
                     <td className="px-4 py-3 text-center">
                       <AddressActiveToggle active={a.active} onChange={() => {}} />
                     </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -21400,6 +21530,7 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
         </div>
         <AddressTableFooter total={filteredPast.length} page={1} onPageChange={() => {}} />
       </section>
+      </div>
 
       {confirmOpen && (
         <AddressConfirmInactiveModal
@@ -22278,10 +22409,15 @@ function isTableToolbarAction(child: ReactNode): boolean {
   if (!isValidElement(child)) return false
   if (child.type === ColumnSettingsDropdown || child.type === TableAddNewButton) return true
   if (child.type !== 'button') return false
-  const props = child.props as { children?: ReactNode }
+  const props = child.props as { children?: ReactNode; title?: string }
+  if (props.title === 'Column settings') return true
   const text = toolbarChildText(props.children).replace(/\s+/g, ' ').trim().toLowerCase()
   if (text === 'clear' || text.startsWith('clear ')) return false
   return true
+}
+
+function ListingHeading({ title }: { title: string }) {
+  return <h2 className="text-base font-semibold text-slate-900 mb-3">{title}</h2>
 }
 
 function TableSectionHeader({
@@ -23006,20 +23142,24 @@ function SummaryCard({
   fill?: boolean
 }) {
   return (
-    <section className={`bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col transition-shadow hover:shadow-md ${fill ? 'h-full' : ''}`}>
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100">
-        <div className="flex items-center gap-2 min-w-0">
-          <h2 className="text-sm font-semibold text-slate-900 truncate">{title}</h2>
-          {typeof count === 'number' && (
-            <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
-              {count}
-            </span>
-          )}
-        </div>
-        {actions}
+    <div className={`flex flex-col min-w-0 ${fill ? 'h-full' : ''}`}>
+      <div className="flex items-center gap-2 mb-3 min-h-[28px]">
+        <h2 className="text-base font-semibold text-slate-900 truncate">{title}</h2>
+        {typeof count === 'number' && (
+          <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+            {count}
+          </span>
+        )}
       </div>
-      <div className={`p-4 flex-1 ${bodyClassName}`}>{children}</div>
-    </section>
+      <section className={`bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col transition-shadow hover:shadow-md ${fill ? 'flex-1' : ''}`}>
+        {actions ? (
+          <div className="flex items-center justify-end gap-2 px-4 py-3 border-b border-slate-100">
+            {actions}
+          </div>
+        ) : null}
+        <div className={`p-4 flex-1 ${bodyClassName}`}>{children}</div>
+      </section>
+    </div>
   )
 }
 
@@ -23080,7 +23220,7 @@ function ColumnSettingsDropdown({
 }) {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null)
+  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number; maxHeight: number; openUp: boolean } | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -23091,7 +23231,21 @@ function ColumnSettingsDropdown({
     }
     const updatePos = () => {
       const rect = buttonRef.current!.getBoundingClientRect()
-      setMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+      const gap = 8
+      const edge = 12
+      const preferred = Math.min(420, 44 + columns.length * 42)
+      const spaceBelow = window.innerHeight - rect.bottom - gap - edge
+      const spaceAbove = rect.top - gap - edge
+      const openUp = spaceBelow < Math.min(preferred, 240) && spaceAbove > spaceBelow
+      const maxHeight = Math.max(160, Math.min(420, openUp ? spaceAbove : spaceBelow))
+      setMenuPos({
+        ...(openUp
+          ? { bottom: window.innerHeight - rect.top + gap }
+          : { top: rect.bottom + gap }),
+        right: Math.max(edge, window.innerWidth - rect.right),
+        maxHeight,
+        openUp,
+      })
     }
     updatePos()
     window.addEventListener('scroll', updatePos, true)
@@ -23100,7 +23254,7 @@ function ColumnSettingsDropdown({
       window.removeEventListener('scroll', updatePos, true)
       window.removeEventListener('resize', updatePos)
     }
-  }, [open])
+  }, [open, columns.length])
 
   useEffect(() => {
     if (!open) {
@@ -23124,15 +23278,25 @@ function ColumnSettingsDropdown({
     <div
       ref={menuRef}
       role="menu"
-      style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }}
-      className={`z-[9999] w-56 origin-top-right rounded-xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-200 ease-out ${
-        mounted ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-1'
+      style={{
+        position: 'fixed',
+        top: menuPos.top,
+        bottom: menuPos.bottom,
+        right: menuPos.right,
+        maxHeight: menuPos.maxHeight,
+      }}
+      className={`z-[9999] w-56 flex flex-col ${menuPos.openUp ? 'origin-bottom-right' : 'origin-top-right'} rounded-xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-200 ease-out ${
+        mounted
+          ? 'opacity-100 scale-100 translate-y-0'
+          : menuPos.openUp
+            ? 'opacity-0 scale-95 translate-y-1'
+            : 'opacity-0 scale-95 -translate-y-1'
       }`}
     >
-      <div className="px-3.5 py-2.5 border-b border-slate-100">
+      <div className="px-3.5 py-2.5 border-b border-slate-100 shrink-0">
         <p className="text-[10px] font-semibold tracking-[0.12em] text-slate-400 uppercase">Show / Hide</p>
       </div>
-      <div className="py-2 max-h-[min(420px,calc(100vh-96px))] overflow-y-auto">
+      <div className="py-2 overflow-y-auto min-h-0">
         {columns.map(col => (
           <button
             key={col.key}
