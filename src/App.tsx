@@ -12118,6 +12118,7 @@ function PersonDetailFieldsPage({
               editing={editing}
               options={US_STATES}
               placeholder="Select…"
+              clearable
             />
             <DetailSelect
               label="City"
@@ -12126,9 +12127,10 @@ function PersonDetailFieldsPage({
               editing={editing}
               options={citiesForState(form.state, form.city)}
               placeholder={form.state ? 'Select…' : 'Select state first…'}
+              clearable
             />
             <DetailField label="Zip Code" value={form.zipCode} onChange={v => set('zipCode', v)} editing={editing} />
-            <DetailSelect label="Country" value={form.country} onChange={v => set('country', v)} editing={editing} options={COUNTRY_OPTIONS} />
+            <DetailSelect label="Country" value={form.country} onChange={v => set('country', v)} editing={editing} options={COUNTRY_OPTIONS} clearable />
           </div>
         </DetailSection>
 
@@ -13195,10 +13197,10 @@ function CompaniesPage({
               Clear
             </button>
           )}
+          <ColumnSettingsDropdown {...companyCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
           <button className="h-9 px-4 rounded-lg text-xs font-semibold text-white bg-slate-600 hover:bg-slate-700 transition-colors">
             Export
           </button>
-          <ColumnSettingsDropdown {...companyCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
         </TableSectionHeader>
 
         <div className="overflow-x-auto">
@@ -16762,6 +16764,11 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <option value="">Function</option>
                 {funcs.map(f => <option key={f} value={f}>{f}</option>)}
               </FilterSelect>
+              <MoreFiltersButton
+                open={licenseMoreOpen}
+                extraCount={licenseExtraCount}
+                onToggle={() => setLicenseMoreOpen(o => !o)}
+              />
               {filtersActive && (
                 <button
                   type="button"
@@ -16780,14 +16787,9 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
               </button>
               <TableAddNewButton onClick={() => setAddOpen(true)} />
             </TableSectionHeader>
-            <div className={`px-5 py-3 border-b border-slate-100 ${licenseMoreOpen ? 'bg-slate-50/60' : 'bg-white'}`}>
-              <MoreFiltersButton
-                open={licenseMoreOpen}
-                extraCount={licenseExtraCount}
-                onToggle={() => setLicenseMoreOpen(o => !o)}
-              />
-              {licenseMoreOpen && (
-                <div className="flex flex-wrap items-center gap-2 mt-3">
+            {licenseMoreOpen && (
+              <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/60">
+                <div className="flex flex-wrap items-center gap-2">
                   <FilterSelect value={itemFilter} onChange={v => setItemFilter(v)} className={filterSelectClassName(itemFilter)}>
                     <option value="">Item</option>
                     {items.map(it => <option key={it} value={it}>{it}</option>)}
@@ -16805,8 +16807,8 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                     <option value="Upcoming">Upcoming</option>
                   </FilterSelect>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Table */}
             <div className="overflow-x-auto">
@@ -16922,6 +16924,11 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <option value="">Function</option>
                 {reportFuncs.map(s => <option key={s} value={s}>{s}</option>)}
               </FilterSelect>
+              <MoreFiltersButton
+                open={reportMoreOpen}
+                extraCount={reportExtraCount}
+                onToggle={() => setReportMoreOpen(o => !o)}
+              />
               {reportFiltersActive && (
                 <button
                   type="button"
@@ -16948,14 +16955,9 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 Export
               </button>
             </TableSectionHeader>
-            <div className={`px-5 py-3 border-b border-slate-100 ${reportMoreOpen ? 'bg-slate-50/60' : 'bg-white'}`}>
-              <MoreFiltersButton
-                open={reportMoreOpen}
-                extraCount={reportExtraCount}
-                onToggle={() => setReportMoreOpen(o => !o)}
-              />
-              {reportMoreOpen && (
-                <div className="flex flex-wrap items-center gap-2 mt-3">
+            {reportMoreOpen && (
+              <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/60">
+                <div className="flex flex-wrap items-center gap-2">
                   <FilterSelect value={reportTypeFilter} onChange={v => { setReportTypeFilter(v); setReportPage(1) }} className={filterSelectClassName(reportTypeFilter)}>
                     <option value="">Report Type</option>
                     {reportTypes.map(s => <option key={s} value={s}>{s}</option>)}
@@ -16973,8 +16975,8 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                     {reportDues.map(s => <option key={s} value={s}>{s}</option>)}
                   </FilterSelect>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Table */}
             <div className="overflow-x-auto">
