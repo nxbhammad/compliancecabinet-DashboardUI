@@ -1132,11 +1132,11 @@ const COMPANY_OWNERSHIP = [
 
 const COMPANY_LICENSES = [
   { id: 1, state: 'AI', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Active', comment: '' },
-  { id: 2, state: 'AZ', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: 'Wine Direct Shipper Permit', licenseNo: '09080016', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Pending', comment: '' },
+  { id: 2, state: 'AZ', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: 'Wine Direct Shipper Permit', licenseNo: '09080016', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Pending', comment: 'Permit renewal packet sent to the client. Waiting on signed affidavit.' },
   { id: 3, state: 'CA', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Inactive', comment: '' },
   { id: 4, state: 'CA', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: 'Direct Shipper Permit', licenseNo: 'DS121', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Canceled', comment: '' },
   { id: 5, state: 'CA', cityCounty: '', func: 'Operational', item: 'Bond', itemName: 'Winegrower Bond', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Expired', comment: '' },
-  { id: 6, state: 'CA', cityCounty: '', func: 'Operational', item: 'Type 02', itemName: 'Winegrower', licenseNo: '58279', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Active', comment: '' },
+  { id: 6, state: 'CA', cityCounty: '', func: 'Operational', item: 'Type 02', itemName: 'Winegrower', licenseNo: '58279', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Active', comment: 'Bond rider received. Keep this license active until TTB confirms the new bond number.' },
   { id: 7, state: 'CO', cityCounty: '', func: 'DTC', item: 'Direct Shippers', itemName: 'Wine Direct Shipper Permit', licenseNo: '03-99999-0000', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Pending', comment: '' },
   { id: 8, state: 'CT', cityCounty: '', func: 'DTC', item: 'Wine Shipper', itemName: 'Out-of-State Shipper', licenseNo: 'Asdfasdf', renewalDue: '04/28/2026', expiration: '04/28/2026', actionIn: 'Expired', status: 'Inactive', comment: '' },
   { id: 9, state: 'FL', cityCounty: 'Miami-Dade', func: 'DTC', item: 'Wine Shipper', itemName: 'Direct Shipper', licenseNo: 'FL-4412', renewalDue: '02/14/2026', expiration: '02/14/2026', actionIn: 'Expired', status: 'Canceled', comment: 'Replaced by new permit' },
@@ -11568,18 +11568,21 @@ function AddPersonPage({
                     label="Do you have (or have you ever had) any direct or indirect interest in an alcoholic beverage license?"
                     value={form.interestInLicense}
                     onChange={v => set('interestInLicense', v)}
+                    onReset={() => set('interestInLicense', '')}
                     options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
                   />
                   <OwnershipRadioGroup
                     label="Have you (or any company you where/are involved in) had an alcoholic beverage license revoked, suspended or denied?"
                     value={form.licenseRevoked}
                     onChange={v => set('licenseRevoked', v)}
+                    onReset={() => set('licenseRevoked', '')}
                     options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
                   />
                   <OwnershipRadioGroup
                     label="Have you ever been arrested, charged, convicted or placed on probation?"
                     value={form.arrested}
                     onChange={v => set('arrested', v)}
+                    onReset={() => set('arrested', '')}
                     options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
                   />
                 </div>
@@ -11983,9 +11986,9 @@ function PersonDetailFieldsPage({
     empFrom: '',
     empTo: '',
     currentEmployment: false,
-    interestInLicense: '',
-    licenseRevoked: '',
-    arrested: '',
+    interestInLicense: 'no',
+    licenseRevoked: 'no',
+    arrested: 'no',
     notes: person.id === 18 ? 'submits 3T Brand Reg requests' : '',
   }
   const [form, setForm] = useState(initialForm)
@@ -12217,6 +12220,7 @@ function PersonDetailFieldsPage({
               label="Do you have (or have you ever had) any direct or indirect interest in an alcoholic beverage license?"
               value={form.interestInLicense}
               onChange={v => set('interestInLicense', v)}
+              onReset={() => set('interestInLicense', '')}
               readOnly={!editing}
               options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
             />
@@ -12224,6 +12228,7 @@ function PersonDetailFieldsPage({
               label="Have you (or any company you where/are involved in) had an alcoholic beverage license revoked, suspended or denied?"
               value={form.licenseRevoked}
               onChange={v => set('licenseRevoked', v)}
+              onReset={() => set('licenseRevoked', '')}
               readOnly={!editing}
               options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
             />
@@ -12231,6 +12236,7 @@ function PersonDetailFieldsPage({
               label="Have you ever been arrested, charged, convicted or placed on probation?"
               value={form.arrested}
               onChange={v => set('arrested', v)}
+              onReset={() => set('arrested', '')}
               readOnly={!editing}
               options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
             />
@@ -14918,6 +14924,7 @@ function OwnershipFormSelect({
   readOnly,
   placeholder = 'Select…',
   required,
+  invalid,
 }: {
   label: string
   value: string
@@ -14926,6 +14933,7 @@ function OwnershipFormSelect({
   readOnly?: boolean
   placeholder?: string
   required?: boolean
+  invalid?: boolean
 }) {
   return (
     <label className="block min-w-0">
@@ -14935,7 +14943,9 @@ function OwnershipFormSelect({
         disabled={readOnly}
         onChange={e => onChange(e.target.value)}
         className={`${detailControlClass} appearance-none pr-8 bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat ${
-          readOnly
+          invalid
+            ? 'bg-white border-[#bb5757] text-slate-900 cursor-pointer focus:ring-[#bb5757]/20 focus:border-[#bb5757]'
+            : readOnly
             ? 'bg-slate-50/80 border-slate-200 text-slate-700 cursor-default'
             : 'bg-white border-slate-300 text-slate-900 cursor-pointer'
         }`}
@@ -14959,6 +14969,7 @@ function OwnershipRadioGroup({
   options,
   readOnly,
   required,
+  onReset,
 }: {
   label: string
   value: string
@@ -14966,11 +14977,12 @@ function OwnershipRadioGroup({
   options: { value: string; label: string }[]
   readOnly?: boolean
   required?: boolean
+  onReset?: () => void
 }) {
   return (
     <fieldset className="min-w-0">
       <OwnershipFormLabel required={required}>{label}</OwnershipFormLabel>
-      <div className="flex flex-wrap gap-2 mt-0.5">
+      <div className="flex flex-wrap items-center gap-2 mt-0.5">
         {options.map(opt => {
           const selected = value === opt.value
           return (
@@ -14992,6 +15004,15 @@ function OwnershipRadioGroup({
             </button>
           )
         })}
+        {onReset && !readOnly && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="inline-flex items-center px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+          >
+            Reset
+          </button>
+        )}
       </div>
     </fieldset>
   )
@@ -16328,6 +16349,60 @@ function ReportSecretCell({ value, label }: { value: string; label: string }) {
   )
 }
 
+function ListingNotesModal({
+  title,
+  subtitle,
+  notes,
+  onClose,
+}: {
+  title: string
+  subtitle?: string
+  notes: { label: string; text: string }[]
+  onClose: () => void
+}) {
+  return (
+    <AddressModalShell maxWidth="max-w-lg" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2.5 3.5h11v8.5H7l-2.5 2v-2H2.5V3.5z" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+            {subtitle ? <p className="text-[11px] text-slate-500 truncate">{subtitle}</p> : null}
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+      <div className="px-5 py-5 space-y-4">
+        {notes.map(note => (
+          <div key={note.label}>
+            <OwnershipFormLabel>{note.label}</OwnershipFormLabel>
+            <div className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/80 text-sm text-slate-800 leading-relaxed whitespace-pre-wrap min-h-[88px]">
+              {note.text.trim() || 'No notes provided.'}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </AddressModalShell>
+  )
+}
+
 function CompanyLicensesPage({ companyId }: { companyId: number }) {
   type LicenseRow = (typeof COMPANY_LICENSES)[number]
   type ReportRow = (typeof COMPANY_REPORTING)[number]
@@ -16335,7 +16410,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
 
   const [subTab, setSubTab] = useState<SubTab>('Licensing Summary')
   const [licenses, setLicenses] = useState<LicenseRow[]>(COMPANY_LICENSES)
-  const [pastReports] = useState<ReportRow[]>(PAST_REPORTING)
+  const [pastReports, setPastReports] = useState<ReportRow[]>(PAST_REPORTING)
   const [search, setSearch] = useState('')
   const [stateFilter, setStateFilter] = useState('')
   const [funcFilter, setFuncFilter] = useState('')
@@ -16352,12 +16427,24 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   const [reportDueFilter, setReportDueFilter] = useState('')
   const [pastSearch, setPastSearch] = useState('')
   const [pastReportsOpen, setPastReportsOpen] = useState(true)
+  const [licenseMoreOpen, setLicenseMoreOpen] = useState(false)
+  const [reportMoreOpen, setReportMoreOpen] = useState(false)
+  const [defaultSettingsOpen, setDefaultSettingsOpen] = useState(false)
+  const [reportDefaults, setReportDefaults] = useState({
+    manualClient: true,
+    shipDate: true,
+  })
   const [reportRows, setReportRows] = useState<ReportRow[]>(COMPANY_REPORTING)
   const [addReportOpen, setAddReportOpen] = useState(false)
   const [viewReport, setViewReport] = useState<ReportRow | null>(null)
   const [editReport, setEditReport] = useState<ReportRow | null>(null)
   const [deleteReportId, setDeleteReportId] = useState<number | null>(null)
   const [viewLicense, setViewLicense] = useState<LicenseRow | null>(null)
+  const [listingNotes, setListingNotes] = useState<{
+    title: string
+    subtitle: string
+    notes: { label: string; text: string }[]
+  } | null>(null)
   const [editLicense, setEditLicense] = useState<LicenseRow | null>(null)
   const [reportLicense, setReportLicense] = useState<LicenseRow | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
@@ -16452,31 +16539,62 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     setReportPage(1)
   }
 
+  const isPastReport = (id: number) => pastReports.some(r => r.id === id)
+
   const removeReport = (id: number) => {
-    setReportRows(prev => prev.filter(r => r.id !== id))
+    if (isPastReport(id)) setPastReports(prev => prev.filter(r => r.id !== id))
+    else setReportRows(prev => prev.filter(r => r.id !== id))
     setDeleteReportId(null)
   }
 
   const toggleReportActive = (id: number) => {
-    setReportRows(prev => prev.map(r => (r.id === id ? { ...r, active: !r.active } : r)))
+    const toggle = (rows: ReportRow[]) => rows.map(r => (r.id === id ? { ...r, active: !r.active } : r))
+    if (isPastReport(id)) setPastReports(toggle)
+    else setReportRows(toggle)
+  }
+
+  const exportReports = () => {
+    const rows = reportRows.filter(r =>
+      (!reportStateFilter || r.state === reportStateFilter) &&
+      (!reportFuncFilter || r.func === reportFuncFilter) &&
+      (!reportTypeFilter || r.type === reportTypeFilter) &&
+      (!reportFilingTypeFilter || r.filingType === reportFilingTypeFilter) &&
+      (!reportFreqFilter || r.filingFrequency === reportFreqFilter) &&
+      (!reportDueFilter || r.dueDate === reportDueFilter)
+    )
+    downloadQueryCsv(
+      `reporting-summary-${companyId}.csv`,
+      ['State', 'Function', 'Filing Frequency', 'Type', 'Filing Type', 'Account No', 'Due Date', 'Login', 'Reporting Notes', 'Filing Notes', 'Status'],
+      rows.map(r => [r.state, r.func, r.filingFrequency, r.type, r.filingType, r.accountNo, r.dueDate, r.login, r.reportingNotes, r.filingNotes, r.active ? 'Active' : 'Inactive']),
+    )
   }
 
   const saveReport = (data: Omit<ReportRow, 'id'>, addAnother: boolean) => {
     if (editReport) {
-      setReportRows(prev => prev.map(r => (r.id === editReport.id ? { ...r, ...data } : r)))
+      const apply = (rows: ReportRow[]) => rows.map(r => (r.id === editReport.id ? { ...r, ...data } : r))
+      if (isPastReport(editReport.id)) setPastReports(apply)
+      else setReportRows(apply)
       setEditReport(null)
       setAddReportOpen(false)
       return
     }
-    const nextId = Math.max(0, ...reportRows.map(r => r.id)) + 1
+    const nextId = Math.max(0, ...reportRows.map(r => r.id), ...pastReports.map(r => r.id)) + 1
     setReportRows(prev => [{ id: nextId, ...data }, ...prev])
     if (!addAnother) setAddReportOpen(false)
   }
 
-  const renderReportRow = (r: ReportRow, i: number, opts: { actions: boolean }) => (
+  const renderReportRow = (r: ReportRow, i: number) => (
     <tr
       key={r.id}
-      className={`border-b border-slate-100 hover:bg-slate-50/80 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'} ${r.active ? '' : 'opacity-60'}`}
+      onClick={() => setListingNotes({
+        title: 'Report Notes',
+        subtitle: `${r.state} · ${r.func}${r.type ? ` · ${r.type}` : ''}`,
+        notes: [
+          { label: 'Reporting Notes', text: r.reportingNotes },
+          { label: 'Filing Notes', text: r.filingNotes },
+        ],
+      })}
+      className={`border-b border-slate-100 cursor-pointer hover:bg-[#12518c]/5 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'} ${r.active ? '' : 'opacity-60'}`}
     >
       {reportCols.show('state') && <td className="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state}</td>}
       {reportCols.show('func') && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.func}</td>}
@@ -16486,57 +16604,49 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
       {reportCols.show('accountNo') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.accountNo || '—'}</td>}
       {reportCols.show('dueDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.dueDate || '—'}</td>}
       {reportCols.show('login') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.login || '—'}</td>}
-      {reportCols.show('password') && <td className="px-4 py-3 whitespace-nowrap"><ReportSecretCell value={r.password} label="password" /></td>}
-      {reportCols.show('pin') && <td className="px-4 py-3 whitespace-nowrap"><ReportSecretCell value={r.pin} label="PIN" /></td>}
+      {reportCols.show('password') && <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}><ReportSecretCell value={r.password} label="password" /></td>}
+      {reportCols.show('pin') && <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}><ReportSecretCell value={r.pin} label="PIN" /></td>}
       {reportCols.show('reportingNotes') && <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px] truncate" title={r.reportingNotes}>{r.reportingNotes || '—'}</td>}
       {reportCols.show('filingNotes') && <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px] truncate" title={r.filingNotes}>{r.filingNotes || '—'}</td>}
       {reportCols.show('status') && (
-      <td className="px-4 py-3">
+      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
         <div className="flex justify-center">
-          {opts.actions ? (
-            <button
-              type="button"
-              onClick={() => toggleReportActive(r.id)}
-              role="switch"
-              aria-checked={r.active}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${r.active ? 'bg-[#12518c]' : 'bg-slate-300'}`}
-              title={r.active ? 'Active' : 'Inactive'}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${r.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
-            </button>
-          ) : (
-            <span className={`relative inline-flex h-5 w-9 items-center rounded-full ${r.active ? 'bg-[#12518c]/50' : 'bg-slate-300'}`}>
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ${r.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => toggleReportActive(r.id)}
+            role="switch"
+            aria-checked={r.active}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${r.active ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+            title={r.active ? 'Active' : 'Inactive'}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${r.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </button>
         </div>
       </td>
       )}
-      {opts.actions && (
-        <td className="px-4 py-3">
-          <div className="flex items-center justify-center gap-0.5">
-            <button type="button" onClick={() => setViewReport(r)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                <circle cx="8" cy="8" r="1.75" />
-              </svg>
-            </button>
-            <button type="button" onClick={() => { setEditReport(r); setAddReportOpen(true) }} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-              </svg>
-            </button>
-            <button type="button" onClick={() => setDeleteReportId(r.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6h18" />
-                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                <path d="M10 11v6M14 11v6" />
-              </svg>
-            </button>
-          </div>
-        </td>
-      )}
+      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-center gap-0.5">
+          <button type="button" onClick={() => setViewReport(r)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+              <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
+              <circle cx="8" cy="8" r="1.75" />
+            </svg>
+          </button>
+          <button type="button" onClick={() => { setEditReport(r); setAddReportOpen(true) }} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+              <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
+            </svg>
+          </button>
+          <button type="button" onClick={() => setDeleteReportId(r.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+              <path d="M10 11v6M14 11v6" />
+            </svg>
+          </button>
+        </div>
+      </td>
     </tr>
   )
 
@@ -16548,6 +16658,8 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   const reportActiveCount = reportRows.filter(r => r.active).length
   const reportInactiveCount = reportRows.filter(r => !r.active).length
   const filtersActive = !!(stateFilter || funcFilter || itemFilter || statusFilter || renewalFilter || search)
+  const licenseExtraCount = [itemFilter, statusFilter, renewalFilter].filter(Boolean).length
+  const reportExtraCount = [reportTypeFilter, reportFilingTypeFilter, reportFreqFilter, reportDueFilter].filter(Boolean).length
 
   const clearFilters = () => {
     setSearch('')
@@ -16579,7 +16691,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       <ListingHeading title={subTab} />
       {/* Sub-tabs */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-visible">
         <div className="flex items-center gap-3 px-2 pr-4 border-b border-slate-100">
           <div className="flex items-center gap-0 min-w-0">
             {(['Licensing Summary', 'Reporting Summary'] as const).map(t => {
@@ -16650,22 +16762,6 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <option value="">Function</option>
                 {funcs.map(f => <option key={f} value={f}>{f}</option>)}
               </FilterSelect>
-              <FilterSelect value={itemFilter} onChange={v => setItemFilter(v)} className={filterSelectClassName(itemFilter)}>
-                <option value="">Item</option>
-                {items.map(it => <option key={it} value={it}>{it}</option>)}
-              </FilterSelect>
-              <FilterSelect value={statusFilter} onChange={v => setStatusFilter(v)} className={filterSelectClassName(statusFilter)}>
-                <option value="">Item Status</option>
-                {QUERY_LICENSE_STATUSES.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </FilterSelect>
-              <FilterSelect value={renewalFilter} onChange={v => setRenewalFilter(v)} className={filterSelectClassName(renewalFilter)}>
-                <option value="">Renewal Timing</option>
-                <option value="Expired">Expired</option>
-                <option value="Due Soon">Due Soon (≤30 days)</option>
-                <option value="Upcoming">Upcoming</option>
-              </FilterSelect>
               {filtersActive && (
                 <button
                   type="button"
@@ -16684,6 +16780,33 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
               </button>
               <TableAddNewButton onClick={() => setAddOpen(true)} />
             </TableSectionHeader>
+            <div className={`px-5 py-3 border-b border-slate-100 ${licenseMoreOpen ? 'bg-slate-50/60' : 'bg-white'}`}>
+              <MoreFiltersButton
+                open={licenseMoreOpen}
+                extraCount={licenseExtraCount}
+                onToggle={() => setLicenseMoreOpen(o => !o)}
+              />
+              {licenseMoreOpen && (
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <FilterSelect value={itemFilter} onChange={v => setItemFilter(v)} className={filterSelectClassName(itemFilter)}>
+                    <option value="">Item</option>
+                    {items.map(it => <option key={it} value={it}>{it}</option>)}
+                  </FilterSelect>
+                  <FilterSelect value={statusFilter} onChange={v => setStatusFilter(v)} className={filterSelectClassName(statusFilter)}>
+                    <option value="">Item Status</option>
+                    {QUERY_LICENSE_STATUSES.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </FilterSelect>
+                  <FilterSelect value={renewalFilter} onChange={v => setRenewalFilter(v)} className={filterSelectClassName(renewalFilter)}>
+                    <option value="">Renewal Timing</option>
+                    <option value="Expired">Expired</option>
+                    <option value="Due Soon">Due Soon (≤30 days)</option>
+                    <option value="Upcoming">Upcoming</option>
+                  </FilterSelect>
+                </div>
+              )}
+            </div>
 
             {/* Table */}
             <div className="overflow-x-auto">
@@ -16713,7 +16836,12 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                     filteredLicenses.map((l, i) => (
                       <tr
                         key={l.id}
-                        className={`border-b border-slate-100 transition-colors hover:bg-slate-50/80 ${
+                        onClick={() => setListingNotes({
+                          title: 'License Notes',
+                          subtitle: `${l.state} · ${l.func}${l.licenseNo ? ` · ${l.licenseNo}` : ''}`,
+                          notes: [{ label: 'Comment', text: l.comment }],
+                        })}
+                        className={`border-b border-slate-100 transition-colors cursor-pointer hover:bg-[#12518c]/5 ${
                           i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
                         }`}
                       >
@@ -16746,7 +16874,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                         </td>
                         )}
                         {licenseCols.show('comment') && <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap max-w-[140px] truncate" title={l.comment}>{l.comment || '—'}</td>}
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-0.5">
                             <button type="button" onClick={() => setViewLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
                               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -16794,22 +16922,6 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <option value="">Function</option>
                 {reportFuncs.map(s => <option key={s} value={s}>{s}</option>)}
               </FilterSelect>
-              <FilterSelect value={reportTypeFilter} onChange={v => { setReportTypeFilter(v); setReportPage(1) }} className={filterSelectClassName(reportTypeFilter)}>
-                <option value="">Report Type</option>
-                {reportTypes.map(s => <option key={s} value={s}>{s}</option>)}
-              </FilterSelect>
-              <FilterSelect value={reportFilingTypeFilter} onChange={v => { setReportFilingTypeFilter(v); setReportPage(1) }} className={filterSelectClassName(reportFilingTypeFilter)}>
-                <option value="">Filing Type</option>
-                {reportFilingTypes.map(s => <option key={s} value={s}>{s}</option>)}
-              </FilterSelect>
-              <FilterSelect value={reportFreqFilter} onChange={v => { setReportFreqFilter(v); setReportPage(1) }} className={filterSelectClassName(reportFreqFilter)}>
-                <option value="">Filing Frequency</option>
-                {reportFreqs.map(s => <option key={s} value={s}>{s}</option>)}
-              </FilterSelect>
-              <FilterSelect value={reportDueFilter} onChange={v => { setReportDueFilter(v); setReportPage(1) }} className={filterSelectClassName(reportDueFilter)}>
-                <option value="">Due Date</option>
-                {reportDues.map(s => <option key={s} value={s}>{s}</option>)}
-              </FilterSelect>
               {reportFiltersActive && (
                 <button
                   type="button"
@@ -16822,12 +16934,47 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
               <ColumnSettingsDropdown {...reportCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+                onClick={() => setDefaultSettingsOpen(true)}
+                className={TABLE_PRIMARY_BTN}
+              >
+                Default Settings
+              </button>
+              <button
+                type="button"
+                onClick={exportReports}
+                title="Search is not included in the export"
+                className={TABLE_OUTLINE_BTN}
               >
                 Export
               </button>
-              <TableAddNewButton onClick={() => { setEditReport(null); setAddReportOpen(true) }} />
             </TableSectionHeader>
+            <div className={`px-5 py-3 border-b border-slate-100 ${reportMoreOpen ? 'bg-slate-50/60' : 'bg-white'}`}>
+              <MoreFiltersButton
+                open={reportMoreOpen}
+                extraCount={reportExtraCount}
+                onToggle={() => setReportMoreOpen(o => !o)}
+              />
+              {reportMoreOpen && (
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <FilterSelect value={reportTypeFilter} onChange={v => { setReportTypeFilter(v); setReportPage(1) }} className={filterSelectClassName(reportTypeFilter)}>
+                    <option value="">Report Type</option>
+                    {reportTypes.map(s => <option key={s} value={s}>{s}</option>)}
+                  </FilterSelect>
+                  <FilterSelect value={reportFilingTypeFilter} onChange={v => { setReportFilingTypeFilter(v); setReportPage(1) }} className={filterSelectClassName(reportFilingTypeFilter)}>
+                    <option value="">Filing Type</option>
+                    {reportFilingTypes.map(s => <option key={s} value={s}>{s}</option>)}
+                  </FilterSelect>
+                  <FilterSelect value={reportFreqFilter} onChange={v => { setReportFreqFilter(v); setReportPage(1) }} className={filterSelectClassName(reportFreqFilter)}>
+                    <option value="">Filing Frequency</option>
+                    {reportFreqs.map(s => <option key={s} value={s}>{s}</option>)}
+                  </FilterSelect>
+                  <FilterSelect value={reportDueFilter} onChange={v => { setReportDueFilter(v); setReportPage(1) }} className={filterSelectClassName(reportDueFilter)}>
+                    <option value="">Due Date</option>
+                    {reportDues.map(s => <option key={s} value={s}>{s}</option>)}
+                  </FilterSelect>
+                </div>
+              )}
+            </div>
 
             {/* Table */}
             <div className="overflow-x-auto">
@@ -16853,7 +17000,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                       <td colSpan={reportCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No reports match your filters.</td>
                     </tr>
                   ) : (
-                    filteredReports.map((r, i) => renderReportRow(r, i, { actions: true }))
+                    filteredReports.map((r, i) => renderReportRow(r, i))
                   )}
                 </tbody>
               </table>
@@ -16867,7 +17014,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
       {subTab === 'Reporting Summary' && (
         <div>
           <ListingHeading title="Past Reports" />
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-visible">
             <TableSectionHeader title="Past Reports" subtitle={`Archived / inactive filings · ${pastReports.length} total`}>
               <button
                 type="button"
@@ -16897,7 +17044,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
             {pastReportsOpen && (
               <>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1120px]">
+                  <table className="w-full min-w-[1200px]">
                     <thead>
                       <tr className="border-y border-slate-100 bg-slate-50/60">
                         {reportCols.dropdownProps.columns.filter(c => reportCols.show(c.key)).map(c => (
@@ -16910,15 +17057,16 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                             {c.label}
                           </th>
                         ))}
+                        <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredPastReports.length === 0 ? (
                         <tr>
-                          <td colSpan={reportCols.visibleCount} className="px-4 py-12 text-center text-sm text-slate-400">No record found!</td>
+                          <td colSpan={reportCols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No record found!</td>
                         </tr>
                       ) : (
-                        filteredPastReports.map((r, i) => renderReportRow(r, i, { actions: false }))
+                        filteredPastReports.map((r, i) => renderReportRow(r, i))
                       )}
                     </tbody>
                   </table>
@@ -16930,6 +17078,17 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
             )}
           </section>
         </div>
+      )}
+
+      {defaultSettingsOpen && (
+        <ReportDefaultSettingsModal
+          initial={reportDefaults}
+          onClose={() => setDefaultSettingsOpen(false)}
+          onSave={next => {
+            setReportDefaults(next)
+            setDefaultSettingsOpen(false)
+          }}
+        />
       )}
 
       {(addReportOpen || editReport) && (
@@ -16947,6 +17106,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
           key={reportLicense.id}
           license={reportLicense}
           companyId={companyId}
+          defaults={reportDefaults}
           onClose={() => setReportLicense(null)}
           onSave={(data) => {
             const nextId = Math.max(0, ...reportRows.map(r => r.id), ...pastReports.map(r => r.id)) + 1
@@ -17025,6 +17185,15 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
             </button>
           </div>
         </AddressModalShell>
+      )}
+
+      {listingNotes && (
+        <ListingNotesModal
+          title={listingNotes.title}
+          subtitle={listingNotes.subtitle}
+          notes={listingNotes.notes}
+          onClose={() => setListingNotes(null)}
+        />
       )}
 
       {viewLicense && (
@@ -20743,25 +20912,28 @@ const REPORT_NAME_OPTIONS = [
 function LicenseReportModal({
   license,
   companyId,
+  defaults,
   onClose,
   onSave,
 }: {
   license: (typeof COMPANY_LICENSES)[number]
   companyId: number
+  defaults?: ReportDefaults
   onClose: () => void
   onSave: (data: Omit<(typeof COMPANY_REPORTING)[number], 'id'>) => void
 }) {
   type Identifier = { id: number; description: string; number: string }
 
-  const [errors, setErrors] = useState<Partial<Record<'reportName' | 'type' | 'filingFrequency' | 'filingType' | 'credential', boolean>>>({})
-  const [manualClient, setManualClient] = useState(false)
-  const [shipDateBased, setShipDateBased] = useState(false)
+  const [errors, setErrors] = useState<Partial<Record<'func' | 'reportName' | 'type' | 'filingFrequency' | 'filingType' | 'credential', boolean>>>({})
+  const [manualClient, setManualClient] = useState(defaults?.manualClient ?? false)
+  const [shipDateBased, setShipDateBased] = useState(defaults?.shipDate ?? false)
   const [futureFrequency, setFutureFrequency] = useState(false)
   const [addCredentialOpen, setAddCredentialOpen] = useState(false)
   const [customCredentials, setCustomCredentials] = useState<string[]>([])
   const [credentialJustAdded, setCredentialJustAdded] = useState(false)
   const [identifiers, setIdentifiers] = useState<Identifier[]>([])
   const [form, setForm] = useState({
+    func: license.func || '',
     reportName: '',
     reportType: '',
     filingFrequency: '',
@@ -20775,11 +20947,14 @@ function LicenseReportModal({
   })
 
   const credentialOptions = [...CREDENTIAL_LOGIN_OWNERS, ...customCredentials]
+  const functionOptions = license.func && !REPORT_FUNCTIONS.includes(license.func)
+    ? [license.func, ...REPORT_FUNCTIONS]
+    : REPORT_FUNCTIONS
 
   const set = (key: keyof typeof form, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }))
-    if (key === 'reportName' || key === 'filingFrequency' || key === 'filingType' || key === 'credential') {
-      setErrors(prev => ({ ...prev, [key === 'reportName' ? 'reportName' : key]: false }))
+    if (key === 'func' || key === 'reportName' || key === 'filingFrequency' || key === 'filingType' || key === 'credential') {
+      setErrors(prev => ({ ...prev, [key]: false }))
     }
     if (key === 'reportType') setErrors(prev => ({ ...prev, type: false }))
   }
@@ -20802,6 +20977,7 @@ function LicenseReportModal({
 
   const handleSave = () => {
     const next = {
+      func: !form.func,
       reportName: !form.reportName,
       type: !form.reportType,
       filingFrequency: !form.filingFrequency,
@@ -20813,7 +20989,7 @@ function LicenseReportModal({
 
     onSave({
       state: license.state,
-      func: license.func,
+      func: form.func,
       filingFrequency: form.filingFrequency,
       type: form.reportType,
       filingType: form.filingType,
@@ -20840,10 +21016,10 @@ function LicenseReportModal({
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900 truncate">
-              Company — Add Report
+              Company — Add Report ({license.state} | {form.func || license.func || 'N/A'} | {license.licenseNo || 'N/A'})
             </h3>
             <p className="text-[11px] text-slate-500 truncate">
-              {license.state} · {license.func} · {license.licenseNo || 'N/A'}
+              {license.state} · {form.func || license.func} · {license.licenseNo || 'N/A'}
             </p>
           </div>
         </div>
@@ -20866,6 +21042,19 @@ function LicenseReportModal({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <ReportToggle label="Manual Client" checked={manualClient} onChange={setManualClient} />
           <ReportToggle label="Sends data based on Ship date" checked={shipDateBased} onChange={setShipDateBased} />
+        </div>
+
+        <div>
+          <OwnershipFormSelect
+            label="Function"
+            required
+            value={form.func}
+            onChange={v => set('func', v)}
+            options={functionOptions}
+            placeholder="Select…"
+            invalid={!!errors.func}
+          />
+          {errors.func && <p className="mt-1 text-[11px] text-[#bb5757]">Function is required.</p>}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -21001,7 +21190,7 @@ function LicenseReportModal({
           companyId={companyId}
           states={REPORT_STATE_CODES}
           initialState={license.state}
-          initialFunc={license.func}
+          initialFunc={form.func || license.func}
           onClose={() => setAddCredentialOpen(false)}
           onSave={(data) => {
             const label = data.loginOwner || data.userName
@@ -21013,6 +21202,76 @@ function LicenseReportModal({
           }}
         />
       )}
+    </AddressModalShell>
+  )
+}
+
+type ReportDefaults = {
+  manualClient: boolean
+  shipDate: boolean
+}
+
+function ReportDefaultSettingsModal({
+  initial,
+  onClose,
+  onSave,
+}: {
+  initial: ReportDefaults
+  onClose: () => void
+  onSave: (next: ReportDefaults) => void
+}) {
+  const [form, setForm] = useState<ReportDefaults>(initial)
+
+  return (
+    <AddressModalShell maxWidth="max-w-xl" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-6 py-4">
+        <h3 className="text-base font-semibold text-[#12518c]">Client Reporting Settings</h3>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M3 3l8 8M11 3l-8 8" />
+          </svg>
+        </button>
+      </div>
+      <div className="px-6 pb-4">
+        <p className="text-sm text-slate-500">
+          These defaults are applied when a new report is created. Existing reports are not changed.
+        </p>
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-8">
+          <label className="block cursor-pointer select-none">
+            <span className="block text-sm font-semibold text-slate-800 mb-3">Manual Client Default</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.manualClient}
+              onClick={() => setForm(prev => ({ ...prev, manualClient: !prev.manualClient }))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.manualClient ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${form.manualClient ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+            </button>
+          </label>
+          <label className="block cursor-pointer select-none">
+            <span className="block text-sm font-semibold text-slate-800 mb-3">Ship Date Default</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.shipDate}
+              onClick={() => setForm(prev => ({ ...prev, shipDate: !prev.shipDate }))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.shipDate ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${form.shipDate ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+            </button>
+          </label>
+        </div>
+      </div>
+      <div className="flex justify-end px-6 py-4">
+        <button
+          type="button"
+          onClick={() => onSave(form)}
+          className="h-9 px-5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
+        >
+          Save
+        </button>
+      </div>
     </AddressModalShell>
   )
 }
@@ -22369,7 +22628,13 @@ function ContactFormModal({
 }
 
 const TABLE_COL_BTN =
-  'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200'
+  'p-2 h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 transition-all duration-200 shrink-0 relative z-20'
+
+const TABLE_OUTLINE_BTN =
+  'inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors shrink-0'
+
+const TABLE_PRIMARY_BTN =
+  'h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors shadow-sm shrink-0'
 
 function TableAddNewButton({
   onClick,
@@ -22420,6 +22685,47 @@ function ListingHeading({ title }: { title: string }) {
   return <h2 className="text-base font-semibold text-slate-900 mb-3">{title}</h2>
 }
 
+function MoreFiltersButton({
+  open,
+  extraCount = 0,
+  onToggle,
+}: {
+  open: boolean
+  extraCount?: number
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className={`relative z-10 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border transition-colors shrink-0 ${
+        open || extraCount
+          ? 'border-[#12518c] text-[#12518c] bg-[#12518c]/10'
+          : 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50'
+      }`}
+    >
+      {open ? 'Hide filters' : 'Show more filters'}
+      {!open && extraCount > 0 && (
+        <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#12518c] text-white text-[10px] font-bold leading-4">{extraCount}</span>
+      )}
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={`transition-transform ${open ? 'rotate-180' : ''}`}
+      >
+        <path d="M3 4.5L6 7.5 9 4.5" />
+      </svg>
+    </button>
+  )
+}
+
 function TableSectionHeader({
   title,
   subtitle,
@@ -22439,7 +22745,7 @@ function TableSectionHeader({
   const showTitle = showTitleProp ?? childList.length === 0
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+    <div className="relative z-20 flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white overflow-visible">
       <div className="flex flex-wrap items-center gap-2 min-w-0">
         {leading}
         {showTitle ? (
@@ -22456,7 +22762,7 @@ function TableSectionHeader({
         ) : null}
       </div>
       {actions.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">{actions}</div>
+        <div className="relative z-30 flex flex-wrap items-center justify-end gap-2 ml-auto shrink-0">{actions}</div>
       ) : null}
     </div>
   )
@@ -23220,7 +23526,7 @@ function ColumnSettingsDropdown({
 }) {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number; maxHeight: number; openUp: boolean } | null>(null)
+  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; left: number; maxHeight: number; openUp: boolean } | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -23233,16 +23539,21 @@ function ColumnSettingsDropdown({
       const rect = buttonRef.current!.getBoundingClientRect()
       const gap = 8
       const edge = 12
+      const menuWidth = 224
       const preferred = Math.min(420, 44 + columns.length * 42)
       const spaceBelow = window.innerHeight - rect.bottom - gap - edge
       const spaceAbove = rect.top - gap - edge
       const openUp = spaceBelow < Math.min(preferred, 240) && spaceAbove > spaceBelow
       const maxHeight = Math.max(160, Math.min(420, openUp ? spaceAbove : spaceBelow))
+      const left = Math.min(
+        Math.max(edge, rect.right - menuWidth),
+        window.innerWidth - menuWidth - edge,
+      )
       setMenuPos({
         ...(openUp
           ? { bottom: window.innerHeight - rect.top + gap }
           : { top: rect.bottom + gap }),
-        right: Math.max(edge, window.innerWidth - rect.right),
+        left,
         maxHeight,
         openUp,
       })
@@ -23262,15 +23573,20 @@ function ColumnSettingsDropdown({
       return
     }
     const id = requestAnimationFrame(() => setMounted(true))
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node
-      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
+    const handler = (e: Event) => {
+      const path = e.composedPath()
+      if (
+        (buttonRef.current && path.includes(buttonRef.current)) ||
+        (menuRef.current && path.includes(menuRef.current))
+      ) {
+        return
+      }
       setOpen(false)
     }
-    document.addEventListener('mousedown', handler)
+    document.addEventListener('pointerdown', handler, true)
     return () => {
       cancelAnimationFrame(id)
-      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('pointerdown', handler, true)
     }
   }, [open])
 
@@ -23278,14 +23594,16 @@ function ColumnSettingsDropdown({
     <div
       ref={menuRef}
       role="menu"
+      onPointerDown={e => e.stopPropagation()}
       style={{
         position: 'fixed',
         top: menuPos.top,
         bottom: menuPos.bottom,
-        right: menuPos.right,
+        left: menuPos.left,
         maxHeight: menuPos.maxHeight,
+        pointerEvents: 'auto',
       }}
-      className={`z-[9999] w-56 flex flex-col ${menuPos.openUp ? 'origin-bottom-right' : 'origin-top-right'} rounded-xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-200 ease-out ${
+      className={`z-[10020] w-56 flex flex-col ${menuPos.openUp ? 'origin-bottom-right' : 'origin-top-right'} rounded-xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-200 ease-out ${
         mounted
           ? 'opacity-100 scale-100 translate-y-0'
           : menuPos.openUp
@@ -23303,6 +23621,7 @@ function ColumnSettingsDropdown({
             type="button"
             role="menuitemcheckbox"
             aria-checked={col.visible}
+            onPointerDown={e => e.stopPropagation()}
             onClick={() => onToggle(col.key)}
             className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors"
           >
@@ -23328,11 +23647,15 @@ function ColumnSettingsDropdown({
   )
 
   return (
-    <div className="relative">
+    <div className="relative z-20 shrink-0">
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => {
+          e.stopPropagation()
+          setOpen(o => !o)
+        }}
         title="Column settings"
         aria-expanded={open}
         aria-haspopup="menu"
