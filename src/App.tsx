@@ -19881,7 +19881,7 @@ function AddCredentialModal({
     sharedType: '',
     loginType: '',
     state: initialState,
-    func: initialFunc,
+    func: initialFunc.split(',').map(s => s.trim()).filter(Boolean)[0] || '',
     filingType: '',
     userName: '',
     loginEmail: '',
@@ -19895,6 +19895,7 @@ function AddCredentialModal({
 
   const [errors, setErrors] = useState<Partial<Record<'loginOwner' | 'loginType' | 'state' | 'func' | 'filingType' | 'userName' | 'password' | 'sharedType', boolean>>>({})
   const [form, setForm] = useState(emptyForm)
+  const [extraFuncs, setExtraFuncs] = useState<string[]>(() => initialFunc.split(',').map(s => s.trim()).filter(Boolean).slice(1))
   const [showPassword, setShowPassword] = useState(false)
 
   const set = (key: keyof typeof form, value: string | boolean) => {
@@ -19912,6 +19913,22 @@ function AddCredentialModal({
     if (key in { loginOwner: 1, loginType: 1, state: 1, func: 1, filingType: 1, userName: 1, password: 1, sharedType: 1 }) {
       setErrors(prev => ({ ...prev, [key]: false }))
     }
+  }
+
+  const combinedFunc = () =>
+    [form.func, ...extraFuncs].map(s => s.trim()).filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join(', ')
+
+  const addFunction = () => {
+    setExtraFuncs(prev => [...prev, ''])
+    setErrors(prev => ({ ...prev, func: false }))
+  }
+
+  const setExtraFunc = (index: number, value: string) => {
+    setExtraFuncs(prev => prev.map((item, i) => (i === index ? value : item)))
+  }
+
+  const removeExtraFunc = (index: number) => {
+    setExtraFuncs(prev => prev.filter((_, i) => i !== index))
   }
 
   const validate = () => {
@@ -19934,7 +19951,7 @@ function AddCredentialModal({
     shared: form.shared,
     sharedType: form.shared ? form.sharedType : '',
     state: form.state,
-    func: form.func,
+    func: combinedFunc() || form.func,
     loginType: form.loginType,
     companyName: form.loginOwner,
     filingType: form.filingType,
@@ -19955,6 +19972,7 @@ function AddCredentialModal({
     onSave(buildPayload(), addAnother)
     if (addAnother) {
       setForm(emptyForm)
+      setExtraFuncs([])
       setErrors({})
       setShowPassword(false)
     }
@@ -20095,16 +20113,59 @@ function AddCredentialModal({
               />
               {errors.state && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
             </div>
-            <div>
-              <OwnershipFormSelect
-                label="Function"
-                required
-                value={form.func}
-                onChange={v => set('func', v)}
-                options={CREDENTIAL_FUNCTIONS}
-                placeholder="Select…"
-              />
+            <div className="sm:col-span-2">
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  <OwnershipFormSelect
+                    label="Function"
+                    required
+                    value={form.func}
+                    onChange={v => set('func', v)}
+                    options={CREDENTIAL_FUNCTIONS}
+                    placeholder="Select…"
+                    invalid={!!errors.func}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addFunction}
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors shrink-0"
+                >
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                    <path d="M6 2.5v7M2.5 6h7" />
+                  </svg>
+                  Add Function
+                </button>
+              </div>
               {errors.func && <p className="mt-1 text-[11px] text-[#bb5757]">Function is required.</p>}
+              {extraFuncs.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  {extraFuncs.map((extra, index) => (
+                    <div key={index} className="flex items-end gap-2">
+                      <div className="flex-1 min-w-0">
+                        <OwnershipFormSelect
+                          label={`Function ${index + 2}`}
+                          value={extra}
+                          onChange={v => setExtraFunc(index, v)}
+                          options={CREDENTIAL_FUNCTIONS}
+                          placeholder="Select…"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeExtraFunc(index)}
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors shrink-0"
+                        title="Remove function"
+                        aria-label="Remove function"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                          <path d="M3 3l8 8M11 3l-8 8" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <OwnershipFormSelect
