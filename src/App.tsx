@@ -1185,6 +1185,17 @@ const QUERY_LICENSE_EXTRAS: QueryLicenseRow[] = [
   { id: 27, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'FL', func: 'DTC', item: 'Direct Shippers', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Pending', hasReportSetting: false },
   { id: 28, companyId: 8, company: '1 Matilda Wine Company, LLC', specialist: 'Hammad Iftikhar', state: 'GA', func: 'DTC', item: 'Direct Shippers', itemName: 'Wine Direct Shipper Permit', licenseNo: 'GA-2201', renewalDue: '11/01/2026', expiration: '11/01/2026', actionIn: '62', status: 'Inactive', hasReportSetting: false },
   { id: 29, companyId: 11, company: '101 Caves Lane LLC', specialist: 'Alissa DeLaRiva', state: 'HI', func: 'Wholesale', item: 'Nonresident Seller', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: 'Expired', status: 'Canceled', hasReportSetting: false },
+  { id: 201, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'AL', func: 'DTC', item: 'Direct Shippers', itemName: 'Direct Wine Shipper', licenseNo: '', renewalDue: '', expiration: '', actionIn: '45', status: 'Active', hasReportSetting: false },
+  { id: 202, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'AZ', func: '3T', item: 'Producer', itemName: 'Producer', licenseNo: '', renewalDue: '', expiration: '', actionIn: '60', status: 'Active', hasReportSetting: false },
+  { id: 203, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'AZ', func: '3T', item: 'Distributor', itemName: 'Ships via Distributor - RNDC', licenseNo: '', renewalDue: '', expiration: '', actionIn: '70', status: 'Active', hasReportSetting: false },
+  { id: 204, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'AZ', func: '3T', item: 'Producer', itemName: 'Producer', licenseNo: '', renewalDue: '', expiration: '', actionIn: '80', status: 'Active', hasReportSetting: false },
+  { id: 205, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'CA', func: 'Operational', item: 'License', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: '90', status: 'Active', hasReportSetting: false },
+  { id: 206, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'CA', func: 'Operational', item: 'Type 02', itemName: 'Type 02 Winegrower', licenseNo: '', renewalDue: '', expiration: '', actionIn: '100', status: 'Active', hasReportSetting: false },
+  { id: 207, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'CA', func: 'Operational', item: 'Permit', itemName: 'California Department Of Food And Agriculture Permit', licenseNo: '', renewalDue: '', expiration: '', actionIn: '110', status: 'Active', hasReportSetting: false },
+  { id: 208, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'CA', func: 'Operational', item: 'Processor', itemName: 'Processor', licenseNo: '', renewalDue: '', expiration: '', actionIn: '120', status: 'Active', hasReportSetting: false },
+  { id: 209, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'CO', func: '3T', item: 'License', itemName: '', licenseNo: '', renewalDue: '', expiration: '', actionIn: '40', status: '', hasReportSetting: false },
+  { id: 210, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'CO', func: '3T', item: 'Shipper Agent', itemName: 'Ships via Shipper Agent/PAS - PAS TEST', licenseNo: '', renewalDue: '', expiration: '', actionIn: '55', status: 'Active', hasReportSetting: false },
+  { id: 211, companyId: 3, company: '1 Matilda Wine Company, LLC', specialist: 'Brynne Todd', state: 'CO', func: '3T', item: 'Importer', itemName: 'IMPORTER (VINOUS & SPIRITUOUS)', licenseNo: '', renewalDue: '', expiration: '', actionIn: '65', status: '', hasReportSetting: false },
 ]
 
 const QUERY_LICENSES: QueryLicenseRow[] = [
@@ -1375,11 +1386,25 @@ const FEDERAL_LICENSE_CODES = ['FDA', 'TTB'] as const
 const LICENSE_FUNCTIONS = ['DTC', 'DTR', '3T', 'Operational', 'Wholesale'] as const
 const LICENSE_ITEM_TYPES = ['License', 'Permit', 'Bond', 'Certificate', 'Excise'] as const
 
+type LicenseCatalogItem = {
+  id: number
+  func: string
+  item: string
+  itemName: string
+  agency: string
+  cityCounty: string
+  counted: boolean
+  expirationAlerts: boolean
+  firstWarningDays: string
+  secondWarningDays: string
+}
+
 type LicenseCatalogRow = {
   id: number
   licenseType: (typeof LICENSE_CATALOG_TYPES)[number]
   stateCode: string
   stateName: string
+  items: LicenseCatalogItem[]
 }
 
 type LicenseChangeLogRow = {
@@ -1458,20 +1483,6 @@ function buildLicenseChangeLog(count = 746): LicenseChangeLogRow[] {
 const LICENSE_CHANGE_LOG_INIT = buildLicenseChangeLog()
 const LICENSE_LOG_PAGE_SIZE = 10
 
-const LICENSES_INIT: LicenseCatalogRow[] = [
-  ...US_STATE_CODE_ENTRIES.map((e, i) => ({
-    id: i + 1,
-    licenseType: 'State' as const,
-    stateCode: e.code,
-    stateName: e.name,
-  })),
-  {
-    id: US_STATE_CODE_ENTRIES.length + 1,
-    licenseType: 'Federal',
-    stateCode: 'TTB',
-    stateName: 'Alcohol and Tobacco Tax and Trade Bureau',
-  },
-]
 
 /** Capitals / common cities by state code (plus TTB). */
 const US_CITIES_BY_STATE: Record<string, string[]> = {
@@ -1608,6 +1619,91 @@ const AGENCIES_INIT: AgencyRow[] = [
   { id: 52, stateCode: 'TTB', cityCounty: 'Washington, D.C.', name: 'Alcohol and Tobacco Tax and Trade Bureau', jurisdiction: 'Federal', website: 'https://www.ttb.gov/' },
   { id: 53, stateCode: 'CA', cityCounty: 'Los Angeles County', name: 'LA County Department of Public Health — Alcohol', jurisdiction: 'State', website: 'https://publichealth.lacounty.gov/' },
   { id: 54, stateCode: 'NY', cityCounty: 'New York County', name: 'NYC Department of Consumer and Worker Protection', jurisdiction: 'State', website: 'https://www.nyc.gov/site/dca/index.page' },
+]
+
+const LICENSE_ITEM_TEMPLATES: { func: string; item: string; itemName: string; counted: boolean; expirationAlerts: boolean; firstWarningDays: string; secondWarningDays: string }[] = [
+  { func: 'DTC', item: 'License', itemName: 'Wine Direct Shipper Permit', counted: true, expirationAlerts: true, firstWarningDays: '90', secondWarningDays: '30' },
+  { func: 'Wholesale', item: 'Permit', itemName: 'Nonresident Seller Permit', counted: true, expirationAlerts: false, firstWarningDays: '', secondWarningDays: '' },
+  { func: '3T', item: 'License', itemName: 'Out-of-State Shipper', counted: true, expirationAlerts: true, firstWarningDays: '60', secondWarningDays: '30' },
+  { func: 'DTC', item: 'Certificate', itemName: 'Certificate of Approval', counted: false, expirationAlerts: true, firstWarningDays: '45', secondWarningDays: '15' },
+  { func: 'Wholesale', item: 'License', itemName: 'Wine Wholesaler', counted: true, expirationAlerts: true, firstWarningDays: '90', secondWarningDays: '30' },
+]
+
+const LICENSE_SPECIAL_ITEMS: Record<string, LicenseCatalogItem[]> = {
+  CA: [
+    { id: 1, func: 'DTC', item: 'License', itemName: 'Wine Direct Shipper Permit', agency: 'California Department of Alcoholic Beverage Control', cityCounty: 'Sacramento', counted: true, expirationAlerts: true, firstWarningDays: '60', secondWarningDays: '30' },
+    { id: 2, func: 'Operational', item: 'License', itemName: 'Winegrower', agency: 'California Department of Alcoholic Beverage Control', cityCounty: 'Napa', counted: true, expirationAlerts: true, firstWarningDays: '90', secondWarningDays: '30' },
+    { id: 3, func: 'Wholesale', item: 'Permit', itemName: 'Public Premises', agency: 'LA County Department of Public Health — Alcohol', cityCounty: 'Los Angeles County', counted: true, expirationAlerts: false, firstWarningDays: '', secondWarningDays: '' },
+  ],
+  FL: [
+    { id: 1, func: '3T', item: 'License', itemName: 'Brand Registrant License', agency: 'Division of Alcoholic Beverages and Tobacco', cityCounty: 'Tallahassee', counted: true, expirationAlerts: true, firstWarningDays: '90', secondWarningDays: '30' },
+    { id: 2, func: 'DTC', item: 'Permit', itemName: 'Wine Direct Shipper Permit', agency: 'Division of Alcoholic Beverages and Tobacco', cityCounty: 'Miami', counted: true, expirationAlerts: true, firstWarningDays: '60', secondWarningDays: '30' },
+  ],
+  NY: [
+    { id: 1, func: 'DTC', item: 'License', itemName: 'Direct Shipper Permit', agency: 'New York State Liquor Authority', cityCounty: 'Albany', counted: true, expirationAlerts: true, firstWarningDays: '90', secondWarningDays: '30' },
+    { id: 2, func: 'Wholesale', item: 'License', itemName: 'Nonresident Seller Permit', agency: 'NYC Department of Consumer and Worker Protection', cityCounty: 'New York County', counted: true, expirationAlerts: false, firstWarningDays: '', secondWarningDays: '' },
+  ],
+  TX: [
+    { id: 1, func: 'DTC', item: 'Permit', itemName: 'Direct Shipper', agency: 'Texas Alcoholic Beverage Commission', cityCounty: 'Austin', counted: true, expirationAlerts: true, firstWarningDays: '75', secondWarningDays: '30' },
+    { id: 2, func: 'Operational', item: 'Permit', itemName: "Winer's Permit", agency: 'Texas Alcoholic Beverage Commission', cityCounty: 'Austin', counted: true, expirationAlerts: true, firstWarningDays: '90', secondWarningDays: '30' },
+  ],
+  AL: [
+    { id: 1, func: 'DTC', item: 'License', itemName: 'Direct Wine Shipper', agency: 'Alabama Alcoholic Beverage Control Board', cityCounty: 'Montgomery', counted: true, expirationAlerts: true, firstWarningDays: '60', secondWarningDays: '30' },
+    { id: 2, func: '3T', item: 'License', itemName: 'Importer Or Manufacturer', agency: 'Alabama Alcoholic Beverage Control Board', cityCounty: 'Birmingham', counted: true, expirationAlerts: false, firstWarningDays: '', secondWarningDays: '' },
+  ],
+}
+
+function mockLicenseItems(stateCode: string, stateName: string): LicenseCatalogItem[] {
+  if (LICENSE_SPECIAL_ITEMS[stateCode]) return LICENSE_SPECIAL_ITEMS[stateCode]
+  const agency = AGENCIES_INIT.find(a => a.stateCode === stateCode)
+  const city = agency?.cityCounty || US_CITIES_BY_STATE[stateCode]?.[0] || ''
+  const agencyName = agency?.name || `${stateName} Alcohol Control`
+  const offset = stateCode.charCodeAt(0) % LICENSE_ITEM_TEMPLATES.length
+  const count = stateCode.length > 1 && stateCode.charCodeAt(1) % 2 === 0 ? 2 : 1
+  return Array.from({ length: count }, (_, i) => {
+    const t = LICENSE_ITEM_TEMPLATES[(offset + i) % LICENSE_ITEM_TEMPLATES.length]
+    return {
+      id: i + 1,
+      func: t.func,
+      item: t.item,
+      itemName: t.itemName,
+      agency: agencyName,
+      cityCounty: i === 0 ? city : (US_CITIES_BY_STATE[stateCode]?.[1] || city),
+      counted: t.counted,
+      expirationAlerts: t.expirationAlerts,
+      firstWarningDays: t.firstWarningDays,
+      secondWarningDays: t.secondWarningDays,
+    }
+  })
+}
+
+const LICENSES_INIT: LicenseCatalogRow[] = [
+  ...US_STATE_CODE_ENTRIES.map((e, i) => ({
+    id: i + 1,
+    licenseType: 'State' as const,
+    stateCode: e.code,
+    stateName: e.name,
+    items: mockLicenseItems(e.code, e.name),
+  })),
+  {
+    id: US_STATE_CODE_ENTRIES.length + 1,
+    licenseType: 'Federal',
+    stateCode: 'TTB',
+    stateName: 'Alcohol and Tobacco Tax and Trade Bureau',
+    items: [
+      { id: 1, func: 'Operational', item: 'Permit', itemName: 'Basic Permit', agency: 'Alcohol and Tobacco Tax and Trade Bureau', cityCounty: 'Washington, D.C.', counted: true, expirationAlerts: true, firstWarningDays: '90', secondWarningDays: '30' },
+      { id: 2, func: 'Operational', item: 'Bond', itemName: 'Winegrower Bond', agency: 'Alcohol and Tobacco Tax and Trade Bureau', cityCounty: 'Washington, D.C.', counted: true, expirationAlerts: false, firstWarningDays: '', secondWarningDays: '' },
+    ],
+  },
+  {
+    id: US_STATE_CODE_ENTRIES.length + 2,
+    licenseType: 'Federal',
+    stateCode: 'FDA',
+    stateName: 'Food and Drug Administration',
+    items: [
+      { id: 1, func: 'Operational', item: 'Certificate', itemName: 'Food Facility Registration', agency: 'Food and Drug Administration', cityCounty: 'Washington, D.C.', counted: true, expirationAlerts: true, firstWarningDays: '120', secondWarningDays: '45' },
+    ],
+  },
 ]
 
 type AgencyContactRow = {
@@ -1860,7 +1956,7 @@ export default function App() {
   const [pipelineTab, setPipelineTab] = useState<(typeof PIPELINE_TABS)[number]>('Prospects')
   const [licensingTab, setLicensingTab] = useState<(typeof LICENSING_TABS)[number]>('Licenses')
   const [queryTab, setQueryTab] = useState<(typeof QUERY_VIEWS)[number]>('Client Licenses')
-  const [licenseFormMode, setLicenseFormMode] = useState<'add' | 'edit' | null>(null)
+  const [licenseFormMode, setLicenseFormMode] = useState<'add' | 'edit' | 'view' | null>(null)
   const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null)
   const [selectedProspectLabel, setSelectedProspectLabel] = useState<string | null>(null)
   const [actionItems, setActionItems] = useState<ActionItemRow[]>(MY_ACTION_ITEMS)
@@ -2011,7 +2107,7 @@ export default function App() {
       if (licenseFormMode) {
         return [
           { label: 'Licensing', onClick: () => setLicenseFormMode(null) },
-          { label: licenseFormMode === 'edit' ? 'Edit' : 'Add New' },
+          { label: licenseFormMode === 'edit' ? 'Edit' : licenseFormMode === 'view' ? 'View' : 'Add New' },
         ]
       }
       return [{ label: 'Licensing' }, { label: licensingTab }]
@@ -4792,8 +4888,8 @@ function LicensingPage({
 }: {
   activeTab: (typeof LICENSING_TABS)[number]
   onTabChange: (tab: (typeof LICENSING_TABS)[number]) => void
-  formMode: 'add' | 'edit' | null
-  onFormModeChange: (mode: 'add' | 'edit' | null) => void
+  formMode: 'add' | 'edit' | 'view' | null
+  onFormModeChange: (mode: 'add' | 'edit' | 'view' | null) => void
 }) {
   const [rows, setRows] = useState<LicenseCatalogRow[]>(LICENSES_INIT)
   const [changeLog, setChangeLog] = useState<LicenseChangeLogRow[]>(LICENSE_CHANGE_LOG_INIT)
@@ -4814,9 +4910,14 @@ function LicensingPage({
   const [toast, setToast] = useState<string | null>(null)
 
   const cols = useTableColumns([
-    { key: 'license', label: 'License' },
-    { key: 'stateCode', label: 'State/State Code' },
-    { key: 'stateName', label: 'State Name' },
+    { key: 'stateCode', label: 'State' },
+    { key: 'item', label: 'Item' },
+    { key: 'func', label: 'Function' },
+    { key: 'itemName', label: 'Item Name' },
+    { key: 'cityCounty', label: 'City/County' },
+    { key: 'agency', label: 'Agency' },
+    { key: 'counted', label: 'License Count' },
+    { key: 'expirationAlerts', label: 'Expiration Alerts' },
   ])
   const logCols = useTableColumns([
     { key: 'statusDate', label: 'Status Date' },
@@ -4851,11 +4952,15 @@ function LicensingPage({
   const filtered = rows
     .filter(row => {
       const q = search.toLowerCase()
+      const itemText = (row.items ?? []).map(it =>
+        [it.func, it.item, it.itemName, it.agency, it.cityCounty].join(' ')
+      ).join(' ')
       const matchesSearch =
         !q ||
         row.licenseType.toLowerCase().includes(q) ||
         row.stateCode.toLowerCase().includes(q) ||
-        row.stateName.toLowerCase().includes(q)
+        row.stateName.toLowerCase().includes(q) ||
+        itemText.toLowerCase().includes(q)
       return (
         matchesSearch &&
         (!typeFilter || row.licenseType === typeFilter) &&
@@ -5011,10 +5116,12 @@ function LicensingPage({
       <>
         {toast && <CellarToast message={toast} />}
         <LicenseCatalogAddPage
-          key={editing?.id ?? 'add'}
-          initial={formMode === 'edit' ? editing : null}
+          key={`${formMode}-${editing?.id ?? 'add'}`}
+          mode={formMode}
+          initial={formMode === 'add' ? null : editing}
           existing={rows}
           onCancel={() => { onFormModeChange(null); setEditing(null) }}
+          onEdit={() => onFormModeChange('edit')}
           onSave={saveRow}
         />
       </>
@@ -5102,12 +5209,9 @@ function LicensingPage({
           </TableSectionHeader>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px]">
+            <table className="w-full min-w-[980px]">
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50/60">
-                  {cols.show('license') && (
-                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">License</th>
-                  )}
                   {cols.show('stateCode') && (
                     <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">
                       <button
@@ -5115,7 +5219,7 @@ function LicensingPage({
                         onClick={() => setSortAsc(v => !v)}
                         className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors"
                       >
-                        State/State Code
+                        State
                         <svg
                           width="10"
                           height="10"
@@ -5132,8 +5236,26 @@ function LicensingPage({
                       </button>
                     </th>
                   )}
-                  {cols.show('stateName') && (
-                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">State Name</th>
+                  {cols.show('item') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Item</th>
+                  )}
+                  {cols.show('func') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Function</th>
+                  )}
+                  {cols.show('itemName') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Item Name</th>
+                  )}
+                  {cols.show('cityCounty') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">City/County</th>
+                  )}
+                  {cols.show('agency') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Agency</th>
+                  )}
+                  {cols.show('counted') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">License Count</th>
+                  )}
+                  {cols.show('expirationAlerts') && (
+                    <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Expiration Alerts</th>
                   )}
                   <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center w-24">Actions</th>
                 </tr>
@@ -5144,24 +5266,15 @@ function LicensingPage({
                     <td colSpan={cols.visibleCount + 1} className="px-4 py-12 text-center text-sm text-slate-400">No licenses found.</td>
                   </tr>
                 ) : (
-                  filtered.map((row, i) => (
+                  filtered.flatMap((row, i) => {
+                    const items = row.items?.length ? row.items : [null]
+                    return items.map((item, itemIndex) => (
                     <tr
-                      key={row.id}
+                      key={`${row.id}-${item?.id ?? 'empty'}`}
                       className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
-                        i % 2 === 1 ? 'bg-[#BBDCFC]/25' : 'bg-white'
+                        (i + itemIndex) % 2 === 1 ? 'bg-[#BBDCFC]/25' : 'bg-white'
                       }`}
                     >
-                      {cols.show('license') && (
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                            row.licenseType === 'Federal'
-                              ? 'bg-[#12518c]/10 text-[#12518c]'
-                              : 'bg-[#BBDCFC] text-[#3B4A59]'
-                          }`}>
-                            {row.licenseType}
-                          </span>
-                        </td>
-                      )}
                       {cols.show('stateCode') && (
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="inline-flex min-w-[2.25rem] justify-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide bg-slate-100 text-slate-700 border border-slate-200">
@@ -5169,11 +5282,46 @@ function LicensingPage({
                           </span>
                         </td>
                       )}
-                      {cols.show('stateName') && (
-                        <td className="px-4 py-3 text-sm text-slate-700">{row.stateName}</td>
+                      {cols.show('item') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{item?.item || '—'}</td>
+                      )}
+                      {cols.show('func') && (
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {item?.func ? (
+                            <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700">{item.func}</span>
+                          ) : (
+                            <span className="text-sm text-slate-400">—</span>
+                          )}
+                        </td>
+                      )}
+                      {cols.show('itemName') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap max-w-[180px] truncate" title={item?.itemName}>{item?.itemName || '—'}</td>
+                      )}
+                      {cols.show('cityCounty') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{item?.cityCounty || '—'}</td>
+                      )}
+                      {cols.show('agency') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap max-w-[200px] truncate" title={item?.agency}>{item?.agency || '—'}</td>
+                      )}
+                      {cols.show('counted') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{item ? (item.counted ? 'Yes' : 'No') : '—'}</td>
+                      )}
+                      {cols.show('expirationAlerts') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{item ? (item.expirationAlerts ? 'Yes' : 'No') : '—'}</td>
                       )}
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => { setEditing(row); onFormModeChange('view') }}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
+                            title="View"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                              <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
+                              <circle cx="8" cy="8" r="1.75" />
+                            </svg>
+                          </button>
                           <button
                             type="button"
                             onClick={() => { setEditing(row); onFormModeChange('edit') }}
@@ -5200,7 +5348,8 @@ function LicensingPage({
                         </div>
                       </td>
                     </tr>
-                  ))
+                    ))
+                  })
                 )}
               </tbody>
             </table>
@@ -5429,20 +5578,23 @@ function LicenseFormToggle({
   label,
   checked,
   onChange,
+  readOnly,
 }: {
   label: string
   checked: boolean
   onChange: (v: boolean) => void
+  readOnly?: boolean
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 min-h-10">
+    <div className="flex items-center gap-3 min-h-10">
       <span className="text-[11px] font-medium text-slate-500 leading-tight">{label}</span>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
+        disabled={readOnly}
         onClick={() => onChange(!checked)}
-        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-[#12518c]' : 'bg-slate-300'} ${readOnly ? 'cursor-default opacity-90' : ''}`}
       >
         <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-5' : ''}`} />
       </button>
@@ -5453,37 +5605,35 @@ function LicenseFormToggle({
 function LicenseCatalogAddPage({
   existing,
   initial,
+  mode = 'add',
   onCancel,
+  onEdit,
   onSave,
 }: {
   existing: LicenseCatalogRow[]
   initial?: LicenseCatalogRow | null
+  mode?: 'add' | 'edit' | 'view'
   onCancel: () => void
+  onEdit?: () => void
   onSave: (data: Omit<LicenseCatalogRow, 'id'>) => boolean
 }) {
-  const isEdit = Boolean(initial)
+  const isEdit = mode === 'edit'
+  const isView = mode === 'view'
+  const firstItem = initial?.items?.[0]
   const [licenseType, setLicenseType] = useState<(typeof LICENSE_CATALOG_TYPES)[number] | ''>(initial?.licenseType ?? '')
   const [stateCode, setStateCode] = useState(initial?.stateCode ?? '')
-  const [func, setFunc] = useState('')
-  const [cityCounty, setCityCounty] = useState('')
-  const [agency, setAgency] = useState('')
-  const [item, setItem] = useState('')
-  const [itemName, setItemName] = useState('')
-  const [expirationAlerts, setExpirationAlerts] = useState(false)
-  const [includeInCount, setIncludeInCount] = useState(false)
-  const [firstWarningDays, setFirstWarningDays] = useState('')
-  const [secondWarningDays, setSecondWarningDays] = useState('')
-  const [addedItems, setAddedItems] = useState<{
-    id: number
-    func: string
-    item: string
-    itemName: string
-    agency: string
-    counted: boolean
-  }[]>([])
-  const [addingItem, setAddingItem] = useState(true)
-  const [editingItemId, setEditingItemId] = useState<number | null>(null)
-  const [functionFilter, setFunctionFilter] = useState('')
+  const [func, setFunc] = useState(firstItem?.func ?? '')
+  const [cityCounty, setCityCounty] = useState(firstItem?.cityCounty ?? '')
+  const [agency, setAgency] = useState(firstItem?.agency === 'N/A' ? '' : (firstItem?.agency ?? ''))
+  const [item, setItem] = useState(firstItem?.item ?? '')
+  const [itemName, setItemName] = useState(firstItem?.itemName === 'N/A' ? '' : (firstItem?.itemName ?? ''))
+  const [expirationAlerts, setExpirationAlerts] = useState(firstItem?.expirationAlerts ?? false)
+  const [includeInCount, setIncludeInCount] = useState(firstItem?.counted ?? false)
+  const [firstWarningDays, setFirstWarningDays] = useState(firstItem?.firstWarningDays ?? '')
+  const [secondWarningDays, setSecondWarningDays] = useState(firstItem?.secondWarningDays ?? '')
+  const [addedItems, setAddedItems] = useState<LicenseCatalogItem[]>(() => initial?.items ?? [])
+  const [addingItem, setAddingItem] = useState(() => isView || !(initial?.items && initial.items.length > 0))
+  const [editingItemId, setEditingItemId] = useState<number | null>(firstItem?.id ?? null)
   const [errors, setErrors] = useState({
     licenseType: false,
     stateCode: false,
@@ -5512,8 +5662,6 @@ function LicenseCatalogAddPage({
     existing.some(r => r.licenseType === licenseType && r.stateCode === stateCode && r.id !== initial?.id)
   )
 
-  const filteredItems = addedItems.filter(row => !functionFilter || row.func === functionFilter)
-
   const resetDetails = () => {
     setFunc('')
     setCityCounty('')
@@ -5531,7 +5679,6 @@ function LicenseCatalogAddPage({
     setLicenseType(next)
     setStateCode('')
     setAddedItems([])
-    setFunctionFilter('')
     setAddingItem(true)
     resetDetails()
     setErrors({ licenseType: false, stateCode: false, func: false, item: false, firstWarningDays: false, secondWarningDays: false, duplicate: false, items: false })
@@ -5542,7 +5689,6 @@ function LicenseCatalogAddPage({
     setCityCounty('')
     setAgency('')
     setAddedItems([])
-    setFunctionFilter('')
     setAddingItem(true)
     resetDetails()
     setErrors(prev => ({ ...prev, stateCode: false, duplicate: false, items: false }))
@@ -5559,13 +5705,17 @@ function LicenseCatalogAddPage({
     return !Object.values(next).some(Boolean)
   }
 
-  const buildItem = (id?: number) => ({
+  const buildItem = (id?: number): LicenseCatalogItem => ({
     id: id ?? Date.now(),
     func,
     item,
     itemName: itemName.trim() || 'N/A',
     agency: agency || 'N/A',
+    cityCounty,
     counted: includeInCount,
+    expirationAlerts,
+    firstWarningDays: expirationAlerts ? firstWarningDays.trim() : '',
+    secondWarningDays: expirationAlerts ? secondWarningDays.trim() : '',
   })
 
   const handleAddItem = () => {
@@ -5587,12 +5737,16 @@ function LicenseCatalogAddPage({
     setErrors(prev => ({ ...prev, func: false, item: false, firstWarningDays: false, secondWarningDays: false, items: false }))
   }
 
-  const handleEditItem = (row: (typeof addedItems)[number]) => {
+  const handleEditItem = (row: LicenseCatalogItem) => {
     setFunc(row.func)
     setItem(row.item)
     setItemName(row.itemName === 'N/A' ? '' : row.itemName)
     setAgency(row.agency === 'N/A' ? '' : row.agency)
+    setCityCounty(row.cityCounty)
     setIncludeInCount(row.counted)
+    setExpirationAlerts(row.expirationAlerts)
+    setFirstWarningDays(row.firstWarningDays)
+    setSecondWarningDays(row.secondWarningDays)
     setEditingItemId(row.id)
     setAddingItem(true)
   }
@@ -5626,6 +5780,7 @@ function LicenseCatalogAddPage({
       licenseType,
       stateCode,
       stateName: licenseStateName(stateCode),
+      items: list,
     })
     if (!saved) setErrors(prev => ({ ...prev, duplicate: true }))
   }
@@ -5637,31 +5792,68 @@ function LicenseCatalogAddPage({
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-900">{isEdit ? 'Licensing: Edit' : 'Licensing: Add'}</h1>
-          <p className="mt-1 text-sm text-slate-500">Choose the type of license first, then add one or more items.</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {isView ? 'Licensing: View' : isEdit ? 'Licensing: Edit' : 'Licensing: Add'}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {isView
+              ? 'Review license type, jurisdiction, and item details.'
+              : 'Choose the type of license first, then add one or more items.'}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-          <button type="button" onClick={onCancel} className={btnSecondary}>
-            Cancel
-          </button>
-          <button type="button" onClick={handleSave} className={btnPrimary}>
-            Save
-          </button>
+          {isView ? (
+            <>
+              <button type="button" onClick={onCancel} className={btnSecondary}>Close</button>
+              {onEdit && (
+                <button type="button" onClick={onEdit} className={btnPrimary}>Edit</button>
+              )}
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={onCancel} className={btnSecondary}>
+                Cancel
+              </button>
+              <button type="button" onClick={handleSave} className={btnPrimary}>
+                Save
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-5 space-y-5">
+          {(isEdit || isView) && stateCode && (
+            <div className="flex items-start">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">State</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex min-w-[2.5rem] justify-center px-2.5 py-1 rounded-lg text-sm font-bold tracking-wide bg-[#12518c] text-white">
+                    {stateCode}
+                  </span>
+                  <span className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+                    {licenseStateName(stateCode) || initial?.stateName}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
           <div>
             <OwnershipRadioGroup
               label="Type of License"
               required
+              readOnly={isView || isEdit}
               value={licenseType}
               onChange={v => handleTypeChange(v as (typeof LICENSE_CATALOG_TYPES)[number])}
-              options={[
-                { value: 'Federal', label: 'Federal' },
-                { value: 'State', label: 'State' },
-              ]}
+              options={
+                (isEdit || isView) && licenseType
+                  ? [{ value: licenseType, label: licenseType }]
+                  : [
+                      { value: 'Federal', label: 'Federal' },
+                      { value: 'State', label: 'State' },
+                    ]
+              }
             />
             {errors.licenseType && (
               <p className="mt-1.5 text-[11px] text-[#bb5757]">Type of license is required.</p>
@@ -5669,6 +5861,7 @@ function LicenseCatalogAddPage({
           </div>
 
           {licenseType && (
+            <>
             <div className="rounded-xl border border-slate-200 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
               <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
@@ -5687,90 +5880,16 @@ function LicenseCatalogAddPage({
                       onChange={handleStateChange}
                       options={stateOptions}
                       placeholder="Select..."
+                      readOnly={isView}
                     />
                     {errors.stateCode && <p className="mt-1 text-[11px] text-[#bb5757]">State code is required.</p>}
                   </div>
                 ) : (
                   <>
-                    {addedItems.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="max-w-sm">
-                          <OwnershipFormSelect
-                            label="Select Function"
-                            value={functionFilter}
-                            onChange={setFunctionFilter}
-                            options={[...new Set(addedItems.map(row => row.func))]}
-                            placeholder="Select Function"
-                          />
-                        </div>
-                        <div className="overflow-x-auto rounded-xl border border-slate-200">
-                          <table className="w-full min-w-[640px]">
-                            <thead>
-                              <tr className="border-b border-slate-100 bg-slate-50/60">
-                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Function</th>
-                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Item</th>
-                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
-                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Agency</th>
-                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Counted</th>
-                                <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-center w-24">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filteredItems.length === 0 ? (
-                                <tr>
-                                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">No items match this function.</td>
-                                </tr>
-                              ) : (
-                                filteredItems.map((row, i) => (
-                                  <tr
-                                    key={row.id}
-                                    className={`border-b border-slate-100 ${i % 2 === 1 ? 'bg-[#BBDCFC]/25' : 'bg-white'}`}
-                                  >
-                                    <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{row.func}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-700">{row.item}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-600">{row.itemName}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-600">{row.agency}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-600">{row.counted ? 'Yes' : 'No'}</td>
-                                    <td className="px-4 py-3">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleEditItem(row)}
-                                          className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                                          title="Edit"
-                                        >
-                                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                                          </svg>
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setAddedItems(prev => prev.filter(itemRow => itemRow.id !== row.id))}
-                                          className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
-                                          title="Delete"
-                                        >
-                                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M3 6h18" />
-                                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                            <path d="M10 11v6M14 11v6" />
-                                          </svg>
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
                     {addingItem ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-                        <div className="space-y-4">
-                          <div className="relative">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 items-start">
+                        {!(isEdit || isView) && (
+                          <div className="relative sm:col-span-2 max-w-sm">
                             {(errors.duplicate || duplicateHint) && (
                               <p className="absolute top-0 right-0 z-10 max-w-[70%] pl-3 text-[11px] leading-tight text-right text-[#bb5757]">
                                 This license and state combination already exists.
@@ -5786,64 +5905,71 @@ function LicenseCatalogAddPage({
                             />
                             {errors.stateCode && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
                           </div>
-                          <div>
-                            <OwnershipFormSelect
-                              label="Function"
-                              required
-                              value={func}
-                              onChange={v => {
-                                setFunc(v)
-                                setErrors(prev => ({ ...prev, func: false }))
-                              }}
-                              options={[...LICENSE_FUNCTIONS]}
-                              placeholder="Select..."
-                            />
-                            {errors.func && <p className="mt-1 text-[11px] text-[#bb5757]">Function is required.</p>}
-                          </div>
+                        )}
+                        <div>
                           <OwnershipFormSelect
-                            label="City/County"
-                            value={cityCounty}
-                            onChange={setCityCounty}
-                            options={cityOptions}
-                            placeholder="Select City/County"
+                            label="Function"
+                            required
+                            value={func}
+                            onChange={v => {
+                              setFunc(v)
+                              setErrors(prev => ({ ...prev, func: false }))
+                            }}
+                            options={[...LICENSE_FUNCTIONS]}
+                            placeholder="Select..."
+                            readOnly={isView}
                           />
-                          <OwnershipFormSelect
-                            label="Agency"
-                            value={agency}
-                            onChange={setAgency}
-                            options={agencyOptions}
-                            placeholder="Agency"
-                          />
+                          {errors.func && <p className="mt-1 text-[11px] text-[#bb5757]">Function is required.</p>}
                         </div>
-                        <div className="space-y-4">
-                          <div>
-                            <OwnershipFormSelect
-                              label="Item"
-                              required
-                              value={item}
-                              onChange={v => {
-                                setItem(v)
-                                setErrors(prev => ({ ...prev, item: false }))
-                              }}
-                              options={[...LICENSE_ITEM_TYPES]}
-                              placeholder="Item"
-                            />
-                            {errors.item && <p className="mt-1 text-[11px] text-[#bb5757]">Item is required.</p>}
-                          </div>
-                          <OwnershipFormField
-                            label="Item Name"
-                            value={itemName}
-                            onChange={setItemName}
-                            placeholder="Item Name"
+                        <div>
+                          <OwnershipFormSelect
+                            label="Item"
+                            required
+                            value={item}
+                            onChange={v => {
+                              setItem(v)
+                              setErrors(prev => ({ ...prev, item: false }))
+                            }}
+                            options={[...LICENSE_ITEM_TYPES]}
+                            placeholder="Item"
+                            readOnly={isView}
                           />
+                          {errors.item && <p className="mt-1 text-[11px] text-[#bb5757]">Item is required.</p>}
+                        </div>
+                        <OwnershipFormSelect
+                          label="City/County"
+                          value={cityCounty}
+                          onChange={setCityCounty}
+                          options={cityOptions}
+                          placeholder="Select City/County"
+                          readOnly={isView}
+                        />
+                        <OwnershipFormField
+                          label="Item Name"
+                          value={itemName}
+                          onChange={setItemName}
+                          placeholder="Item Name"
+                          readOnly={isView}
+                        />
+                        <OwnershipFormSelect
+                          label="Agency"
+                          value={agency}
+                          onChange={setAgency}
+                          options={agencyOptions}
+                          placeholder="Agency"
+                          readOnly={isView}
+                        />
+                        <div className="space-y-1">
                           <LicenseFormToggle
                             label="Include in license count"
                             checked={includeInCount}
                             onChange={setIncludeInCount}
+                            readOnly={isView}
                           />
                           <LicenseFormToggle
                             label="Expiration Alerts"
                             checked={expirationAlerts}
+                            readOnly={isView}
                             onChange={on => {
                               setExpirationAlerts(on)
                               if (!on) {
@@ -5861,6 +5987,7 @@ function LicenseCatalogAddPage({
                                 label="First Warning (Days)"
                                 required
                                 value={firstWarningDays}
+                                readOnly={isView}
                                 onChange={v => {
                                   setFirstWarningDays(v.replace(/\D/g, ''))
                                   setErrors(prev => ({ ...prev, firstWarningDays: false }))
@@ -5876,6 +6003,7 @@ function LicenseCatalogAddPage({
                                 label="Second Warning (Days)"
                                 required
                                 value={secondWarningDays}
+                                readOnly={isView}
                                 onChange={v => {
                                   setSecondWarningDays(v.replace(/\D/g, ''))
                                   setErrors(prev => ({ ...prev, secondWarningDays: false }))
@@ -5888,16 +6016,18 @@ function LicenseCatalogAddPage({
                             </div>
                           </div>
                         )}
+                        {!isView && (
                         <div className="sm:col-span-2 flex justify-end pt-1">
                           <button type="button" onClick={handleAddItem} className={btnPrimary}>
                             {editingItemId != null ? 'Update Item' : 'Add Item'}
                           </button>
                         </div>
+                        )}
                         {errors.items && (
                           <p className="sm:col-span-2 text-[11px] text-[#bb5757] text-right">Add at least one item before saving.</p>
                         )}
                       </div>
-                    ) : (
+                    ) : !isView ? (
                       <div className="flex justify-end">
                         <button type="button" onClick={handleAddNewItem} className={btnPrimary}>
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -5906,11 +6036,82 @@ function LicenseCatalogAddPage({
                           Add New Item
                         </button>
                       </div>
-                    )}
+                    ) : null}
                   </>
                 )}
               </div>
             </div>
+            {stateCode && addedItems.length > 0 && (
+              <div className="rounded-xl border border-slate-200 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
+                    <path d="M3.5 4.5h9M3.5 8h9M3.5 11.5h6" />
+                  </svg>
+                  <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Items</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px]">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/60">
+                        <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Function</th>
+                        <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Item</th>
+                        <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
+                        <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Agency</th>
+                        <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-left">Counted</th>
+                        {!isView && (
+                        <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-center w-24">Actions</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {addedItems.map((row, i) => (
+                        <tr
+                          key={row.id}
+                          onClick={isView ? () => handleEditItem(row) : undefined}
+                          className={`border-b border-slate-100 ${i % 2 === 1 ? 'bg-[#BBDCFC]/25' : 'bg-white'} ${isView ? 'cursor-pointer hover:bg-[#12518c]/5' : ''} ${isView && editingItemId === row.id ? 'bg-[#12518c]/10' : ''}`}
+                        >
+                          <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{row.func}</td>
+                          <td className="px-4 py-3 text-sm text-slate-700">{row.item}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{row.itemName}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{row.agency}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{row.counted ? 'Yes' : 'No'}</td>
+                          {!isView && (
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleEditItem(row)}
+                                className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                title="Edit"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                                  <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAddedItems(prev => prev.filter(itemRow => itemRow.id !== row.id))}
+                                className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
+                                title="Delete"
+                              >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M3 6h18" />
+                                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                  <path d="M10 11v6M14 11v6" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </div>
       </div>
@@ -6113,7 +6314,7 @@ function QuerySubNav({
         <div key={group.group} className="px-2 pb-3">
           <p className="px-3 pb-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{group.group}</p>
           <div className="flex flex-col gap-0.5">
-            {group.items.filter(item => SHOW_REPORTING_AND_CREDENTIALS || item !== 'Licenses w/o Report Setting').map(item => {
+            {group.items.map(item => {
               const selected = active === item
               return (
                 <button
@@ -6183,6 +6384,7 @@ function QueryClientLicensesPage({
   const [missingNumber, setMissingNumber] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
 
   const cols = useTableColumns([
     { key: 'companyId', label: 'Company ID', defaultVisible: false },
@@ -6195,7 +6397,6 @@ function QueryClientLicensesPage({
     { key: 'renewalDue', label: 'Renewal Due Date' },
     { key: 'expiration', label: 'Expiration Date' },
     { key: 'status', label: 'Status' },
-    { key: 'actions', label: 'Actions' },
   ])
 
   const specialists = [...new Set(source.map(row => row.specialist))].sort()
@@ -6232,11 +6433,11 @@ function QueryClientLicensesPage({
   const filtered = exportRows.filter(row =>
     queryIncludes(q, String(row.companyId), row.company, row.state, row.func, row.item, row.itemName, row.licenseNo, row.status, row.specialist),
   )
-  const pageCount = Math.max(1, Math.ceil(filtered.length / QUERY_PAGE_SIZE))
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage = Math.min(page, pageCount)
-  const paged = filtered.slice((safePage - 1) * QUERY_PAGE_SIZE, safePage * QUERY_PAGE_SIZE)
-  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * QUERY_PAGE_SIZE + 1
-  const rangeEnd = Math.min(safePage * QUERY_PAGE_SIZE, filtered.length)
+  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize)
+  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1
+  const rangeEnd = Math.min(safePage * pageSize, filtered.length)
 
   const advancedCount = [specialistFilter, funcFilter, itemFilter, itemNameFilter, renewalTiming, renewalFrom, renewalTo, expirationFrom, expirationTo].filter(Boolean).length
   const filtersActive = !!(
@@ -6352,7 +6553,7 @@ function QueryClientLicensesPage({
                 )}
                 className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors shrink-0"
               >
-                Export{exportRows.length ? ` · ${exportRows.length}` : ''}
+                Export
               </button>
             </div>
           </div>
@@ -6394,7 +6595,7 @@ function QueryClientLicensesPage({
           </p>
         </div>
 
-        <div className="overflow-auto max-h-[calc(100vh-22rem)]">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px]">
             <thead>
               <tr className="border-y border-slate-100">
@@ -6408,7 +6609,6 @@ function QueryClientLicensesPage({
                 {cols.show('renewalDue') && <th className={`${QUERY_TH} text-left`}>Renewal Due Date</th>}
                 {cols.show('expiration') && <th className={`${QUERY_TH} text-left`}>Expiration Date</th>}
                 {cols.show('status') && <th className={`${QUERY_TH} text-left`}>Status</th>}
-                {cols.show('actions') && <th className={`${QUERY_TH} text-right pr-5`}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -6443,18 +6643,21 @@ function QueryClientLicensesPage({
                           <QueryStatusPill status={row.status} />
                         </td>
                       )}
-                      {cols.show('actions') && (
-                        <td className="px-4 py-3 pr-5 text-right">
-                          <QueryViewButton onClick={() => onOpenCompany(row.companyId, 'Licenses & Reporting')} />
-                        </td>
-                      )}
                     </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
-        <AddressTableFooter total={filtered.length} page={safePage} onPageChange={setPage} pageCount={pageCount} />
+        <AddressTableFooter
+          total={filtered.length}
+          page={safePage}
+          onPageChange={setPage}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          pageSizeOptions={[25, 50, 100, 150]}
+          onPageSizeChange={size => { setPageSize(size); setPage(1) }}
+        />
       </section>
     </>
   )
@@ -6467,6 +6670,7 @@ function QueryLicensesWithoutReportPage({
 }) {
   const source = QUERY_LICENSES.filter(row => !row.hasReportSetting)
   const [search, setSearch] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('')
   const [stateFilter, setStateFilter] = useState('')
   const [funcFilter, setFuncFilter] = useState('')
   const [itemNameFilter, setItemNameFilter] = useState('')
@@ -6476,6 +6680,7 @@ function QueryLicensesWithoutReportPage({
   const [expiredOnly, setExpiredOnly] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
 
   const cols = useTableColumns([
     { key: 'companyId', label: 'Company ID' },
@@ -6484,9 +6689,9 @@ function QueryLicensesWithoutReportPage({
     { key: 'func', label: 'Function' },
     { key: 'itemName', label: 'Item Name' },
     { key: 'status', label: 'Status' },
-    { key: 'actions', label: 'Actions' },
   ])
 
+  const companies = [...new Set(source.map(row => row.company))].sort()
   const states = [...new Set(source.map(row => row.state))].sort()
   const funcs = [...new Set(source.map(row => row.func))].sort()
   const itemNames = [...new Set(source.map(row => row.itemName).filter(Boolean))].sort()
@@ -6496,33 +6701,35 @@ function QueryLicensesWithoutReportPage({
   const pendingCount = source.filter(row => row.status === 'Pending').length
   const inactiveCount = source.filter(row => row.status === 'Inactive').length
   const canceledCount = source.filter(row => row.status === 'Canceled').length
-  const expiredCount = source.filter(row => row.actionIn === 'Expired').length
+  const expiredCount = source.filter(row => row.actionIn === 'Expired' || row.status === 'Expired').length
 
   const matchesFilters = (row: QueryLicenseRow) =>
+    (!companyFilter || row.company === companyFilter) &&
     (!stateFilter || row.state === stateFilter) &&
     (!funcFilter || row.func === funcFilter) &&
     (!itemNameFilter || row.itemName === itemNameFilter) &&
     (!statusFilter || row.status === statusFilter) &&
     (!missingName || !row.itemName) &&
     (!missingStatus || !row.status) &&
-    (!expiredOnly || row.actionIn === 'Expired')
+    (!expiredOnly || row.actionIn === 'Expired' || row.status === 'Expired')
 
   const exportRows = source.filter(matchesFilters)
   const q = search.toLowerCase().trim()
   const filtered = exportRows.filter(row =>
     queryIncludes(q, String(row.companyId), row.company, row.state, row.func, row.item, row.itemName, row.status),
   )
-  const pageCount = Math.max(1, Math.ceil(filtered.length / QUERY_PAGE_SIZE))
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage = Math.min(page, pageCount)
-  const paged = filtered.slice((safePage - 1) * QUERY_PAGE_SIZE, safePage * QUERY_PAGE_SIZE)
-  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * QUERY_PAGE_SIZE + 1
-  const rangeEnd = Math.min(safePage * QUERY_PAGE_SIZE, filtered.length)
+  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize)
+  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1
+  const rangeEnd = Math.min(safePage * pageSize, filtered.length)
 
   const advancedCount = [itemNameFilter, statusFilter].filter(Boolean).length
-  const filtersActive = !!(search || stateFilter || funcFilter || itemNameFilter || statusFilter || missingName || missingStatus || expiredOnly)
+  const filtersActive = !!(search || companyFilter || stateFilter || funcFilter || itemNameFilter || statusFilter || missingName || missingStatus || expiredOnly)
 
   const clearFilters = () => {
     setSearch('')
+    setCompanyFilter('')
     setStateFilter('')
     setFuncFilter('')
     setItemNameFilter('')
@@ -6540,6 +6747,7 @@ function QueryLicensesWithoutReportPage({
 
   const filterChips: { key: string; label: string; onRemove: () => void }[] = [
     search ? { key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') } : null,
+    companyFilter ? { key: 'company', label: companyFilter, onRemove: () => setCompanyFilter('') } : null,
     stateFilter ? { key: 'state', label: `State: ${stateFilter}`, onRemove: () => setStateFilter('') } : null,
     funcFilter ? { key: 'func', label: funcFilter, onRemove: () => setFuncFilter('') } : null,
     itemNameFilter ? { key: 'itemName', label: itemNameFilter, onRemove: () => setItemNameFilter('') } : null,
@@ -6575,11 +6783,12 @@ function QueryLicensesWithoutReportPage({
             <AddressSearchInput
               value={search}
               onChange={value => { setSearch(value); setPage(1) }}
-              placeholder="Search company, state, or item name"
-              className="w-full sm:w-80"
+              placeholder="Search Here"
+              className="w-full sm:w-72"
             />
-            <FilterSelect label="State" value={stateFilter} onChange={bump(setStateFilter)} options={states} />
-            <FilterSelect label="Function" value={funcFilter} onChange={bump(setFuncFilter)} options={funcs} />
+            <FilterSelect label="Select Company" value={companyFilter} onChange={bump(setCompanyFilter)} options={companies} />
+            <FilterSelect label="Select State" value={stateFilter} onChange={bump(setStateFilter)} options={states} />
+            <FilterSelect label="Select Function" value={funcFilter} onChange={bump(setFuncFilter)} options={funcs} />
             <button
               type="button"
               onClick={() => setMoreOpen(open => !open)}
@@ -6600,10 +6809,9 @@ function QueryLicensesWithoutReportPage({
               </button>
             )}
             <div className="ml-auto flex items-center gap-2">
-              <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={QUERY_COL_BTN} />
               <button
                 type="button"
-                title="Search is not included in the export"
+                title="Search does not affect export"
                 onClick={() => downloadQueryCsv(
                   'licenses-without-report-setting.csv',
                   ['Company ID', 'Company', 'State', 'Function', 'Item Name', 'Status'],
@@ -6611,10 +6819,16 @@ function QueryLicensesWithoutReportPage({
                 )}
                 className="h-9 px-4 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors shrink-0"
               >
-                Export{exportRows.length ? ` · ${exportRows.length}` : ''}
+                Export
               </button>
+              <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={QUERY_COL_BTN} />
             </div>
           </div>
+
+          <p className="text-[11px] text-slate-400">
+            Note: Search does not affect export.
+            {search ? ` Showing ${filtered.length} of ${exportRows.length} licenses.` : ''}
+          </p>
 
           {moreOpen && (
             <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -6630,25 +6844,19 @@ function QueryLicensesWithoutReportPage({
               ))}
             </div>
           )}
-
-          {search && (
-            <p className="text-[11px] text-slate-400">
-              Showing {filtered.length} of {exportRows.length} licenses. Search is not included in export.
-            </p>
-          )}
         </div>
 
         <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-slate-50/40">
           <p className="text-xs text-slate-500">
             {filtered.length === 0 ? 'No results' : (
               <>
-                Showing <span className="font-semibold text-slate-700">{rangeStart}–{rangeEnd}</span> of <span className="font-semibold text-slate-700">{filtered.length}</span> without a report setting
+                Showing <span className="font-semibold text-slate-700">{rangeStart}–{rangeEnd}</span> of <span className="font-semibold text-slate-700">{filtered.length}</span>
               </>
             )}
           </p>
         </div>
 
-        <div className="overflow-auto max-h-[calc(100vh-22rem)]">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[900px]">
             <thead>
               <tr className="border-y border-slate-100">
@@ -6658,7 +6866,6 @@ function QueryLicensesWithoutReportPage({
                 {cols.show('func') && <th className={`${QUERY_TH} text-left`}>Function</th>}
                 {cols.show('itemName') && <th className={`${QUERY_TH} text-left`}>Item Name</th>}
                 {cols.show('status') && <th className={`${QUERY_TH} text-left`}>Status</th>}
-                {cols.show('actions') && <th className={`${QUERY_TH} text-right pr-5`}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -6670,39 +6877,42 @@ function QueryLicensesWithoutReportPage({
                 </tr>
               ) : (
                 paged.map((row, i) => (
-                    <tr key={row.id} className={`border-b border-slate-100 transition-colors ${i % 2 ? 'bg-slate-50/40 hover:bg-[#12518c]/5' : 'bg-white hover:bg-[#12518c]/5'}`}>
-                      {cols.show('companyId') && <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">{row.companyId}</td>}
-                      {cols.show('company') && (
-                        <td className="px-4 py-3">
-                          <button type="button" onClick={() => onOpenCompany(row.companyId, 'Licenses & Reporting')} className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] hover:underline text-left">
-                            {row.company}
-                          </button>
-                        </td>
-                      )}
-                      {cols.show('state') && <td className="px-4 py-3 text-sm text-slate-700">{row.state}</td>}
-                      {cols.show('func') && <td className="px-4 py-3 text-sm text-slate-600">{row.func}</td>}
-                      {cols.show('itemName') && (
-                        <td className="px-4 py-3 text-sm max-w-[220px] truncate" title={row.itemName || undefined}>
-                          {row.itemName ? <span className="text-slate-600">{row.itemName}</span> : <span className="text-slate-400">—</span>}
-                        </td>
-                      )}
-                      {cols.show('status') && (
-                        <td className="px-4 py-3">
-                          <QueryStatusPill status={row.status} />
-                        </td>
-                      )}
-                      {cols.show('actions') && (
-                        <td className="px-4 py-3 pr-5 text-right">
-                          <QueryViewButton onClick={() => onOpenCompany(row.companyId, 'Licenses & Reporting')} />
-                        </td>
-                      )}
-                    </tr>
+                  <tr key={row.id} className={`border-b border-slate-100 transition-colors ${i % 2 ? 'bg-[#BBDCFC]/25 hover:bg-[#12518c]/5' : 'bg-white hover:bg-[#12518c]/5'}`}>
+                    {cols.show('companyId') && <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">{row.companyId}</td>}
+                    {cols.show('company') && (
+                      <td className="px-4 py-3">
+                        <button type="button" onClick={() => onOpenCompany(row.companyId, 'Licenses & Reporting')} className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] hover:underline text-left">
+                          {row.company}
+                        </button>
+                      </td>
+                    )}
+                    {cols.show('state') && <td className="px-4 py-3 text-sm text-slate-700">{row.state}</td>}
+                    {cols.show('func') && <td className="px-4 py-3 text-sm text-slate-600">{row.func}</td>}
+                    {cols.show('itemName') && (
+                      <td className="px-4 py-3 text-sm max-w-[280px] truncate" title={row.itemName || undefined}>
+                        {row.itemName ? <span className="text-slate-600">{row.itemName}</span> : <span className="text-slate-400">—</span>}
+                      </td>
+                    )}
+                    {cols.show('status') && (
+                      <td className="px-4 py-3">
+                        <QueryStatusPill status={row.status} />
+                      </td>
+                    )}
+                  </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
-        <AddressTableFooter total={filtered.length} page={safePage} onPageChange={setPage} pageCount={pageCount} />
+        <AddressTableFooter
+          total={filtered.length}
+          page={safePage}
+          onPageChange={setPage}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          pageSizeOptions={[25, 50, 100, 150]}
+          onPageSizeChange={size => { setPageSize(size); setPage(1) }}
+        />
       </section>
     </>
   )
@@ -14983,7 +15193,7 @@ function OwnershipRadioGroup({
   label: string
   value: string
   onChange: (v: string) => void
-  options: { value: string; label: string }[]
+  options: { value: string; label: string; disabled?: boolean }[]
   readOnly?: boolean
   required?: boolean
   onReset?: () => void
@@ -14994,17 +15204,18 @@ function OwnershipRadioGroup({
       <div className="flex flex-wrap items-center gap-2 mt-0.5">
         {options.map(opt => {
           const selected = value === opt.value
+          const disabled = readOnly || !!opt.disabled
           return (
             <button
               key={opt.value}
               type="button"
-              disabled={readOnly}
+              disabled={disabled}
               onClick={() => onChange(opt.value)}
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
                 selected
                   ? 'border-[#12518c] bg-[#12518c]/10 text-[#0e4173]'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-              } ${readOnly ? 'cursor-default opacity-90' : ''}`}
+              } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${selected ? 'border-[#12518c]' : 'border-slate-300'}`}>
                 {selected && <span className="w-1.5 h-1.5 rounded-full bg-[#12518c]" />}
@@ -16686,8 +16897,10 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   }
 
   const addLicense = (data: Omit<LicenseRow, 'id'>, addAnother: boolean) => {
-    const nextId = Math.max(0, ...licenses.map(l => l.id)) + 1
-    setLicenses(prev => [{ id: nextId, ...data }, ...prev])
+    setLicenses(prev => {
+      const nextId = Math.max(0, ...prev.map(l => l.id)) + 1
+      return [{ id: nextId, ...data }, ...prev]
+    })
     if (!addAnother) setAddOpen(false)
   }
 
@@ -20354,7 +20567,8 @@ function AddLicenseModal({
     'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
     'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'TTB', 'AI',
   ]
-  const FUNCTIONS = ['DTC', 'Wholesale', 'Operational']
+  const FUNCTIONS = ['DTC', 'Wholesale', 'Operational', '3T']
+  const FUNCTION_STATUSES = ['Active', 'Pending', 'Expired', 'Canceled']
   const ITEM_NAMES = [
     'Wine Direct Shipper Permit',
     'Direct Shipper Permit',
@@ -20366,8 +20580,14 @@ function AddLicenseModal({
     'Certificate of Approval',
     'Certificate of Authority',
   ]
+  const SHIPPING_METHODS = ['Ship via Distributor', 'Ship via Importer', 'Ship via Shipper Agent / PAS']
+  const SHIPPING_METHOD_NAME_LABEL: Record<string, string> = {
+    'Ship via Distributor': 'Distributor Name',
+    'Ship via Importer': 'Importer Name',
+    'Ship via Shipper Agent / PAS': 'Shipper Agent / PAS Name',
+  }
 
-  const [errors, setErrors] = useState<Partial<Record<'licenseDept' | 'jurisdiction' | 'state' | 'func' | 'itemName' | 'renewalDue' | 'expiration', boolean>>>({})
+  const [errors, setErrors] = useState<Partial<Record<'licenseDept' | 'jurisdiction' | 'state' | 'func' | 'shippingSetup' | 'itemName' | 'shippingMethod' | 'shippingPartnerName' | 'renewalDue' | 'expiration', boolean>>>({})
   const [form, setForm] = useState(() =>
     license
       ? {
@@ -20375,6 +20595,9 @@ function AddLicenseModal({
           jurisdiction: license.state === 'TTB' ? 'Federal' : 'State',
           state: license.state,
           func: license.func,
+          shippingSetup: '',
+          shippingMethod: '',
+          shippingPartnerName: '',
           itemName: license.itemName,
           licenseNo: license.licenseNo,
           doesNotExpire: !license.expiration,
@@ -20384,10 +20607,13 @@ function AddLicenseModal({
           comment: license.comment,
         }
       : {
-          licenseDept: 'OPS',
-          jurisdiction: 'State',
+          licenseDept: '',
+          jurisdiction: '',
           state: '',
           func: '',
+          shippingSetup: '',
+          shippingMethod: '',
+          shippingPartnerName: '',
           itemName: '',
           licenseNo: '',
           doesNotExpire: false,
@@ -20398,6 +20624,29 @@ function AddLicenseModal({
         }
   )
   const [secondaryIds, setSecondaryIds] = useState<{ id: number; label: string; value: string }[]>([])
+  const [selectedFuncs, setSelectedFuncs] = useState<string[]>(() => (license?.func ? [license.func] : []))
+  const [funcStatuses, setFuncStatuses] = useState<Record<string, string>>(() =>
+    license?.func ? { [license.func]: license.status || 'Active' } : {}
+  )
+  const shipViaOther = form.shippingSetup === 'Ship via Another Company'
+  const opsStateLocked = form.licenseDept === 'OPS' && form.jurisdiction === 'State'
+
+  useEffect(() => {
+    if (opsStateLocked) {
+      setForm(prev => (prev.func === 'Operational' ? prev : { ...prev, func: 'Operational' }))
+      setSelectedFuncs(['Operational'])
+      setFuncStatuses(prev => ({ Operational: prev.Operational || 'Active' }))
+      setErrors(prev => ({ ...prev, func: false }))
+      return
+    }
+    if (isEdit) return
+    setForm(prev => (prev.func === 'Operational' ? { ...prev, func: '' } : prev))
+    setSelectedFuncs(prev => (prev.length === 1 && prev[0] === 'Operational' ? [] : prev))
+    setFuncStatuses(prev => {
+      if (Object.keys(prev).length === 1 && prev.Operational) return {}
+      return prev
+    })
+  }, [opsStateLocked, isEdit])
 
   const set = (key: keyof typeof form, value: string | boolean) => {
     setForm(prev => {
@@ -20406,15 +20655,46 @@ function AddLicenseModal({
         next.expiration = ''
         next.renewalDue = ''
       }
+      if (key === 'licenseDept' && value === 'OOS') {
+        next.jurisdiction = 'State'
+        if (next.state === 'TTB' || next.state === 'FDA') next.state = ''
+      }
       if (key === 'jurisdiction' && value === 'Federal') {
-        next.state = 'TTB'
+        if (next.licenseDept === 'OOS') {
+          next.jurisdiction = 'State'
+        } else if (next.state !== 'FDA' && next.state !== 'TTB') {
+          next.state = ''
+        }
+      }
+      if (key === 'jurisdiction' && value === 'State' && (next.state === 'FDA' || next.state === 'TTB')) {
+        next.state = ''
+      }
+      if (key === 'shippingSetup') {
+        if (value === 'Ship via Another Company') {
+          next.itemName = ''
+          next.licenseNo = ''
+          next.renewalDue = ''
+          next.expiration = ''
+          next.doesNotExpire = false
+        } else {
+          next.shippingMethod = ''
+          next.shippingPartnerName = ''
+        }
+      }
+      if (key === 'shippingMethod') {
+        next.shippingPartnerName = ''
       }
       return next
     })
     if (key === 'doesNotExpire' && value === true) {
       setErrors(prev => ({ ...prev, renewalDue: false, expiration: false }))
     }
-    if (typeof key === 'string' && key in { licenseDept: 1, jurisdiction: 1, state: 1, func: 1, itemName: 1, renewalDue: 1, expiration: 1 }) {
+    if (key === 'shippingSetup') {
+      setErrors(prev => ({ ...prev, shippingSetup: false, itemName: false, shippingMethod: false, shippingPartnerName: false, renewalDue: false, expiration: false }))
+      if (value === 'Ship via Another Company') setSecondaryIds([])
+    } else if (key === 'shippingMethod') {
+      setErrors(prev => ({ ...prev, shippingMethod: false, shippingPartnerName: false }))
+    } else if (typeof key === 'string' && key in { licenseDept: 1, jurisdiction: 1, state: 1, func: 1, shippingSetup: 1, itemName: 1, shippingMethod: 1, shippingPartnerName: 1, renewalDue: 1, expiration: 1 }) {
       setErrors(prev => ({ ...prev, [key]: false }))
     }
   }
@@ -20436,58 +20716,81 @@ function AddLicenseModal({
       licenseDept: !form.licenseDept,
       jurisdiction: !form.jurisdiction,
       state: !form.state.trim(),
-      func: !form.func.trim(),
-      itemName: !form.itemName.trim(),
-      renewalDue: !form.doesNotExpire && !form.renewalDue.trim(),
-      expiration: !form.doesNotExpire && !form.expiration.trim(),
+      func: isEdit ? !form.func.trim() : selectedFuncs.length === 0,
+      shippingSetup: !form.shippingSetup.trim(),
+      itemName: shipViaOther ? false : !form.itemName.trim(),
+      shippingMethod: shipViaOther && !form.shippingMethod.trim(),
+      shippingPartnerName: shipViaOther && !!form.shippingMethod && !form.shippingPartnerName.trim(),
+      renewalDue: shipViaOther ? false : !form.doesNotExpire && !form.renewalDue.trim(),
+      expiration: shipViaOther ? false : !form.doesNotExpire && !form.expiration.trim(),
     }
     setErrors(next)
     return !Object.values(next).some(Boolean)
   }
 
   const buildPayload = () => {
-    const item = form.itemName.includes('Bond')
+    const displayName = shipViaOther ? form.shippingMethod : form.itemName
+    const item = displayName.includes('Bond')
       ? 'Bond'
-      : form.itemName.includes('Type 02') || form.itemName === 'Winegrower'
+      : displayName.includes('Type 02') || displayName === 'Winegrower'
         ? 'Type 02'
-        : form.itemName.includes('Shipper') || form.itemName.includes('Direct')
+        : displayName.includes('Shipper') || displayName.includes('Direct')
           ? 'Direct Shippers'
-          : form.itemName
+          : displayName
     return {
       state: form.state,
       cityCounty: license?.cityCounty ?? '',
       func: form.func,
       item,
-      itemName: form.itemName,
-      licenseNo: form.licenseNo || secondaryIds.map(s => s.value).filter(Boolean).join(', '),
-      renewalDue: licenseDateToDisplay(form.renewalDue),
-      expiration: form.doesNotExpire ? '' : licenseDateToDisplay(form.expiration),
-      actionIn: form.doesNotExpire ? '—' : (license?.actionIn ?? 'Expired'),
+      itemName: displayName,
+      licenseNo: shipViaOther ? '' : (form.licenseNo || secondaryIds.map(s => s.value).filter(Boolean).join(', ')),
+      renewalDue: shipViaOther || form.doesNotExpire ? '' : licenseDateToDisplay(form.renewalDue),
+      expiration: shipViaOther || form.doesNotExpire ? '' : licenseDateToDisplay(form.expiration),
+      actionIn: shipViaOther || form.doesNotExpire ? '—' : (license?.actionIn ?? 'Expired'),
       status: form.status,
       comment: form.comment.trim(),
     }
   }
 
+  const resetAddForm = () => {
+    setForm({
+      licenseDept: form.licenseDept,
+      jurisdiction: form.jurisdiction,
+      state: form.jurisdiction === 'Federal' && (form.state === 'FDA' || form.state === 'TTB') ? form.state : '',
+      func: '',
+      shippingSetup: '',
+      shippingMethod: '',
+      shippingPartnerName: '',
+      itemName: '',
+      licenseNo: '',
+      doesNotExpire: false,
+      renewalDue: '',
+      expiration: '',
+      status: 'Active',
+      comment: '',
+    })
+    setSelectedFuncs([])
+    setFuncStatuses({})
+    setSecondaryIds([])
+    setErrors({})
+  }
+
   const handleSave = (addAnother: boolean) => {
     if (!validate()) return
-    onSave(buildPayload(), addAnother)
-    if (addAnother) {
-      setForm({
-        licenseDept: form.licenseDept,
-        jurisdiction: form.jurisdiction,
-        state: form.jurisdiction === 'Federal' ? 'TTB' : '',
-        func: '',
-        itemName: '',
-        licenseNo: '',
-        doesNotExpire: false,
-        renewalDue: '',
-        expiration: '',
-        status: 'Active',
-        comment: '',
-      })
-      setSecondaryIds([])
-      setErrors({})
+    const payload = buildPayload()
+    if (isEdit) {
+      const func = selectedFuncs[0] || form.func
+      onSave({ ...payload, func, status: funcStatuses[func] || form.status }, false)
+      return
     }
+    selectedFuncs.forEach((func, i) => {
+      const last = i === selectedFuncs.length - 1
+      onSave(
+        { ...payload, func, status: funcStatuses[func] || 'Active' },
+        last ? addAnother : true,
+      )
+    })
+    if (addAnother) resetAddForm()
   }
 
   return (
@@ -20533,7 +20836,7 @@ function AddLicenseModal({
             value={form.jurisdiction}
             onChange={v => set('jurisdiction', v)}
             options={[
-              { value: 'Federal', label: 'Federal' },
+              { value: 'Federal', label: 'Federal', disabled: form.licenseDept === 'OOS' },
               { value: 'State', label: 'State' },
             ]}
           />
@@ -20548,28 +20851,56 @@ function AddLicenseModal({
             </svg>
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">License Setup</span>
           </div>
-          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
+          <div className="p-4 space-y-4 bg-white">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <OwnershipFormSelect
-                label="State"
+                label={form.jurisdiction === 'Federal' ? 'State Code' : 'State'}
                 required
                 value={form.state}
                 onChange={v => set('state', v)}
-                options={form.jurisdiction === 'Federal' ? ['TTB'] : STATE_CODES.filter(s => s !== 'TTB')}
+                options={form.jurisdiction === 'Federal' ? ['FDA', 'TTB'] : STATE_CODES.filter(s => s !== 'TTB')}
                 placeholder="Select…"
-                readOnly={form.jurisdiction === 'Federal'}
               />
               {errors.state && <p className="mt-1 text-[11px] text-[#bb5757]">State is required.</p>}
             </div>
             <div>
-              <OwnershipFormSelect
-                label="Function"
-                required
-                value={form.func}
-                onChange={v => set('func', v)}
-                options={FUNCTIONS.includes(form.func) || !form.func ? FUNCTIONS : [form.func, ...FUNCTIONS]}
-                placeholder="Select…"
-              />
+              {opsStateLocked || isEdit ? (
+                <OwnershipFormSelect
+                  label="Function"
+                  required
+                  value={opsStateLocked ? 'Operational' : form.func}
+                  onChange={v => {
+                    set('func', v)
+                    setSelectedFuncs(v ? [v] : [])
+                    setFuncStatuses(prev => (v ? { [v]: prev[v] || form.status || 'Active' } : {}))
+                  }}
+                  options={opsStateLocked ? ['Operational'] : (FUNCTIONS.includes(form.func) || !form.func ? FUNCTIONS : [form.func, ...FUNCTIONS])}
+                  placeholder="Select…"
+                  invalid={errors.func}
+                  readOnly={opsStateLocked}
+                />
+              ) : (
+                <CheckboxMultiSelect
+                  label="Function"
+                  required
+                  values={selectedFuncs}
+                  options={FUNCTIONS}
+                  max={FUNCTIONS.length}
+                  invalid={errors.func}
+                  onChange={next => {
+                    setSelectedFuncs(next)
+                    set('func', next[0] ?? '')
+                    setFuncStatuses(prev => {
+                      const updated: Record<string, string> = {}
+                      next.forEach(func => {
+                        updated[func] = prev[func] || 'Active'
+                      })
+                      return updated
+                    })
+                  }}
+                />
+              )}
               {errors.func && <p className="mt-1 text-[11px] text-[#bb5757]">Function is required.</p>}
             </div>
             {isEdit && (
@@ -20582,6 +20913,68 @@ function AddLicenseModal({
                 placeholder="Select…"
               />
             )}
+            </div>
+            {form.licenseDept === 'OOS' && form.jurisdiction === 'State' && form.state === 'FL' && (selectedFuncs.includes('3T') || form.func === '3T') && (
+              <p className="text-[12px] italic text-slate-500 leading-snug">
+                Typical setup: Shipping Setup = Client License. Also add Brand Registrant License and Brand Reg.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {!isEdit && selectedFuncs.length > 0 && (
+        <div className="rounded-xl border border-slate-200 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
+              <path d="M3.5 4.5h9M3.5 8h9M3.5 11.5h6" />
+            </svg>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Item Details</span>
+          </div>
+          <div className="p-4 space-y-4 bg-white">
+            {selectedFuncs.map(func => (
+              <div key={func} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5 leading-tight">Function</span>
+                  <div className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-800 flex items-center">
+                    {func}
+                  </div>
+                </div>
+                <OwnershipFormSelect
+                  label="Status"
+                  required
+                  value={funcStatuses[func] || 'Active'}
+                  onChange={v => setFuncStatuses(prev => ({ ...prev, [func]: v }))}
+                  options={FUNCTION_STATUSES}
+                  placeholder="Select…"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+        )}
+
+        {/* Shipping Setup */}
+        <div className="rounded-xl border border-slate-200 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
+              <rect x="2.5" y="6" width="11" height="7" rx="1.2" />
+              <path d="M4.5 6V5a3.5 3.5 0 0 1 7 0v1" />
+            </svg>
+            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">
+              Shipping Setup <span className="text-[#bb5757]">*</span>
+            </span>
+          </div>
+          <div className="p-4 bg-white">
+            <OwnershipFormSelect
+              label="Shipping Setup"
+              required
+              value={form.shippingSetup}
+              onChange={v => set('shippingSetup', v)}
+              options={['Client License', 'Ship via Another Company']}
+              placeholder="Select…"
+              invalid={errors.shippingSetup}
+            />
+            {errors.shippingSetup && <p className="mt-1 text-[11px] text-[#bb5757]">Shipping Setup is required.</p>}
           </div>
         </div>
 
@@ -20596,16 +20989,56 @@ function AddLicenseModal({
           </div>
           <div className="p-4 space-y-4 bg-white">
             <div>
-              <OwnershipFormSelect
-                label="Item Name"
-                required
-                value={form.itemName}
-                onChange={v => set('itemName', v)}
-                options={ITEM_NAMES.includes(form.itemName) || !form.itemName ? ITEM_NAMES : [form.itemName, ...ITEM_NAMES]}
-                placeholder="Select…"
-              />
-              {errors.itemName && <p className="mt-1 text-[11px] text-[#bb5757]">Item Name is required.</p>}
+              {shipViaOther ? (
+                <>
+                  <OwnershipFormSelect
+                    label="Shipping Method"
+                    required
+                    value={form.shippingMethod}
+                    onChange={v => set('shippingMethod', v)}
+                    options={
+                      SHIPPING_METHODS.includes(form.shippingMethod) || !form.shippingMethod
+                        ? SHIPPING_METHODS
+                        : [form.shippingMethod, ...SHIPPING_METHODS]
+                    }
+                    placeholder="Select…"
+                    invalid={errors.shippingMethod}
+                  />
+                  {errors.shippingMethod && <p className="mt-1 text-[11px] text-[#bb5757]">Shipping Method is required.</p>}
+                  {form.shippingMethod && (
+                    <div className="mt-4">
+                      <OwnershipFormField
+                        label={SHIPPING_METHOD_NAME_LABEL[form.shippingMethod] || 'Name'}
+                        required
+                        value={form.shippingPartnerName}
+                        onChange={v => set('shippingPartnerName', v)}
+                        placeholder={`Enter ${SHIPPING_METHOD_NAME_LABEL[form.shippingMethod] || 'name'}…`}
+                      />
+                      {errors.shippingPartnerName && (
+                        <p className="mt-1 text-[11px] text-[#bb5757]">
+                          {SHIPPING_METHOD_NAME_LABEL[form.shippingMethod] || 'Name'} is required.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <OwnershipFormSelect
+                    label="Item Name"
+                    required
+                    value={form.itemName}
+                    onChange={v => set('itemName', v)}
+                    options={ITEM_NAMES.includes(form.itemName) || !form.itemName ? ITEM_NAMES : [form.itemName, ...ITEM_NAMES]}
+                    placeholder="Select…"
+                    invalid={errors.itemName}
+                  />
+                  {errors.itemName && <p className="mt-1 text-[11px] text-[#bb5757]">Item Name is required.</p>}
+                </>
+              )}
             </div>
+            {!shipViaOther && (
+              <>
             <OwnershipFormField
               label="License / Permit Number"
               value={form.licenseNo}
@@ -20641,10 +21074,13 @@ function AddLicenseModal({
                 Optional — add another related number, such as an account ID, Letter #, or other assigned identifier.
               </p>
             </div>
+              </>
+            )}
           </div>
         </div>
 
         {/* Dates */}
+        {!shipViaOther && (
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
@@ -20692,6 +21128,7 @@ function AddLicenseModal({
             </div>
           </div>
         </div>
+        )}
 
         {/* Comments */}
         <div>
@@ -22901,18 +23338,40 @@ function AddressTableFooter({
   page,
   onPageChange,
   pageCount,
+  pageSize,
+  pageSizeOptions,
+  onPageSizeChange,
 }: {
   total: number
   page: number
   onPageChange: (p: number) => void
   pageCount?: number
+  pageSize?: number
+  pageSizeOptions?: number[]
+  onPageSizeChange?: (size: number) => void
 }) {
   const lastPage = Math.max(1, pageCount ?? page)
   return (
     <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100 bg-slate-50/40">
-      <span className="text-sm text-slate-500">
-        Total: <span className="font-semibold text-slate-700">{total}</span>
-      </span>
+      {onPageSizeChange && pageSizeOptions?.length ? (
+        <label className="inline-flex items-center gap-2 text-sm text-slate-500">
+          Total
+          <select
+            value={pageSize}
+            onChange={e => onPageSizeChange(Number(e.target.value))}
+            className="h-8 pl-2.5 pr-7 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700"
+            aria-label="Rows per page"
+          >
+            {pageSizeOptions.map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <span className="text-sm text-slate-500">
+          Total: <span className="font-semibold text-slate-700">{total}</span>
+        </span>
+      )}
       <div className="flex items-center gap-1">
         <button
           type="button"
@@ -23498,6 +23957,152 @@ function ContactTypeMultiSelect({
                 className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${personTypeBadgeClass(type)}`}
               >
                 {type}
+              </span>
+            ))}
+          </span>
+        )}
+      </button>
+      {menu}
+    </div>
+  )
+}
+
+function CheckboxMultiSelect({
+  label,
+  values,
+  onChange,
+  options,
+  required,
+  invalid,
+  max,
+  placeholder = 'Select…',
+}: {
+  label: string
+  values: string[]
+  onChange: (values: string[]) => void
+  options: string[]
+  required?: boolean
+  invalid?: boolean
+  max?: number
+  placeholder?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const limit = max ?? options.length
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) {
+      setMenuPos(null)
+      return
+    }
+    const updatePos = () => {
+      const rect = buttonRef.current!.getBoundingClientRect()
+      setMenuPos({ top: rect.bottom + 6, left: rect.left, width: rect.width })
+    }
+    updatePos()
+    window.addEventListener('scroll', updatePos, true)
+    window.addEventListener('resize', updatePos)
+    return () => {
+      window.removeEventListener('scroll', updatePos, true)
+      window.removeEventListener('resize', updatePos)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const toggle = (option: string) => {
+    if (values.includes(option)) {
+      onChange(values.filter(v => v !== option))
+      return
+    }
+    if (values.length >= limit) return
+    onChange([...values, option])
+  }
+
+  const menu = open && menuPos && createPortal(
+    <div
+      ref={menuRef}
+      role="listbox"
+      aria-multiselectable="true"
+      style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, width: Math.max(menuPos.width, 220) }}
+      className="z-[9999] rounded-xl border border-slate-200 bg-white py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+    >
+      {options.map(option => {
+        const selected = values.includes(option)
+        const disabled = !selected && values.length >= limit
+        return (
+          <button
+            key={option}
+            type="button"
+            role="option"
+            aria-selected={selected}
+            disabled={disabled}
+            onClick={() => toggle(option)}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-left text-sm transition-colors ${
+              disabled ? 'text-slate-300 cursor-not-allowed' : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <span
+              className={`w-4 h-4 rounded-[3px] flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
+                selected ? 'bg-[#12518c] text-white shadow-sm' : 'border border-slate-300 bg-white'
+              }`}
+            >
+              {selected && (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 5.2L4.2 7.5 8 2.5" />
+                </svg>
+              )}
+            </span>
+            <span className="font-medium">{option}</span>
+          </button>
+        )
+      })}
+    </div>,
+    document.body
+  )
+
+  return (
+    <div className="block min-w-0">
+      <OwnershipFormLabel required={required}>{label}</OwnershipFormLabel>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className={`${detailControlClass} appearance-none pr-8 text-left flex items-center gap-1.5 min-h-9 h-auto py-1.5 ${
+          invalid
+            ? 'border-[#bb5757] focus:ring-[#bb5757]/20 focus:border-[#bb5757]'
+            : 'bg-white border-slate-300 text-slate-900'
+        }`}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'right 0.75rem center',
+          backgroundSize: '12px',
+        }}
+      >
+        {values.length === 0 ? (
+          <span className="text-slate-400">{placeholder}</span>
+        ) : (
+          <span className="flex flex-wrap gap-1 pr-2">
+            {values.map(value => (
+              <span
+                key={value}
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#BBDCFC] text-[#3B4A59]"
+              >
+                {value}
               </span>
             ))}
           </span>
