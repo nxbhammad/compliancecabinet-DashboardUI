@@ -854,6 +854,9 @@ const COMPANY_DETAIL_TABS = [
   'Work Stop',
 ] as const
 
+/** Reporting, credentials, and Add Report are not in this release. */
+const SHOW_REPORTING_AND_CREDENTIALS = false
+
 const PERSON_DETAIL_TABS = ['Summary', 'Detail', 'Business Addresses', 'Change Log', 'Notes'] as const
 
 const AGENCY_DETAIL_TABS = ['Summary', 'Addresses', 'Contacts', 'License Types'] as const
@@ -1933,6 +1936,7 @@ export default function App() {
 
   const handleCompanyTabChange = (tab: (typeof COMPANY_DETAIL_TABS)[number]) => {
     if (tab === 'Ownership') return
+    if (!SHOW_REPORTING_AND_CREDENTIALS && tab === 'Credentials') return
     setCompanyTab(tab)
     setCompanySubPage(null)
   }
@@ -2305,7 +2309,10 @@ export default function App() {
                   onOpenCompany={(id, tab) => {
                     setActiveNav('Companies')
                     handleSelectCompany(id)
-                    if (tab) setCompanyTab(tab)
+                    if (tab) {
+                      if (!SHOW_REPORTING_AND_CREDENTIALS && tab === 'Credentials') return
+                      setCompanyTab(tab)
+                    }
                   }}
                 />
                 <div className="mt-6 flex flex-col items-center gap-1">
@@ -6106,7 +6113,7 @@ function QuerySubNav({
         <div key={group.group} className="px-2 pb-3">
           <p className="px-3 pb-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{group.group}</p>
           <div className="flex flex-col gap-0.5">
-            {group.items.map(item => {
+            {group.items.filter(item => SHOW_REPORTING_AND_CREDENTIALS || item !== 'Licenses w/o Report Setting').map(item => {
               const selected = active === item
               return (
                 <button
@@ -13408,7 +13415,7 @@ function CompanySummaryPage({
     { key: 'function', label: 'Function' },
     { key: 'item', label: 'Item' },
     { key: 'expiration', label: 'Expiration Date' },
-    { key: 'actionIn', label: 'Action In' },
+    { key: 'actionIn', label: 'Renewal Timing' },
   ])
 
   return (
@@ -13508,7 +13515,7 @@ function CompanySummaryPage({
       >
         <div className="overflow-x-auto px-2 sm:px-3 border-b border-slate-100">
           <div className="flex items-stretch gap-0 min-w-max" role="tablist">
-            {COMPANY_DETAIL_TABS.map(t => {
+            {COMPANY_DETAIL_TABS.filter(t => SHOW_REPORTING_AND_CREDENTIALS || t !== 'Credentials').map(t => {
               const isActive = tab === t
               const isDisabled = t === 'Ownership'
 
@@ -13567,7 +13574,7 @@ function CompanySummaryPage({
           subPage={subPage}
           onSubPageChange={onSubPageChange}
         />
-      ) : tab === 'Licenses & Reporting' ? (
+      ) : tab === 'Licenses & Reporting' || (tab === 'Credentials' && !SHOW_REPORTING_AND_CREDENTIALS) ? (
         <CompanyLicensesPage companyId={companyId} />
       ) : tab === 'Credentials' ? (
         <CompanyCredentialsPage companyId={companyId} />
@@ -13725,7 +13732,7 @@ function CompanySummaryPage({
                     {summaryRenewalCols.show('function') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">Function</th>}
                     {summaryRenewalCols.show('item') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">Item</th>}
                     {summaryRenewalCols.show('expiration') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">Expiration Date</th>}
-                    {summaryRenewalCols.show('actionIn') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">Action In</th>}
+                    {summaryRenewalCols.show('actionIn') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap bg-white">Renewal Timing</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -16411,6 +16418,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   type SubTab = 'Licensing Summary' | 'Reporting Summary'
 
   const [subTab, setSubTab] = useState<SubTab>('Licensing Summary')
+  const visibleSubTab: SubTab = SHOW_REPORTING_AND_CREDENTIALS ? subTab : 'Licensing Summary'
   const [licenses, setLicenses] = useState<LicenseRow[]>(COMPANY_LICENSES)
   const [pastReports, setPastReports] = useState<ReportRow[]>(PAST_REPORTING)
   const [search, setSearch] = useState('')
@@ -16458,10 +16466,10 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     { key: 'item', label: 'Item' },
     { key: 'itemName', label: 'Item Name' },
     { key: 'licenseNo', label: 'License / Permit #' },
+    { key: 'status', label: 'Status' },
     { key: 'renewalDue', label: 'Renewal Due' },
     { key: 'expiration', label: 'Expiration' },
-    { key: 'actionIn', label: 'Action In' },
-    { key: 'status', label: 'Status' },
+    { key: 'actionIn', label: 'Renewal Timing' },
     { key: 'comment', label: 'Comment' },
   ])
   const reportCols = useTableColumns([
@@ -16691,13 +16699,16 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
 
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
-      <ListingHeading title={subTab} />
+      <ListingHeading title={visibleSubTab} />
       {/* Sub-tabs */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-visible">
         <div className="flex items-center gap-3 px-2 pr-4 border-b border-slate-100">
           <div className="flex items-center gap-0 min-w-0">
-            {(['Licensing Summary', 'Reporting Summary'] as const).map(t => {
-              const active = subTab === t
+            {(SHOW_REPORTING_AND_CREDENTIALS
+              ? (['Licensing Summary', 'Reporting Summary'] as const)
+              : (['Licensing Summary'] as const)
+            ).map(t => {
+              const active = visibleSubTab === t
               return (
                 <button
                   key={t}
@@ -16718,7 +16729,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
             })}
           </div>
           <div className="flex items-center gap-1.5 shrink-0 py-2">
-            {subTab === 'Licensing Summary' ? (
+            {visibleSubTab === 'Licensing Summary' ? (
               <>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#BBDCFC] text-[11px] font-semibold text-[#3B4A59]">
                   Active <span className="tabular-nums">{activeCount}</span>
@@ -16752,7 +16763,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
           </div>
         </div>
 
-        {subTab === 'Licensing Summary' ? (
+        {visibleSubTab === 'Licensing Summary' ? (
           <>
             <TableSectionHeader title="Licensing Summary" subtitle={`Company ID ${companyId} · permits, bonds, and state licenses`}>
               <AddressSearchInput value={search} onChange={v => setSearch(v)} />
@@ -16821,10 +16832,10 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                     {licenseCols.show('item') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Item</th>}
                     {licenseCols.show('itemName') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Item Name</th>}
                     {licenseCols.show('licenseNo') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">License / Permit #</th>}
+                    {licenseCols.show('status') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Status</th>}
                     {licenseCols.show('renewalDue') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Renewal Due</th>}
                     {licenseCols.show('expiration') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Expiration</th>}
-                    {licenseCols.show('actionIn') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Action In</th>}
-                    {licenseCols.show('status') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Status</th>}
+                    {licenseCols.show('actionIn') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Renewal Timing</th>}
                     {licenseCols.show('comment') && <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Comment</th>}
                     <th className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Actions</th>
                   </tr>
@@ -16857,6 +16868,11 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                         {licenseCols.show('item') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.item || '—'}</td>}
                         {licenseCols.show('itemName') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap max-w-[180px] truncate" title={l.itemName}>{l.itemName || '—'}</td>}
                         {licenseCols.show('licenseNo') && <td className="px-3 py-3 text-sm text-slate-700 font-medium whitespace-nowrap tabular-nums">{l.licenseNo || '—'}</td>}
+                        {licenseCols.show('status') && (
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <QueryStatusPill status={l.status} />
+                        </td>
+                        )}
                         {licenseCols.show('renewalDue') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.renewalDue || '—'}</td>}
                         {licenseCols.show('expiration') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.expiration || '—'}</td>}
                         {licenseCols.show('actionIn') && (
@@ -16868,11 +16884,6 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                           ) : (
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">{l.actionIn}d</span>
                           )}
-                        </td>
-                        )}
-                        {licenseCols.show('status') && (
-                        <td className="px-3 py-3 whitespace-nowrap">
-                          <QueryStatusPill status={l.status} />
                         </td>
                         )}
                         {licenseCols.show('comment') && <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap max-w-[140px] truncate" title={l.comment}>{l.comment || '—'}</td>}
@@ -16889,12 +16900,14 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                                 <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
                               </svg>
                             </button>
+                            {SHOW_REPORTING_AND_CREDENTIALS && (
                             <button type="button" onClick={() => setReportLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="Report">
                               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
                                 <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
                                 <path d="M9.5 2.5V6H13" />
                               </svg>
                             </button>
+                            )}
                             <button type="button" onClick={() => setDeleteId(l.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
                               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M3 6h18" />
@@ -17013,7 +17026,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
         )}
       </div>
 
-      {subTab === 'Reporting Summary' && (
+      {visibleSubTab === 'Reporting Summary' && (
         <div>
           <ListingHeading title="Past Reports" />
           <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-visible">
@@ -17082,7 +17095,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
         </div>
       )}
 
-      {defaultSettingsOpen && (
+      {SHOW_REPORTING_AND_CREDENTIALS && defaultSettingsOpen && (
         <ReportDefaultSettingsModal
           initial={reportDefaults}
           onClose={() => setDefaultSettingsOpen(false)}
@@ -17093,7 +17106,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
         />
       )}
 
-      {(addReportOpen || editReport) && (
+      {SHOW_REPORTING_AND_CREDENTIALS && (addReportOpen || editReport) && (
         <AddReportModal
           key={editReport ? editReport.id : 'new'}
           initial={editReport}
@@ -17103,7 +17116,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
         />
       )}
 
-      {reportLicense && (
+      {SHOW_REPORTING_AND_CREDENTIALS && reportLicense && (
         <LicenseReportModal
           key={reportLicense.id}
           license={reportLicense}
@@ -17119,7 +17132,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
         />
       )}
 
-      {viewReport && (
+      {SHOW_REPORTING_AND_CREDENTIALS && viewReport && (
         <AddressModalShell maxWidth="max-w-lg" onClose={() => setViewReport(null)}>
           <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
             <div>
@@ -18039,7 +18052,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
           <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
           <FilterSelect value={tabFilter} onChange={v => { setTabFilter(v); setPage(1) }} className={filterSelectClassName(tabFilter)}>
             <option value="">Tab</option>
-            {CHANGE_LOG_TABS.map(t => <option key={t} value={t}>{t}</option>)}
+            {CHANGE_LOG_TABS.filter(t => SHOW_REPORTING_AND_CREDENTIALS || t !== 'Credentials').map(t => <option key={t} value={t}>{t}</option>)}
           </FilterSelect>
           <FilterSelect value={typeFilter} onChange={v => { setTypeFilter(v); setPage(1) }} className={filterSelectClassName(typeFilter)}>
             <option value="">Change Type</option>
@@ -20920,7 +20933,7 @@ function ViewLicenseModal({
                 <ViewField label="Renewal Due" value={license.renewalDue} />
                 <ViewField label="Expiration" value={license.expiration} />
                 <div>
-                  <p className="mb-1 text-[11px] font-medium text-slate-500">Action In</p>
+                  <p className="mb-1 text-[11px] font-medium text-slate-500">Renewal Timing</p>
                   {license.actionIn === 'Expired' ? (
                     <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#bb5757] text-white">Expired</span>
                   ) : (
