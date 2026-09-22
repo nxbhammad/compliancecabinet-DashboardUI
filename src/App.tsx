@@ -20608,6 +20608,7 @@ function AddLicenseModal({
           shippingMethod: '',
           shippingPartnerName: '',
           itemName: license.itemName,
+          noLicenseNumber: !license.licenseNo,
           licenseNo: license.licenseNo,
           doesNotExpire: !license.expiration,
           renewalDue: licenseDateToInput(license.renewalDue),
@@ -20624,6 +20625,7 @@ function AddLicenseModal({
           shippingMethod: '',
           shippingPartnerName: '',
           itemName: '',
+          noLicenseNumber: false,
           licenseNo: '',
           doesNotExpire: false,
           renewalDue: '',
@@ -20696,6 +20698,7 @@ function AddLicenseModal({
       if (key === 'shippingSetup') {
         if (value === 'Ship via Another Company') {
           next.itemName = ''
+          next.noLicenseNumber = false
           next.licenseNo = ''
           next.renewalDue = ''
           next.expiration = ''
@@ -20707,6 +20710,9 @@ function AddLicenseModal({
       }
       if (key === 'shippingMethod') {
         next.shippingPartnerName = ''
+      }
+      if (key === 'noLicenseNumber' && value === true) {
+        next.licenseNo = ''
       }
       return next
     })
@@ -20804,7 +20810,7 @@ function AddLicenseModal({
       func: form.func,
       item,
       itemName: displayName,
-      licenseNo: shipViaOther ? '' : (form.licenseNo || secondaryIds.map(s => s.value).filter(Boolean).join(', ')),
+      licenseNo: shipViaOther || form.noLicenseNumber ? '' : (form.licenseNo || secondaryIds.map(s => s.value).filter(Boolean).join(', ')),
       renewalDue: shipViaOther || form.doesNotExpire ? '' : licenseDateToDisplay(form.renewalDue),
       expiration: shipViaOther || form.doesNotExpire ? '' : licenseDateToDisplay(form.expiration),
       actionIn: shipViaOther || form.doesNotExpire ? '—' : (license?.actionIn ?? 'Expired'),
@@ -20823,6 +20829,7 @@ function AddLicenseModal({
       shippingMethod: '',
       shippingPartnerName: '',
       itemName: '',
+      noLicenseNumber: false,
       licenseNo: '',
       doesNotExpire: false,
       renewalDue: '',
@@ -21176,12 +21183,26 @@ function AddLicenseModal({
               ) : null}
             {!shipViaOther && (
               <>
+            <label className="flex items-center gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.noLicenseNumber}
+                onClick={() => set('noLicenseNumber', !form.noLicenseNumber)}
+                className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${form.noLicenseNumber ? 'bg-[#12518c]' : 'bg-slate-300'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.noLicenseNumber ? 'translate-x-5' : ''}`} />
+              </button>
+              <span className="text-sm text-slate-700">No License Number</span>
+            </label>
+            {!form.noLicenseNumber && (
             <OwnershipFormField
               label="License / Permit Number"
               value={form.licenseNo}
               onChange={v => set('licenseNo', v)}
               placeholder="Optional primary number"
             />
+            )}
 
             <div className="space-y-3">
               {secondaryIds.map(s => (
@@ -21239,30 +21260,30 @@ function AddLicenseModal({
               </button>
               <span className="text-sm text-slate-700">Does Not Expire</span>
             </label>
+            {!form.doesNotExpire && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <OwnershipFormField
                   label="Renewal Due Date"
-                  required={!form.doesNotExpire}
+                  required
                   type="date"
                   value={form.renewalDue}
                   onChange={v => set('renewalDue', v)}
-                  readOnly={form.doesNotExpire}
                 />
                 {errors.renewalDue && <p className="mt-1 text-[11px] text-[#bb5757]">Renewal Due Date is required.</p>}
               </div>
               <div>
                 <OwnershipFormField
                   label="Expiration Date"
-                  required={!form.doesNotExpire}
+                  required
                   type="date"
                   value={form.expiration}
                   onChange={v => set('expiration', v)}
-                  readOnly={form.doesNotExpire}
                 />
                 {errors.expiration && <p className="mt-1 text-[11px] text-[#bb5757]">Expiration Date is required.</p>}
               </div>
             </div>
+            )}
           </div>
         </div>
         )}
