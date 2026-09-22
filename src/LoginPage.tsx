@@ -28,6 +28,9 @@ function AuthShell({ children }: { children: ReactNode }) {
               <h1 className="text-[30px] leading-tight font-semibold">
                 Manage your compliance in one place
               </h1>
+              <p className="mt-4 text-sm leading-relaxed text-blue-100/85">
+                <strong className="font-semibold">DH Wine Compliance</strong> is your total compliance service provider. Login with your credentials to access your account.
+              </p>
             </div>
 
             <div className="relative">

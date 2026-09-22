@@ -8569,8 +8569,8 @@ function PeoplePage({
 
   const exportPeople = () => {
     const rows = [
-      ['Name', 'Email', 'Company/Agency Name', 'Type', 'Category'],
-      ...filtered.map(p => [p.name, p.email, p.company, getPersonTypes(p).join('; '), p.category]),
+      ['Name', 'Email', 'Company/Agency Name', 'Type', 'Category', 'Alerts'],
+      ...filtered.map(p => [p.name, p.email, p.company, getPersonTypes(p).join('; '), p.category, p.alert ?? '']),
     ]
     const csv = rows.map(row => row.map(value => `"${value.replace(/"/g, '""')}"`).join(',')).join('\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
@@ -20569,17 +20569,26 @@ function AddLicenseModal({
   ]
   const FUNCTIONS = ['DTC', 'Wholesale', 'Operational', '3T']
   const FUNCTION_STATUSES = ['Active', 'Pending', 'Expired', 'Canceled']
-  const ITEM_NAMES = [
-    'Wine Direct Shipper Permit',
-    'Direct Shipper Permit',
-    'Winegrower Bond',
-    'Winegrower',
-    'Basic Permit',
-    'Out-of-State Shipper',
-    'Nonresident Seller Permit',
-    'Certificate of Approval',
-    'Certificate of Authority',
+  const ITEM_TYPES = ['License', 'Representative'] as const
+  const LICENSE_ITEM_CATALOG: { type: (typeof ITEM_TYPES)[number]; name: string }[] = [
+    { type: 'Representative', name: 'Agent License (Vendor)' },
+    { type: 'License', name: 'Authorized Representative Certificate Of Approval (COA) - Foreign Spirits' },
+    { type: 'License', name: 'Authorized Representative Certificate Of Approval (COA) - Foreign Wine' },
+    { type: 'License', name: 'Authorized Representative Certificate Of Approval (COA) - U.S. Spirits' },
+    { type: 'License', name: 'Authorized Representative Certificate Of Approval (COA) - U.S. Wine' },
+    { type: 'License', name: 'Certificate Of Approval (COA) Wine Shipper To Consumer' },
+    { type: 'License', name: 'Wine Direct Shipper Permit' },
+    { type: 'License', name: 'Direct Shipper Permit' },
+    { type: 'License', name: 'Winegrower Bond' },
+    { type: 'License', name: 'Winegrower' },
+    { type: 'License', name: 'Basic Permit' },
+    { type: 'License', name: 'Out-of-State Shipper' },
+    { type: 'License', name: 'Nonresident Seller Permit' },
+    { type: 'License', name: 'Certificate of Approval' },
+    { type: 'License', name: 'Certificate of Authority' },
+    { type: 'Representative', name: 'Authorized Representative' },
   ]
+  const ITEM_NAMES = LICENSE_ITEM_CATALOG.map(item => item.name)
   const SHIPPING_METHODS = ['Ship via Distributor', 'Ship via Importer', 'Ship via Shipper Agent / PAS']
   const SHIPPING_METHOD_NAME_LABEL: Record<string, string> = {
     'Ship via Distributor': 'Distributor Name',
@@ -20587,7 +20596,7 @@ function AddLicenseModal({
     'Ship via Shipper Agent / PAS': 'Shipper Agent / PAS Name',
   }
 
-  const [errors, setErrors] = useState<Partial<Record<'licenseDept' | 'jurisdiction' | 'state' | 'func' | 'shippingSetup' | 'itemName' | 'shippingMethod' | 'shippingPartnerName' | 'renewalDue' | 'expiration', boolean>>>({})
+  const [errors, setErrors] = useState<Partial<Record<'licenseDept' | 'jurisdiction' | 'state' | 'func' | 'shippingSetup' | 'itemName' | 'shippingMethod' | 'shippingPartnerName' | 'renewalDue' | 'expiration' | 'items', boolean>>>({})
   const [form, setForm] = useState(() =>
     license
       ? {
@@ -20628,8 +20637,11 @@ function AddLicenseModal({
   const [funcStatuses, setFuncStatuses] = useState<Record<string, string>>(() =>
     license?.func ? { [license.func]: license.status || 'Active' } : {}
   )
+  const [licenseItems, setLicenseItems] = useState<{ id: number; func: string; status: string; itemType: string; itemName: string; cancelDate: string }[]>([])
+  const formScrollRef = useRef<HTMLDivElement>(null)
   const shipViaOther = form.shippingSetup === 'Ship via Another Company'
   const opsStateLocked = form.licenseDept === 'OPS' && form.jurisdiction === 'State'
+  const showItemListing = !isEdit && !!form.state.trim() && selectedFuncs.length > 0 && !shipViaOther
 
   useEffect(() => {
     if (opsStateLocked) {
@@ -20647,6 +20659,18 @@ function AddLicenseModal({
       return prev
     })
   }, [opsStateLocked, isEdit])
+
+  useEffect(() => {
+    if (isEdit || shipViaOther || !form.state.trim() || selectedFuncs.length === 0) {
+      setLicenseItems([])
+      return
+    }
+    setLicenseItems(prev => {
+      const kept = prev.filter(item => selectedFuncs.includes(item.func))
+      if (kept.length > 0) return kept
+      return [{ id: Date.now(), func: selectedFuncs[0], status: '', itemType: '', itemName: '', cancelDate: '' }]
+    })
+  }, [selectedFuncs, form.state, shipViaOther, isEdit])
 
   const set = (key: keyof typeof form, value: string | boolean) => {
     setForm(prev => {
@@ -20711,25 +20735,62 @@ function AddLicenseModal({
     setSecondaryIds(prev => prev.filter(s => s.id !== id))
   }
 
+  const addLicenseItem = () => {
+    setLicenseItems(prev => [
+      ...prev,
+      { id: Date.now(), func: selectedFuncs[0] || '', status: '', itemType: '', itemName: '', cancelDate: '' },
+    ])
+  }
+
+  const updateLicenseItem = (id: number, key: 'func' | 'status' | 'itemType' | 'itemName' | 'cancelDate', value: string) => {
+    setLicenseItems(prev =>
+      prev.map(item => {
+        if (item.id !== id) return item
+        const next = { ...item, [key]: value }
+        if (key === 'status' && value !== 'Canceled') next.cancelDate = ''
+        if (key === 'itemType') next.itemName = ''
+        return next
+      }),
+    )
+    setErrors(prev => ({ ...prev, items: false }))
+  }
+
+  const removeLicenseItem = (id: number) => {
+    setLicenseItems(prev => (prev.length <= 1 ? prev : prev.filter(item => item.id !== id)))
+  }
+
   const validate = () => {
+    const itemsInvalid = showItemListing && (
+      licenseItems.length === 0 ||
+      licenseItems.some(item =>
+        !item.func.trim() ||
+        !item.status.trim() ||
+        !item.itemType.trim() ||
+        !item.itemName.trim() ||
+        (item.status === 'Canceled' && !item.cancelDate.trim()),
+      )
+    )
     const next = {
       licenseDept: !form.licenseDept,
       jurisdiction: !form.jurisdiction,
       state: !form.state.trim(),
       func: isEdit ? !form.func.trim() : selectedFuncs.length === 0,
       shippingSetup: !form.shippingSetup.trim(),
-      itemName: shipViaOther ? false : !form.itemName.trim(),
+      itemName: shipViaOther || showItemListing ? false : !form.itemName.trim(),
       shippingMethod: shipViaOther && !form.shippingMethod.trim(),
       shippingPartnerName: shipViaOther && !!form.shippingMethod && !form.shippingPartnerName.trim(),
       renewalDue: shipViaOther ? false : !form.doesNotExpire && !form.renewalDue.trim(),
       expiration: shipViaOther ? false : !form.doesNotExpire && !form.expiration.trim(),
+      items: itemsInvalid,
     }
     setErrors(next)
     return !Object.values(next).some(Boolean)
   }
 
-  const buildPayload = () => {
-    const displayName = shipViaOther ? form.shippingMethod : form.itemName
+  const buildPayload = (itemNameOverride?: string) => {
+    const displayName = shipViaOther
+      ? form.shippingMethod
+      : (itemNameOverride ?? form.itemName)
     const item = displayName.includes('Bond')
       ? 'Bond'
       : displayName.includes('Type 02') || displayName === 'Winegrower'
@@ -20754,9 +20815,9 @@ function AddLicenseModal({
 
   const resetAddForm = () => {
     setForm({
-      licenseDept: form.licenseDept,
-      jurisdiction: form.jurisdiction,
-      state: form.jurisdiction === 'Federal' && (form.state === 'FDA' || form.state === 'TTB') ? form.state : '',
+      licenseDept: '',
+      jurisdiction: '',
+      state: '',
       func: '',
       shippingSetup: '',
       shippingMethod: '',
@@ -20771,25 +20832,39 @@ function AddLicenseModal({
     })
     setSelectedFuncs([])
     setFuncStatuses({})
+    setLicenseItems([])
     setSecondaryIds([])
     setErrors({})
+    requestAnimationFrame(() => {
+      formScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    })
   }
 
   const handleSave = (addAnother: boolean) => {
     if (!validate()) return
-    const payload = buildPayload()
     if (isEdit) {
       const func = selectedFuncs[0] || form.func
-      onSave({ ...payload, func, status: funcStatuses[func] || form.status }, false)
+      onSave({ ...buildPayload(), func, status: funcStatuses[func] || form.status }, false)
       return
     }
-    selectedFuncs.forEach((func, i) => {
-      const last = i === selectedFuncs.length - 1
-      onSave(
-        { ...payload, func, status: funcStatuses[func] || 'Active' },
-        last ? addAnother : true,
-      )
-    })
+    if (showItemListing) {
+      licenseItems.forEach((row, i) => {
+        const last = i === licenseItems.length - 1
+        const displayName = row.itemType ? `${row.itemName} - ${row.itemType}` : row.itemName
+        onSave(
+          { ...buildPayload(displayName || row.func), func: row.func, status: row.status },
+          last ? addAnother : true,
+        )
+      })
+    } else {
+      selectedFuncs.forEach((func, i) => {
+        const last = i === selectedFuncs.length - 1
+        onSave(
+          { ...buildPayload(), func, status: funcStatuses[func] || 'Active' },
+          last ? addAnother : true,
+        )
+      })
+    }
     if (addAnother) resetAddForm()
   }
 
@@ -20817,7 +20892,7 @@ function AddLicenseModal({
         </button>
       </div>
 
-      <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+      <div ref={formScrollRef} className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
         {/* Type selectors */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <OwnershipRadioGroup
@@ -20919,10 +20994,22 @@ function AddLicenseModal({
                 Typical setup: Shipping Setup = Client License. Also add Brand Registrant License and Brand Reg.
               </p>
             )}
+            <div>
+              <OwnershipFormSelect
+                label="Shipping Setup"
+                required
+                value={form.shippingSetup}
+                onChange={v => set('shippingSetup', v)}
+                options={['Client License', 'Ship via Another Company']}
+                placeholder="Select…"
+                invalid={errors.shippingSetup}
+              />
+              {errors.shippingSetup && <p className="mt-1 text-[11px] text-[#bb5757]">Shipping Setup is required.</p>}
+            </div>
           </div>
         </div>
 
-        {!isEdit && selectedFuncs.length > 0 && (
+        {showItemListing && (
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
@@ -20930,53 +21017,105 @@ function AddLicenseModal({
             </svg>
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Item Details</span>
           </div>
-          <div className="p-4 space-y-4 bg-white">
-            {selectedFuncs.map(func => (
-              <div key={func} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <span className="block text-[11px] font-medium text-slate-500 mb-1.5 leading-tight">Function</span>
-                  <div className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-800 flex items-center">
-                    {func}
-                  </div>
+          <div className="p-4 space-y-3 bg-white">
+            <div className="rounded-lg border border-[#12518c]/15 bg-[#12518c]/[0.04] px-3.5 py-2.5 text-[12px] text-[#0e4173] leading-snug">
+              Add one or more items for any function selected above.
+            </div>
+            {licenseItems.map((row, index) => {
+              const isCanceled = row.status === 'Canceled'
+              return (
+              <div key={row.id} className="rounded-xl border border-slate-200 bg-slate-50/40 p-3.5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Item {index + 1}</span>
+                  {licenseItems.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeLicenseItem(row.id)}
+                      className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
+                      title="Remove item"
+                      aria-label={`Remove item ${index + 1}`}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                        <path d="M10 11v6M14 11v6" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                <div className={`grid grid-cols-1 gap-3 ${isCanceled ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
+                  <OwnershipFormSelect
+                    label="Function"
+                    required
+                    value={row.func}
+                    onChange={v => updateLicenseItem(row.id, 'func', v)}
+                    options={selectedFuncs}
+                    placeholder="Select…"
+                  />
+                  <OwnershipFormSelect
+                    label="Status"
+                    required
+                    value={row.status}
+                    onChange={v => updateLicenseItem(row.id, 'status', v)}
+                    options={FUNCTION_STATUSES}
+                    placeholder="Select…"
+                  />
+                  <OwnershipFormSelect
+                    label="Type"
+                    required
+                    value={row.itemType}
+                    onChange={v => updateLicenseItem(row.id, 'itemType', v)}
+                    options={[...ITEM_TYPES]}
+                    placeholder="Select…"
+                  />
+                  {isCanceled && (
+                    <OwnershipFormField
+                      label="Cancel Date"
+                      required
+                      type="date"
+                      value={row.cancelDate}
+                      onChange={v => updateLicenseItem(row.id, 'cancelDate', v)}
+                      placeholder="mm/dd/yyyy"
+                    />
+                  )}
                 </div>
                 <OwnershipFormSelect
-                  label="Status"
+                  label="Item Name"
                   required
-                  value={funcStatuses[func] || 'Active'}
-                  onChange={v => setFuncStatuses(prev => ({ ...prev, [func]: v }))}
-                  options={FUNCTION_STATUSES}
-                  placeholder="Select…"
+                  value={row.itemName}
+                  onChange={v => updateLicenseItem(row.id, 'itemName', v)}
+                  options={
+                    row.itemType
+                      ? LICENSE_ITEM_CATALOG.filter(item => item.type === row.itemType).map(item => item.name)
+                      : []
+                  }
+                  placeholder={row.itemType ? 'Select…' : 'Select type first…'}
+                  readOnly={!row.itemType}
                 />
               </div>
-            ))}
+              )
+            })}
+            {errors.items && (
+              <p className="text-[11px] text-[#bb5757]">
+                Each item needs Function, Status, Type, and Item Name. Canceled items also need a Cancel Date.
+              </p>
+            )}
+            <div className="flex justify-end pt-0.5">
+              <button
+                type="button"
+                onClick={addLicenseItem}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="M6 2.5v7M2.5 6h7" />
+                </svg>
+                Add Another Item
+              </button>
+            </div>
           </div>
         </div>
         )}
-
-        {/* Shipping Setup */}
-        <div className="rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-              <rect x="2.5" y="6" width="11" height="7" rx="1.2" />
-              <path d="M4.5 6V5a3.5 3.5 0 0 1 7 0v1" />
-            </svg>
-            <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">
-              Shipping Setup <span className="text-[#bb5757]">*</span>
-            </span>
-          </div>
-          <div className="p-4 bg-white">
-            <OwnershipFormSelect
-              label="Shipping Setup"
-              required
-              value={form.shippingSetup}
-              onChange={v => set('shippingSetup', v)}
-              options={['Client License', 'Ship via Another Company']}
-              placeholder="Select…"
-              invalid={errors.shippingSetup}
-            />
-            {errors.shippingSetup && <p className="mt-1 text-[11px] text-[#bb5757]">Shipping Setup is required.</p>}
-          </div>
-        </div>
 
         {/* License Information */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
@@ -20988,9 +21127,8 @@ function AddLicenseModal({
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">License Information</span>
           </div>
           <div className="p-4 space-y-4 bg-white">
+            {shipViaOther ? (
             <div>
-              {shipViaOther ? (
-                <>
                   <OwnershipFormSelect
                     label="Shipping Method"
                     required
@@ -21021,9 +21159,9 @@ function AddLicenseModal({
                       )}
                     </div>
                   )}
-                </>
-              ) : (
-                <>
+            </div>
+              ) : !showItemListing ? (
+            <div>
                   <OwnershipFormSelect
                     label="Item Name"
                     required
@@ -21034,9 +21172,8 @@ function AddLicenseModal({
                     invalid={errors.itemName}
                   />
                   {errors.itemName && <p className="mt-1 text-[11px] text-[#bb5757]">Item Name is required.</p>}
-                </>
-              )}
             </div>
+              ) : null}
             {!shipViaOther && (
               <>
             <OwnershipFormField
