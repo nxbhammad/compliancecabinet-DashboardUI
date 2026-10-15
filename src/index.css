@@ -19,3 +19,21 @@
     transform: translateY(0);
   }
 }
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes loadbar {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(430%);
+  }
+}

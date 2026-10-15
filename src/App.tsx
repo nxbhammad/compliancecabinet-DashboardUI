@@ -4,6 +4,142 @@ import cabinetLogo from './assets/cabinet-logo.png'
 import cabinetIcon from './assets/cabinet-icon.png'
 import LoginPage from './LoginPage'
 
+const PREVIEW_LOAD_MS = 680
+
+function usePreviewReady(token: string | number) {
+  const [state, setState] = useState({ token, ready: false })
+  if (state.token !== token) setState({ token, ready: false })
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setState({ token, ready: true }), PREVIEW_LOAD_MS)
+    return () => window.clearTimeout(timer)
+  }, [token])
+
+  return state.ready && state.token === token
+}
+
+function Bone({ className = '', delay = 0 }: { className?: string; delay?: number }) {
+  return (
+    <span className={`relative block overflow-hidden rounded-md bg-[#e7eef5] ${className}`}>
+      <span
+        className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-white to-transparent animate-[shimmer_1.45s_ease-in-out_infinite] motion-reduce:animate-none"
+        style={{ animationDelay: `${delay}ms` }}
+      />
+    </span>
+  )
+}
+
+function StatCardSkeleton({ delay = 0 }: { delay?: number }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4">
+      <Bone className="h-5 w-24 mb-3 rounded-md" delay={delay} />
+      <Bone className="h-8 w-14 mb-2" delay={delay + 60} />
+      <Bone className="h-3.5 w-32" delay={delay + 120} />
+    </div>
+  )
+}
+
+function TableSkeleton({ rows = 6, columns = 5 }: { rows?: number; columns?: number }) {
+  return (
+    <section
+      className="relative bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Loading records"
+    >
+      <span className="absolute inset-x-0 top-0 h-0.5 overflow-hidden" aria-hidden>
+        <span className="block h-full w-1/3 bg-[#12518c] animate-[loadbar_1.15s_ease-in-out_infinite] motion-reduce:animate-none" />
+      </span>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex h-2 w-2" aria-hidden>
+            <span className="absolute inline-flex h-full w-full rounded-full bg-[#12518c]/50 animate-ping motion-reduce:animate-none" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#12518c]" />
+          </span>
+          <span className="text-xs font-semibold text-slate-500">Loading records</span>
+        </div>
+        <div className="flex gap-2">
+          <Bone className="h-9 w-36 rounded-lg" />
+          <Bone className="h-9 w-24 rounded-lg" delay={80} />
+        </div>
+      </div>
+      <div className="px-5 py-3 border-b border-slate-100 flex gap-5">
+        {Array.from({ length: columns }, (_, column) => (
+          <Bone key={column} className="h-3 flex-1" delay={column * 50} />
+        ))}
+      </div>
+      <div className="divide-y divide-slate-100">
+        {Array.from({ length: rows }, (_, row) => (
+          <div key={row} className="px-5 py-3.5 flex items-center gap-5">
+            {Array.from({ length: columns }, (_, column) => (
+              <Bone
+                key={column}
+                delay={row * 70 + column * 40}
+                className={`h-3.5 flex-1 ${column === 0 ? 'max-w-[220px]' : ''} ${column === columns - 1 ? 'max-w-[88px]' : ''}`}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function RecordsSkeleton({
+  stats = false,
+  panels = false,
+  tables = 1,
+}: {
+  stats?: boolean
+  panels?: boolean
+  tables?: number
+}) {
+  return (
+    <div className="space-y-5">
+      {stats && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <StatCardSkeleton key={index} delay={index * 80} />
+          ))}
+        </div>
+      )}
+      {panels && (
+        <section className="relative bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-5" aria-hidden>
+          <span className="absolute inset-x-0 top-0 h-0.5 overflow-hidden">
+            <span className="block h-full w-1/3 bg-[#12518c] animate-[loadbar_1.15s_ease-in-out_infinite] motion-reduce:animate-none" />
+          </span>
+          <Bone className="h-4 w-44 mb-5" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+            {Array.from({ length: 6 }, (_, index) => (
+              <div key={index} className="space-y-2">
+                <Bone className="h-2.5 w-16" delay={index * 40} />
+                <Bone className="h-4 w-[78%]" delay={index * 40 + 50} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {Array.from({ length: tables }, (_, index) => (
+        <TableSkeleton key={index} rows={index === 0 ? 6 : 4} columns={index === 0 ? 5 : 4} />
+      ))}
+    </div>
+  )
+}
+
+function PreviewFrame({
+  token,
+  skeleton,
+  children,
+}: {
+  token: string | number
+  skeleton: ReactNode
+  children: ReactNode
+}) {
+  const ready = usePreviewReady(token)
+  if (!ready) return <>{skeleton}</>
+  return <div className="animate-[fadeIn_0.32s_ease-out]">{children}</div>
+}
+
 type AlertStatus = 'Pending' | 'Work Stop' | null
 
 const REDESIGNED_NAV_ITEMS = new Set(['Dashboard', 'The Cellar', 'Companies', 'Pipeline', 'People', 'Agencies', 'Query', 'Licensing'])
@@ -1933,32 +2069,222 @@ const PAST_ADDRESSES: typeof COMPANY_ADDRESSES = [
   { id: 103, label: 'Previous HQ', street: '250 Barrel Road, Suite 2', city: 'St. Helena', state: 'CA', zip: '94574', country: 'United States', active: false },
 ]
 
+function screenFromLocation() {
+  const screen = new URLSearchParams(window.location.search).get('screen') ?? 'login'
+  const person = PEOPLE_INIT.find(p => p.id === 8) ?? PEOPLE_INIT[0]
+  const agency = AGENCIES_INIT.find(a => a.id === 5) ?? AGENCIES_INIT[0]
+  const state = {
+    loggedIn: screen !== 'login' && screen !== 'forgot',
+    authView: (screen === 'forgot' ? 'forgot' : 'login') as 'login' | 'forgot',
+    activeNav: 'Dashboard',
+    cellarTab: 'My Action Items' as (typeof CELLAR_TABS)[number],
+    pipelineTab: 'Prospects' as (typeof PIPELINE_TABS)[number],
+    selectedProspectId: null as number | null,
+    selectedProspectLabel: null as string | null,
+    selectedCompanyId: null as number | null,
+    companyTab: 'Summary' as (typeof COMPANY_DETAIL_TABS)[number],
+    addingCompany: false,
+    selectedPerson: null as PersonRow | null,
+    personTab: 'Summary' as (typeof PERSON_DETAIL_TABS)[number],
+    addingPerson: false,
+    selectedAgency: null as AgencyRow | null,
+    agencyTab: 'Summary' as (typeof AGENCY_DETAIL_TABS)[number],
+    queryTab: 'Client Licenses' as (typeof QUERY_VIEWS)[number],
+    licensingTab: 'Licenses' as (typeof LICENSING_TABS)[number],
+    licenseFormMode: null as 'add' | 'edit' | 'view' | null,
+  }
+
+  const openCompany = (tab: (typeof COMPANY_DETAIL_TABS)[number]) => {
+    state.activeNav = 'Companies'
+    state.selectedCompanyId = 11
+    state.companyTab = tab
+  }
+  const openPerson = (tab: (typeof PERSON_DETAIL_TABS)[number]) => {
+    state.activeNav = 'People'
+    state.selectedPerson = person
+    state.personTab = tab
+  }
+  const openAgency = (tab: (typeof AGENCY_DETAIL_TABS)[number]) => {
+    state.activeNav = 'Agencies'
+    state.selectedAgency = agency
+    state.agencyTab = tab
+  }
+
+  switch (screen) {
+    case 'login':
+    case 'forgot':
+      break
+    case 'dashboard':
+      break
+    case 'cellar':
+      state.activeNav = 'The Cellar'
+      break
+    case 'cellar-pending':
+      state.activeNav = 'The Cellar'
+      state.cellarTab = 'Pending Changes'
+      break
+    case 'cellar-final':
+      state.activeNav = 'The Cellar'
+      state.cellarTab = 'Final Decisions'
+      break
+    case 'companies':
+      state.activeNav = 'Companies'
+      break
+    case 'companies-new':
+      state.activeNav = 'Companies'
+      state.addingCompany = true
+      break
+    case 'company':
+      openCompany('Summary')
+      break
+    case 'company-detail':
+      openCompany('Detail')
+      break
+    case 'company-addresses':
+      openCompany('Addresses')
+      break
+    case 'company-contacts':
+      openCompany('Contacts')
+      break
+    case 'company-licenses':
+      openCompany('Licenses & Reporting')
+      break
+    case 'company-activity':
+      openCompany('Account Activity')
+      break
+    case 'company-scope':
+      openCompany('Scope')
+      break
+    case 'company-changelog':
+      openCompany('Change Log')
+      break
+    case 'company-work-stop':
+      openCompany('Work Stop')
+      break
+    case 'pipeline':
+      state.activeNav = 'Pipeline'
+      break
+    case 'pipeline-tasks':
+      state.activeNav = 'Pipeline'
+      state.pipelineTab = 'My Tasks'
+      break
+    case 'pipeline-detail':
+      state.activeNav = 'Pipeline'
+      state.selectedProspectId = 1
+      state.selectedProspectLabel = 'Folio Wine Company, LLC'
+      break
+    case 'people':
+      state.activeNav = 'People'
+      break
+    case 'people-new':
+      state.activeNav = 'People'
+      state.addingPerson = true
+      break
+    case 'person':
+      openPerson('Summary')
+      break
+    case 'person-detail':
+      openPerson('Detail')
+      break
+    case 'person-addresses':
+      openPerson('Business Addresses')
+      break
+    case 'person-changelog':
+      openPerson('Change Log')
+      break
+    case 'person-notes':
+      openPerson('Notes')
+      break
+    case 'agencies':
+      state.activeNav = 'Agencies'
+      break
+    case 'agency':
+      openAgency('Summary')
+      break
+    case 'agency-addresses':
+      openAgency('Addresses')
+      break
+    case 'agency-contacts':
+      openAgency('Contacts')
+      break
+    case 'agency-license-types':
+      openAgency('License Types')
+      break
+    case 'query-activity':
+      state.activeNav = 'Query'
+      state.queryTab = 'Account Activity'
+      break
+    case 'query-scope':
+      state.activeNav = 'Query'
+      state.queryTab = 'Scope'
+      break
+    case 'query':
+      state.activeNav = 'Query'
+      state.queryTab = 'Client Licenses'
+      break
+    case 'query-report':
+      state.activeNav = 'Query'
+      state.queryTab = 'Licenses w/o Report Setting'
+      break
+    case 'query-work-stop':
+      state.activeNav = 'Query'
+      state.queryTab = 'Work Stop'
+      break
+    case 'licensing':
+      state.activeNav = 'Licensing'
+      break
+    case 'licensing-changelog':
+      state.activeNav = 'Licensing'
+      state.licensingTab = 'Change Log'
+      break
+    case 'licensing-new':
+      state.activeNav = 'Licensing'
+      state.licenseFormMode = 'add'
+      break
+    case 'reporting':
+      state.activeNav = 'Reporting'
+      break
+    case 'bulk-logins':
+      state.activeNav = 'Bulk Logins'
+      break
+    case 'users':
+      state.activeNav = 'Users'
+      break
+    default:
+      state.loggedIn = false
+      break
+  }
+
+  return state
+}
+
 export default function App() {
-  const [loggedIn, setLoggedIn] = useState(false)
-  const [activeNav, setActiveNav] = useState('Dashboard')
+  const [boot] = useState(screenFromLocation)
+  const [loggedIn, setLoggedIn] = useState(boot.loggedIn)
+  const [activeNav, setActiveNav] = useState(boot.activeNav)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const notificationsRef = useRef<HTMLDivElement>(null)
   const [favorites, setFavorites] = useState(FAVORITE_COMPANIES_INIT)
-  const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null)
-  const [companyTab, setCompanyTab] = useState<(typeof COMPANY_DETAIL_TABS)[number]>('Summary')
+  const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(boot.selectedCompanyId)
+  const [companyTab, setCompanyTab] = useState<(typeof COMPANY_DETAIL_TABS)[number]>(boot.companyTab)
   const [companySubPage, setCompanySubPage] = useState<string | null>(null)
-  const [addingCompany, setAddingCompany] = useState(false)
+  const [addingCompany, setAddingCompany] = useState(boot.addingCompany)
   const [companies, setCompanies] = useState<CompanyRow[]>(COMPANIES_INIT)
-  const [selectedPerson, setSelectedPerson] = useState<PersonRow | null>(null)
-  const [personTab, setPersonTab] = useState<(typeof PERSON_DETAIL_TABS)[number]>('Summary')
-  const [addingPerson, setAddingPerson] = useState(false)
+  const [selectedPerson, setSelectedPerson] = useState<PersonRow | null>(boot.selectedPerson)
+  const [personTab, setPersonTab] = useState<(typeof PERSON_DETAIL_TABS)[number]>(boot.personTab)
+  const [addingPerson, setAddingPerson] = useState(boot.addingPerson)
   const [people, setPeople] = useState<PersonRow[]>(PEOPLE_INIT)
   const [agencies, setAgencies] = useState<AgencyRow[]>(AGENCIES_INIT)
-  const [selectedAgency, setSelectedAgency] = useState<AgencyRow | null>(null)
-  const [agencyTab, setAgencyTab] = useState<(typeof AGENCY_DETAIL_TABS)[number]>('Summary')
-  const [cellarTab, setCellarTab] = useState<(typeof CELLAR_TABS)[number]>('My Action Items')
-  const [pipelineTab, setPipelineTab] = useState<(typeof PIPELINE_TABS)[number]>('Prospects')
-  const [licensingTab, setLicensingTab] = useState<(typeof LICENSING_TABS)[number]>('Licenses')
-  const [queryTab, setQueryTab] = useState<(typeof QUERY_VIEWS)[number]>('Client Licenses')
-  const [licenseFormMode, setLicenseFormMode] = useState<'add' | 'edit' | 'view' | null>(null)
-  const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null)
-  const [selectedProspectLabel, setSelectedProspectLabel] = useState<string | null>(null)
+  const [selectedAgency, setSelectedAgency] = useState<AgencyRow | null>(boot.selectedAgency)
+  const [agencyTab, setAgencyTab] = useState<(typeof AGENCY_DETAIL_TABS)[number]>(boot.agencyTab)
+  const [cellarTab, setCellarTab] = useState<(typeof CELLAR_TABS)[number]>(boot.cellarTab)
+  const [pipelineTab, setPipelineTab] = useState<(typeof PIPELINE_TABS)[number]>(boot.pipelineTab)
+  const [licensingTab, setLicensingTab] = useState<(typeof LICENSING_TABS)[number]>(boot.licensingTab)
+  const [queryTab, setQueryTab] = useState<(typeof QUERY_VIEWS)[number]>(boot.queryTab)
+  const [licenseFormMode, setLicenseFormMode] = useState<'add' | 'edit' | 'view' | null>(boot.licenseFormMode)
+  const [selectedProspectId, setSelectedProspectId] = useState<number | null>(boot.selectedProspectId)
+  const [selectedProspectLabel, setSelectedProspectLabel] = useState<string | null>(boot.selectedProspectLabel)
   const [actionItems, setActionItems] = useState<ActionItemRow[]>(MY_ACTION_ITEMS)
 
   useEffect(() => {
@@ -2119,7 +2445,7 @@ export default function App() {
   })()
 
   if (!loggedIn) {
-    return <LoginPage onLogin={() => setLoggedIn(true)} />
+    return <LoginPage initialView={boot.authView} onLogin={() => setLoggedIn(true)} />
   }
 
   return (
@@ -3029,6 +3355,7 @@ function PipelinePage({
         <PipelineViewModeToggle mode={pipelineView} onChange={setViewMode} />
       </div>
 
+      <PreviewFrame token={activeTab} skeleton={<RecordsSkeleton tables={1} />}>
       {activeTab === 'Prospects' ? (
         pipelineView === 'kanban' ? (
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
@@ -3433,6 +3760,7 @@ function PipelinePage({
         </section>
         )
       )}
+      </PreviewFrame>
         </>
       )}
     </>
@@ -3729,8 +4057,22 @@ function PipelineProspectDetailPage({
     onToast('Marked for client conversion')
   }
 
+  const detailReady = usePreviewReady(prospect.id)
+  if (!detailReady) {
+    return (
+      <div className="space-y-4">
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm px-5 py-4">
+          <Bone className="h-3 w-28 mb-3" />
+          <Bone className="h-7 w-64 mb-2" />
+          <Bone className="h-4 w-48" delay={80} />
+        </section>
+        <RecordsSkeleton panels tables={1} />
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+    <div className="space-y-4 animate-[fadeIn_0.32s_ease-out]">
       {editing && (
         <PipelineEditProspectModal
           prospect={prospect}
@@ -5163,6 +5505,7 @@ function LicensingPage({
         ))}
       </div>
 
+      <PreviewFrame token={activeTab} skeleton={<RecordsSkeleton tables={1} />}>
       {activeTab === 'Licenses' ? (
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
           <TableSectionHeader title="Licenses" subtitle="License types by state and federal jurisdiction">
@@ -5560,6 +5903,7 @@ function LicensingPage({
           </div>
         </section>
       )}
+      </PreviewFrame>
 
       {deleteTarget && (
         <AddressDeleteConfirmModal
@@ -6347,7 +6691,7 @@ function QueryPage({
   onOpenCompany: (id: number, tab?: (typeof COMPANY_DETAIL_TABS)[number]) => void
 }) {
   return (
-    <div className="animate-[fadeIn_0.25s_ease-out]">
+    <PreviewFrame token={activeView} skeleton={<RecordsSkeleton tables={1} />}>
       {activeView === 'Client Licenses' ? (
         <QueryClientLicensesPage onOpenCompany={onOpenCompany} />
       ) : activeView === 'Licenses w/o Report Setting' ? (
@@ -6359,7 +6703,7 @@ function QueryPage({
       ) : (
         <QueryWorkStopPage companies={companies} onOpenCompany={onOpenCompany} />
       )}
-    </div>
+    </PreviewFrame>
   )
 }
 
@@ -7229,7 +7573,8 @@ function QueryWorkStopPage({
 function WorkInProgressPage({ title }: { title?: string }) {
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center animate-[fadeIn_0.25s_ease-out]">
+    <PreviewFrame token={title ?? 'work'} skeleton={<RecordsSkeleton tables={1} />}>
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center">
       <div className="w-16 h-16 rounded-2xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center mb-5">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
@@ -7242,6 +7587,7 @@ function WorkInProgressPage({ title }: { title?: string }) {
         This page is being redesigned and will be available soon.
       </p>
     </div>
+    </PreviewFrame>
   )
 }
 
@@ -7287,6 +7633,7 @@ function DashboardPage({
         <p className="text-sm text-slate-500 mt-0.5">Compliance Management Overview</p>
       </div>
 
+      <PreviewFrame token="dashboard" skeleton={<RecordsSkeleton stats tables={2} />}>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'New Active Licenses', value: '24', change: '+2 this month', color: 'bg-[#12518c]/10 text-[#12518c]' },
@@ -7440,6 +7787,7 @@ function DashboardPage({
         </div>
         </div>
       </div>
+      </PreviewFrame>
     </>
   )
 }
@@ -7999,6 +8347,7 @@ function CellarPage({
         ))}
       </div>
 
+      <PreviewFrame token={activeTab} skeleton={<RecordsSkeleton tables={1} />}>
       {activeTab === 'Final Decisions' ? (
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
           <TableSectionHeader title="Final Decisions" subtitle="Approved and denied change requests awaiting review">
@@ -8516,6 +8865,7 @@ function CellarPage({
           <AddressTableFooter total={filteredPending.length} page={page} onPageChange={setPage} />
         </section>
       )}
+      </PreviewFrame>
     </>
   )
 }
@@ -8586,6 +8936,7 @@ function PeoplePage({
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-slate-900">People</h1>
       </div>
+      <PreviewFrame token="people" skeleton={<RecordsSkeleton tables={1} />}>
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="All People" subtitle="Manage contacts across clients, agencies, vendors, and industry partners">
           <div className="relative">
@@ -8716,6 +9067,7 @@ function PeoplePage({
 
         <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
       </section>
+      </PreviewFrame>
     </>
   )
 }
@@ -8814,6 +9166,7 @@ function AgenciesPage({
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-slate-900">Agencies</h1>
       </div>
+      <PreviewFrame token="agencies" skeleton={<RecordsSkeleton tables={1} />}>
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
         <TableSectionHeader title="All Agencies" subtitle="Directory of federal and state alcoholic beverage control agencies">
           <AddressSearchInput
@@ -9025,6 +9378,7 @@ function AgenciesPage({
 
         <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
       </section>
+      </PreviewFrame>
 
       {modalMode && (
         <AgencyFormModal
@@ -9376,6 +9730,10 @@ function AgencyDetailPage({
         </div>
       </nav>
 
+      <PreviewFrame
+        token={`${agency.id}:${tab}`}
+        skeleton={tab === 'Summary' ? <RecordsSkeleton panels tables={1} /> : <RecordsSkeleton tables={1} />}
+      >
       {tab === 'Summary' && (
         <AgencySummaryTab
           agency={agency}
@@ -9396,6 +9754,7 @@ function AgencyDetailPage({
       {tab === 'License Types' && (
         <AgencyLicenseTypesTab agencyId={agency.id} initialLicenseTypes={licenseTypes} />
       )}
+      </PreviewFrame>
 
       {licenseToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-medium shadow-lg animate-[fadeIn_0.2s_ease-out]">
@@ -11970,6 +12329,10 @@ function PersonDetailPage({
         </div>
       </nav>
 
+      <PreviewFrame
+        token={`${person.id}:${tab}`}
+        skeleton={tab === 'Summary' || tab === 'Detail' ? <RecordsSkeleton panels tables={1} /> : <RecordsSkeleton tables={1} />}
+      >
       {tab === 'Detail' ? (
         <PersonDetailFieldsPage person={person} role={role} editRequest={detailEditRequest} />
       ) : tab === 'Business Addresses' ? (
@@ -12033,6 +12396,7 @@ function PersonDetailPage({
           </div>
         </div>
       )}
+      </PreviewFrame>
 
       {showDeleteConfirm && (
         <AddressDeleteConfirmModal
@@ -13366,6 +13730,7 @@ function CompaniesPage({
         </button>
       </div>
 
+      <PreviewFrame token="companies" skeleton={<RecordsSkeleton tables={1} />}>
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <TableSectionHeader title="All Companies" subtitle="Search does not affect export">
           <AddressSearchInput
@@ -13569,6 +13934,7 @@ function CompaniesPage({
           </div>
         </div>
       </div>
+      </PreviewFrame>
     </>
   )
 }
@@ -13764,6 +14130,16 @@ function CompanySummaryPage({
         </div>
       </nav>
 
+      <PreviewFrame
+        token={`${company.id}:${tab}:${subPage ?? ''}`}
+        skeleton={
+          tab === 'Summary'
+            ? <RecordsSkeleton panels tables={2} />
+            : tab === 'Detail'
+              ? <RecordsSkeleton panels tables={1} />
+              : <RecordsSkeleton tables={1} />
+        }
+      >
       {tab === 'Work Stop' ? (
         <CompanyWorkStopPage companyId={companyId} />
       ) : tab === 'Detail' ? (
@@ -14037,6 +14413,7 @@ function CompanySummaryPage({
           </SummaryCard>
         </div>
       )}
+      </PreviewFrame>
     </div>
   )
 }
@@ -16660,16 +17037,23 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   const [viewReport, setViewReport] = useState<ReportRow | null>(null)
   const [editReport, setEditReport] = useState<ReportRow | null>(null)
   const [deleteReportId, setDeleteReportId] = useState<number | null>(null)
-  const [viewLicense, setViewLicense] = useState<LicenseRow | null>(null)
+  const licensePopup = (() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('screen') !== 'company-licenses') return null
+    const popup = params.get('popup')
+    return popup === 'add' || popup === 'view' || popup === 'edit' || popup === 'delete' ? popup : null
+  })()
+  const sampleLicense = COMPANY_LICENSES.find(l => l.id === 6) ?? COMPANY_LICENSES[0]
+  const [viewLicense, setViewLicense] = useState<LicenseRow | null>(licensePopup === 'view' ? sampleLicense : null)
   const [listingNotes, setListingNotes] = useState<{
     title: string
     subtitle: string
     notes: { label: string; text: string }[]
   } | null>(null)
-  const [editLicense, setEditLicense] = useState<LicenseRow | null>(null)
+  const [editLicense, setEditLicense] = useState<LicenseRow | null>(licensePopup === 'edit' ? sampleLicense : null)
   const [reportLicense, setReportLicense] = useState<LicenseRow | null>(null)
-  const [deleteId, setDeleteId] = useState<number | null>(null)
-  const [addOpen, setAddOpen] = useState(false)
+  const [deleteId, setDeleteId] = useState<number | null>(licensePopup === 'delete' ? sampleLicense.id : null)
+  const [addOpen, setAddOpen] = useState(licensePopup === 'add')
   const licenseCols = useTableColumns([
     { key: 'state', label: 'State' },
     { key: 'cityCounty', label: 'City/County' },

@@ -54,8 +54,8 @@ function AuthShell({ children }: { children: ReactNode }) {
   )
 }
 
-export default function LoginPage({ onLogin }: { onLogin: () => void }) {
-  const [view, setView] = useState<View>('login')
+export default function LoginPage({ onLogin, initialView = 'login' }: { onLogin: () => void; initialView?: View }) {
+  const [view, setView] = useState<View>(initialView)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
