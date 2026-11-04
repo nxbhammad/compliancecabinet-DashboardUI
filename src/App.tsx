@@ -235,8 +235,6 @@ const RENEWALS = [
   { name: '2Hawk LLC', state: 'OR', function: 'Wholesale', item: 'Certificate of Authority', license: 'OR-2201', renewalDate: '04/02/2026', expiryDate: '04/02/2026', actionDays: 'Expired' },
 ]
 
-type DashboardRoleView = 'Licensing' | 'Reporting' | 'Both'
-
 const REPORTING_DEADLINES = [
   { name: '1 Matilda Wine Company, LLC', state: 'CA', report: 'Monthly Sales', dueDate: '04/15/2026', status: 'Past Due' },
   { name: 'Folio Wine Company, LLC', state: 'NY', report: 'Shipment Report', dueDate: '04/30/2026', status: 'Due Soon' },
@@ -7618,7 +7616,7 @@ const DEFAULT_WIDGET_ENABLED: Record<DashboardWidgetKey, boolean> = {
   summary: true,
   companies: true,
   renewals: true,
-  reporting: false,
+  reporting: true,
   workStops: true,
   actionItems: true,
   pipelineTasks: false,
@@ -7647,10 +7645,7 @@ function DashboardPage({
   onOpenNav: (nav: string) => void
 }) {
   const actionItemCount = actionItems.length
-  const [roleView, setRoleView] = useState<DashboardRoleView>('Licensing')
   const [widgetsOpen, setWidgetsOpen] = useState(false)
-  const roleAllowsLicensing = roleView === 'Licensing' || roleView === 'Both'
-  const roleAllowsReporting = roleView === 'Reporting' || roleView === 'Both'
 
   const [savedOrder, setSavedOrder] = useState<DashboardWidgetKey[]>(DEFAULT_WIDGET_ORDER)
   const [savedEnabled, setSavedEnabled] = useState<Record<DashboardWidgetKey, boolean>>(DEFAULT_WIDGET_ENABLED)
@@ -7658,13 +7653,6 @@ function DashboardPage({
   const [draftEnabled, setDraftEnabled] = useState<Record<DashboardWidgetKey, boolean>>(DEFAULT_WIDGET_ENABLED)
   const [dragKey, setDragKey] = useState<DashboardWidgetKey | null>(null)
   const [dragOverKey, setDragOverKey] = useState<DashboardWidgetKey | null>(null)
-
-  const isWidgetLocked = (key: DashboardWidgetKey) => {
-    const meta = DASHBOARD_WIDGET_CATALOG.find(w => w.key === key)
-    if (meta?.role === 'licensing' && !roleAllowsLicensing) return true
-    if (meta?.role === 'reporting' && !roleAllowsReporting) return true
-    return false
-  }
 
   const openWidgetsModal = () => {
     setDraftOrder([...savedOrder])
@@ -7679,41 +7667,24 @@ function DashboardPage({
   }
 
   const saveWidgetsModal = () => {
-    const nextEnabled = { ...draftEnabled }
-    DASHBOARD_WIDGET_CATALOG.forEach(w => {
-      if (isWidgetLocked(w.key)) nextEnabled[w.key] = false
-    })
     setSavedOrder([...draftOrder])
-    setSavedEnabled(nextEnabled)
+    setSavedEnabled({ ...draftEnabled })
     closeWidgetsModal()
   }
-
-  useEffect(() => {
-    setSavedEnabled(prev => {
-      const next = { ...prev }
-      DASHBOARD_WIDGET_CATALOG.forEach(w => {
-        if (w.role === 'licensing') next[w.key] = roleAllowsLicensing ? (prev[w.key] || w.key === 'renewals') : false
-        if (w.role === 'reporting') next[w.key] = roleAllowsReporting ? (prev[w.key] || w.key === 'reporting') : false
-      })
-      if (roleAllowsLicensing && !prev.renewals && !next.renewals) next.renewals = true
-      if (roleAllowsReporting && !prev.reporting) next.reporting = true
-      return next
-    })
-  }, [roleView, roleAllowsLicensing, roleAllowsReporting])
 
   const widgetOrderIndex = (key: DashboardWidgetKey) => {
     const idx = savedOrder.indexOf(key)
     return idx === -1 ? 99 : idx
   }
 
-  const showLicensing = roleAllowsLicensing && savedEnabled.renewals
-  const showReporting = roleAllowsReporting && savedEnabled.reporting
+  const showLicensing = savedEnabled.renewals
+  const showReporting = savedEnabled.reporting
   const showSummary = savedEnabled.summary
   const showCompanies = savedEnabled.companies
   const showWorkStops = savedEnabled.workStops
   const showActionItems = savedEnabled.actionItems
   const showPipelineTasks = savedEnabled.pipelineTasks
-  const showNewLicenses = roleAllowsLicensing && savedEnabled.newLicenses
+  const showNewLicenses = savedEnabled.newLicenses
   const showActivity = savedEnabled.activity
   const showQuickLinks = savedEnabled.quickLinks
 
@@ -7745,7 +7716,6 @@ function DashboardPage({
   }
 
   const toggleDraftWidget = (key: DashboardWidgetKey) => {
-    if (isWidgetLocked(key)) return
     const turningOff = draftEnabled[key]
     setDraftEnabled(prev => ({ ...prev, [key]: !prev[key] }))
     if (turningOff) {
@@ -7805,15 +7775,11 @@ function DashboardPage({
     { label: 'My Action Items', value: String(actionItemCount), change: 'Pending Cellar requests', color: 'bg-[#BBDCFC] text-[#3B4A59]', onClick: onOpenActionItems },
   ]
 
-  const summaryCards = roleAllowsLicensing && !roleAllowsReporting
-    ? licensingStats
-    : !roleAllowsLicensing && roleAllowsReporting
-      ? reportingStats
-      : [
-          ...licensingStats.slice(0, 3),
-          reportingStats[0],
-          licensingStats[3],
-        ]
+  const summaryCards = [
+    ...licensingStats.slice(0, 3),
+    reportingStats[0],
+    licensingStats[3],
+  ]
 
   const visibilityLabel = (c: Favorite) => {
     if (c.assigned && c.starred) return 'Assigned + Favorite'
@@ -7827,38 +7793,21 @@ function DashboardPage({
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5">One dashboard — widgets by role. Favorites and assignments share the same visibility.</p>
+          <p className="text-sm text-slate-500 mt-0.5">Licensing and reporting in one place. Favorites and assignments share the same visibility.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 self-start">
-          <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5" role="group" aria-label="Demo role view">
-            {(['Licensing', 'Reporting', 'Both'] as const).map(role => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => setRoleView(role)}
-                className={`px-3 h-8 rounded-md text-xs font-semibold transition-colors ${
-                  roleView === role ? 'bg-white text-[#12518c] shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-                aria-pressed={roleView === role}
-              >
-                {role}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={openWidgetsModal}
-            className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition-colors ${
-              widgetsOpen
-                ? 'border-[#12518c] bg-[#12518c]/5 text-[#12518c]'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-            }`}
-            aria-haspopup="dialog"
-          >
-            <LayoutGrid size={14} strokeWidth={1.5} aria-hidden />
-            Customize widgets
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={openWidgetsModal}
+          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition-colors self-start ${
+            widgetsOpen
+              ? 'border-[#12518c] bg-[#12518c]/5 text-[#12518c]'
+              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+          }`}
+          aria-haspopup="dialog"
+        >
+          <LayoutGrid size={14} strokeWidth={1.5} aria-hidden />
+          Customize widgets
+        </button>
       </div>
 
       {widgetsOpen && (
@@ -7878,7 +7827,7 @@ function DashboardPage({
             </button>
           </div>
           <div className="px-5 py-4 max-h-[min(60vh,520px)] overflow-y-auto space-y-2.5">
-            {draftOrder.filter(key => !isWidgetLocked(key)).map(key => {
+            {draftOrder.map(key => {
               const meta = DASHBOARD_WIDGET_CATALOG.find(w => w.key === key)!
               const selected = draftEnabled[key]
               const isDragging = dragKey === key
@@ -7977,7 +7926,7 @@ function DashboardPage({
       )}
 
       <PreviewFrame
-        token={`dashboard-${roleView}-${savedOrder.join('.')}-${Object.values(savedEnabled).map(v => (v ? 1 : 0)).join('')}`}
+        token={`dashboard-${savedOrder.join('.')}-${Object.values(savedEnabled).map(v => (v ? 1 : 0)).join('')}`}
         skeleton={<RecordsSkeleton stats tables={2} />}
       >
       <div className="flex flex-col">
