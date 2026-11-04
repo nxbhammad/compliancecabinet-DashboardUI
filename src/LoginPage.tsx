@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import cabinetLogo from './assets/cabinet-logo.png'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -175,10 +176,7 @@ export default function LoginPage({ onLogin, initialView = 'login' }: { onLogin:
                 className="px-5 py-2.5 rounded-xl bg-[#12518c] text-white text-sm font-semibold hover:bg-[#0e4576] active:bg-[#0d3d6b] transition-colors focus:outline-none focus:ring-2 focus:ring-[#12518c]/40 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
               >
                 {loading && (
-                  <svg className="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
-                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
+                  <Loader2 size={15} strokeWidth={1.5} className="animate-spin" aria-hidden />
                 )}
                 {loading ? 'Sending…' : 'Send Recovery Email'}
               </button>
@@ -244,16 +242,9 @@ export default function LoginPage({ onLogin, initialView = 'login' }: { onLogin:
               className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
             >
               {showPassword ? (
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" />
-                  <circle cx="8" cy="8" r="2" />
-                  <path d="M2.5 2.5l11 11" />
-                </svg>
+                <EyeOff size={16} strokeWidth={1.5} aria-hidden />
               ) : (
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" />
-                  <circle cx="8" cy="8" r="2" />
-                </svg>
+                <Eye size={16} strokeWidth={1.5} aria-hidden />
               )}
             </button>
           </div>
@@ -268,10 +259,7 @@ export default function LoginPage({ onLogin, initialView = 'login' }: { onLogin:
           className="w-full mt-1 py-2.5 rounded-xl bg-[#12518c] text-white text-sm font-semibold hover:bg-[#0e4576] active:bg-[#0d3d6b] transition-colors focus:outline-none focus:ring-2 focus:ring-[#12518c]/40 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading && (
-            <svg className="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
-              <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-            </svg>
+            <Loader2 size={15} strokeWidth={1.5} className="animate-spin" aria-hidden />
           )}
           {loading ? 'Logging in…' : 'Log in'}
         </button>

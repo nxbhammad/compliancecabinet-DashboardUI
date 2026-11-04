@@ -1,5 +1,66 @@
 import { useState, useRef, useEffect, useLayoutEffect, Children, isValidElement, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import {
+  LayoutGrid,
+  Wine,
+  Building2,
+  Users,
+  UserRound,
+  Landmark,
+  Filter,
+  Search,
+  FileText,
+  BarChart3,
+  List,
+  Bell,
+  X,
+  Check,
+  Star,
+  Plus,
+  Trash2,
+  Pencil,
+  Paperclip,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  ChevronLeft,
+  Eye,
+  GripVertical,
+  Loader2,
+  ArrowRight,
+  LogOut,
+  Info,
+  Download,
+  Upload,
+  Settings2,
+  SquareKanban,
+  ExternalLink,
+  Menu,
+  Heart,
+  Lock,
+  RefreshCw,
+  User,
+  Home,
+  Unlink,
+  Copy,
+  ListStart,
+  ListEnd,
+  Mail,
+  Minus,
+  CircleX,
+  CircleDashed,
+  CircleAlert,
+  Image,
+  Calendar,
+  MessageSquare,
+  Clipboard,
+  CircleHelp,
+  Hash,
+  Briefcase,
+  Folder,
+  MoreVertical,
+  EyeOff,
+} from 'lucide-react'
 import cabinetLogo from './assets/cabinet-logo.png'
 import cabinetIcon from './assets/cabinet-icon.png'
 import LoginPage from './LoginPage'
@@ -159,7 +220,9 @@ const NAV_ITEMS = [
 ]
 
 const FAVORITE_COMPANIES_INIT = [
-  { name: '1 Matilda Wine Company, LLC', type: 'Client', dba: 'Bonkers', status: 'Archived', alertStatus: 'Pending' as AlertStatus, starred: true },
+  { name: '1 Matilda Wine Company, LLC', type: 'Client', dba: 'Bonkers', status: 'Archived', alertStatus: 'Pending' as AlertStatus, starred: true, assigned: true },
+  { name: 'Folio Wine Company, LLC', type: 'Client', dba: 'Folio', status: 'Active', alertStatus: null as AlertStatus, starred: true, assigned: false },
+  { name: '2Hawk LLC', type: 'Client', dba: '2Hawk', status: 'Active', alertStatus: 'Work Stop' as AlertStatus, starred: false, assigned: true },
 ]
 
 const RENEWALS = [
@@ -168,6 +231,36 @@ const RENEWALS = [
   { name: '1 Matilda Wine Company, LLC', state: 'TTB', function: 'Operational', item: '', license: '12345', renewalDate: '07/07/2026', expiryDate: '', actionDays: 'Expired' },
   { name: '1 Matilda Wine Company, LLC', state: 'CA', function: 'Operational', item: '', license: '88888', renewalDate: '06/30/2026', expiryDate: '', actionDays: 'Expired' },
   { name: '1 Matilda Wine Company, LLC', state: 'CA', function: 'Operational', item: '', license: '54654654', renewalDate: '04/16/2026', expiryDate: '', actionDays: 'Expired' },
+  { name: 'Folio Wine Company, LLC', state: 'CA', function: 'DTC', item: 'Direct Shipper', license: 'DS-4412', renewalDate: '05/12/2026', expiryDate: '05/12/2026', actionDays: '14' },
+  { name: '2Hawk LLC', state: 'OR', function: 'Wholesale', item: 'Certificate of Authority', license: 'OR-2201', renewalDate: '04/02/2026', expiryDate: '04/02/2026', actionDays: 'Expired' },
+]
+
+type DashboardRoleView = 'Licensing' | 'Reporting' | 'Both'
+
+const REPORTING_DEADLINES = [
+  { name: '1 Matilda Wine Company, LLC', state: 'CA', report: 'Monthly Sales', dueDate: '04/15/2026', status: 'Past Due' },
+  { name: 'Folio Wine Company, LLC', state: 'NY', report: 'Shipment Report', dueDate: '04/30/2026', status: 'Due Soon' },
+  { name: '2Hawk LLC', state: 'OR', report: 'Excise Tax', dueDate: '03/31/2026', status: 'Past Due' },
+]
+
+const DASHBOARD_NEW_LICENSES = [
+  { name: 'Folio Wine Company, LLC', state: 'WA', item: 'Direct Shipper Permit', license: 'WA-9912', activated: '04/02/2026' },
+  { name: '1 Matilda Wine Company, LLC', state: 'TX', item: 'Nonresident Seller', license: 'TX-4410', activated: '03/28/2026' },
+  { name: '2Hawk LLC', state: 'CO', item: 'Wine Direct Shipper', license: 'CO-1188', activated: '03/22/2026' },
+]
+
+const DASHBOARD_ACTIVITY = [
+  { title: 'License renewal is due soon', detail: 'California Type 02 license expires in 45 days.', time: '10 min ago', tone: 'warning' as const },
+  { title: 'Cellar change awaiting you', detail: '2Hawk LLC — EIN update needs approval.', time: '35 min ago', tone: 'action' as const },
+  { title: 'Work Stop enabled', detail: '2Hawk LLC marked Work Stop by AD.', time: '2 hours ago', tone: 'danger' as const },
+  { title: 'New account activity', detail: 'A new compliance comment was added by GL.', time: 'Yesterday', tone: 'info' as const },
+]
+
+const DASHBOARD_QUICK_LINKS = [
+  { label: 'The Cellar', hint: 'Approvals & change requests', nav: 'The Cellar' as const, Icon: Wine },
+  { label: 'Query', hint: 'Licenses, renewals, Work Stop', nav: 'Query' as const, Icon: Search },
+  { label: 'Pipeline', hint: 'Prospects & my tasks', nav: 'Pipeline' as const, Icon: Filter },
+  { label: 'Companies', hint: 'Clients & assignments', nav: 'Companies' as const, Icon: Building2 },
 ]
 
 const CELLAR_TABS = ['My Action Items', 'Pending Changes', 'Final Decisions'] as const
@@ -325,9 +418,7 @@ function PipelineStageDiff({
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 whitespace-nowrap">
           {item.fromStage}
         </span>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 shrink-0" aria-hidden>
-          <path d="M2.5 6h7M6.5 3.5L9.5 6 6.5 8.5" />
-        </svg>
+        <ChevronRight size={12} strokeWidth={1.5} className="text-slate-400 shrink-0" aria-hidden />
         <span className={PIPELINE_STAGE_TAG}>{toLabel}</span>
       </div>
     )
@@ -366,9 +457,7 @@ function truncatePipelineText(text: string, maxWords = 10) {
 function PipelineAttachmentLabel({ fileName }: { fileName: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-sm text-slate-700 min-w-0">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 shrink-0">
-        <path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" />
-      </svg>
+      <Paperclip size={14} strokeWidth={1.5} className="text-slate-400 shrink-0" aria-hidden />
       <span className="truncate max-w-[160px]" title={fileName}>{fileName}</span>
     </span>
   )
@@ -420,27 +509,18 @@ function PipelineCardActions({
   return (
     <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
       <PipelineCardIconButton label="Preview" onClick={onPreview}>
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-          <circle cx="8" cy="8" r="2" />
-        </svg>
+        <Eye size={14} strokeWidth={1.5} aria-hidden />
       </PipelineCardIconButton>
       <PipelineCardIconButton label="Edit" onClick={onEdit}>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M8.5 2.5l3 3L5 12H2v-3L8.5 2.5z" />
-        </svg>
+        <Pencil size={14} strokeWidth={1.5} aria-hidden />
       </PipelineCardIconButton>
       {hasAttachment && onDownload && (
         <PipelineCardIconButton label="Download" onClick={onDownload}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
-          </svg>
+          <Download size={14} strokeWidth={1.5} aria-hidden />
         </PipelineCardIconButton>
       )}
       <PipelineCardIconButton label="Delete" onClick={onDelete} tone="danger">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-          <path d="M2.5 3.5h9M5.5 3.5V2.5h3v1M4 3.5l.5 8h5l.5-8" />
-        </svg>
+        <Trash2 size={14} strokeWidth={1.5} aria-hidden />
       </PipelineCardIconButton>
     </div>
   )
@@ -467,10 +547,7 @@ function PipelineAttachmentActions({
         title="View attachment"
         aria-label={`View ${fileName}`}
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-          <circle cx="8" cy="8" r="2" />
-        </svg>
+        <Eye size={14} strokeWidth={1.5} aria-hidden />
       </button>
       <button
         type="button"
@@ -479,9 +556,7 @@ function PipelineAttachmentActions({
         title="Download attachment"
         aria-label={`Download ${fileName}`}
       >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
-        </svg>
+        <Download size={14} strokeWidth={1.5} aria-hidden />
       </button>
     </div>
   )
@@ -659,9 +734,7 @@ function PipelineItemPreviewModal({
           {subtitle ? <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p> : null}
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-5 py-5 space-y-4">
@@ -675,9 +748,7 @@ function PipelineItemPreviewModal({
                 onClick={onDownload}
                 className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors shrink-0"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
-                </svg>
+                <Download size={12} strokeWidth={1.5} aria-hidden />
                 Download
               </button>
             )}
@@ -725,9 +796,7 @@ function PipelineFilePicker({
           onClick={() => inputRef.current?.click()}
           className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 hover:border-[#12518c]/40 transition-colors"
         >
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" />
-          </svg>
+          <Paperclip size={13} strokeWidth={1.5} aria-hidden />
           {buttonLabel}
         </button>
         {fileName ? (
@@ -740,9 +809,7 @@ function PipelineFilePicker({
               aria-label="Remove file"
               title="Remove file"
             >
-              <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={10} strokeWidth={1.5} aria-hidden />
             </button>
           </span>
         ) : (
@@ -769,9 +836,7 @@ function PipelineFileViewModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" />
-            </svg>
+            <Paperclip size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">View attachment</h3>
@@ -779,9 +844,7 @@ function PipelineFileViewModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-5 py-5">
@@ -793,9 +856,7 @@ function PipelineFileViewModal({
       <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2.5">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">Close</button>
         <button type="button" onClick={onDownload} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
-          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
-          </svg>
+          <Download size={12} strokeWidth={1.5} aria-hidden />
           Download
         </button>
       </div>
@@ -2508,9 +2569,7 @@ export default function App() {
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           className="flex items-center justify-center gap-2 px-4 py-4 border-t border-slate-200 text-slate-500 hover:text-slate-700 transition-colors text-xs"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-            <path d={sidebarCollapsed ? 'M4 2l5 5-5 5' : 'M10 2L5 7l5 5'} stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          {sidebarCollapsed ? <ChevronRight size={14} strokeWidth={1.5} aria-hidden /> : <ChevronLeft size={14} strokeWidth={1.5} aria-hidden />}
           {!sidebarCollapsed && <span>Collapse</span>}
         </button>
       </aside>
@@ -2555,10 +2614,7 @@ export default function App() {
                 aria-expanded={notificationsOpen}
                 title="Notifications"
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M8 1a5 5 0 0 1 5 5c0 3 1.5 4 1.5 4H1.5S3 9 3 6a5 5 0 0 1 5-5z" strokeLinecap="round" />
-                  <path d="M6.5 13a1.5 1.5 0 0 0 3 0" strokeLinecap="round" />
-                </svg>
+                <Bell size={16} strokeWidth={1.5} aria-hidden />
                 <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-danger text-white text-[9px] font-bold leading-4 text-center ring-2 ring-white">
                   3
                 </span>
@@ -2607,10 +2663,7 @@ export default function App() {
                 title="Logout"
                 className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
               >
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 14H3.5A1.5 1.5 0 0 1 2 12.5v-9A1.5 1.5 0 0 1 3.5 2H6" />
-                  <path d="M10.5 11.5L14 8l-3.5-3.5M14 8H6" />
-                </svg>
+                <LogOut size={15} strokeWidth={1.5} aria-hidden />
               </button>
             </div>
           </div>
@@ -2739,9 +2792,7 @@ export default function App() {
                 />
                 <div className="mt-6 flex flex-col items-center gap-1">
                   <div className="flex items-center gap-1.5 text-slate-400">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" opacity="0.5">
-                      <path d="M10 2a8 8 0 1 0 0 16A8 8 0 0 0 10 2zm1 11H9V9h2v4zm0-6H9V5h2v2z" />
-                    </svg>
+                    <Info size={20} strokeWidth={1.5} aria-hidden />
                     <span className="text-xs text-slate-400">www.dhwinecompliance.com</span>
                   </div>
                   <span className="text-xs text-slate-300">v 1.4.0</span>
@@ -2760,6 +2811,21 @@ export default function App() {
               favorites={favorites}
               toggleStar={toggleStar}
               setAlertStatus={setAlertStatus}
+              actionItems={actionItems}
+              onOpenActionItems={() => {
+                setActiveNav('The Cellar')
+                setCellarTab('My Action Items')
+              }}
+              onOpenQuery={(view) => {
+                setActiveNav('Query')
+                if (view === 'licenses') setQueryTab('Client Licenses')
+                else if (view === 'workstop') setQueryTab('Work Stop')
+              }}
+              onOpenPipeline={() => {
+                setActiveNav('Pipeline')
+                setPipelineTab('My Tasks')
+              }}
+              onOpenNav={(nav) => setActiveNav(nav)}
             />
           ) : (
             <WorkInProgressPage title={activeNav} />
@@ -2768,9 +2834,7 @@ export default function App() {
           {activeNav !== 'Query' && (
           <div className="mt-6 flex flex-col items-center gap-1">
             <div className="flex items-center gap-1.5 text-slate-400">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" opacity="0.5">
-                <path d="M10 2a8 8 0 1 0 0 16A8 8 0 0 0 10 2zm1 11H9V9h2v4zm0-6H9V5h2v2z" />
-              </svg>
+              <Info size={20} strokeWidth={1.5} aria-hidden />
               <span className="text-xs text-slate-400">www.dhwinecompliance.com</span>
             </div>
             <span className="text-xs text-slate-300">v 1.4.0</span>
@@ -2805,9 +2869,7 @@ function PipelineViewModeToggle({
         aria-label="Listing view"
         aria-pressed={mode === 'listing'}
       >
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-          <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
-        </svg>
+        <List size={15} strokeWidth={1.5} aria-hidden />
       </button>
       <button
         type="button"
@@ -2819,11 +2881,7 @@ function PipelineViewModeToggle({
         aria-label="Kanban view"
         aria-pressed={mode === 'kanban'}
       >
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1.75" y="2.5" width="3.5" height="11" rx="1" />
-          <rect x="6.25" y="2.5" width="3.5" height="7" rx="1" />
-          <rect x="10.75" y="2.5" width="3.5" height="9" rx="1" />
-        </svg>
+        <SquareKanban size={15} strokeWidth={1.5} aria-hidden />
       </button>
     </div>
   )
@@ -3009,7 +3067,7 @@ function PipelineTasksKanban({
                           }`}
                         >
                           {row.completed && (
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 5.2L4.2 7.5 8 2.5" /></svg>
+                            <Check size={10} strokeWidth={1.5} aria-hidden />
                           )}
                         </button>
                         <div className="min-w-0 flex-1">
@@ -3030,7 +3088,7 @@ function PipelineTasksKanban({
                               onClick={() => onViewAttachment(row)}
                               className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-[#12518c]"
                             >
-                              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" /></svg>
+                              <Paperclip size={12} strokeWidth={1.5} aria-hidden />
                               {row.attachment.name}
                             </button>
                           )}
@@ -3394,9 +3452,7 @@ function PipelinePage({
                 onClick={clearFilters}
                 className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
+                <X size={12} strokeWidth={1.5} aria-hidden />
                 Clear
               </button>
             )}
@@ -3446,9 +3502,7 @@ function PipelinePage({
                 onClick={clearFilters}
                 className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
+                <X size={12} strokeWidth={1.5} aria-hidden />
                 Clear
               </button>
             )}
@@ -3475,9 +3529,7 @@ function PipelinePage({
                         className="inline-flex items-center gap-1 hover:text-[#12518c] transition-colors"
                       >
                         Last Activity
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={sortDesc ? '' : 'rotate-180'}>
-                          <path d="M5 2.5v5M2.5 5L5 7.5 7.5 5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                        <ChevronDown size={10} strokeWidth={1.5} aria-hidden />
                       </button>
                     </th>
                   )}
@@ -3589,9 +3641,7 @@ function PipelinePage({
                 onClick={clearFilters}
                 className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
+                <X size={12} strokeWidth={1.5} aria-hidden />
                 Clear
               </button>
             )}
@@ -3637,9 +3687,7 @@ function PipelinePage({
                 onClick={clearFilters}
                 className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
+                <X size={12} strokeWidth={1.5} aria-hidden />
                 Clear
               </button>
             )}
@@ -3663,9 +3711,7 @@ function PipelinePage({
                         className="inline-flex items-center gap-1 hover:text-[#12518c] transition-colors"
                       >
                         Date
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={taskSortDesc ? '' : 'rotate-180'}>
-                          <path d="M5 2.5v5M2.5 5L5 7.5 7.5 5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                        <ChevronDown size={10} strokeWidth={1.5} aria-hidden />
                       </button>
                     </th>
                   )}
@@ -3712,9 +3758,7 @@ function PipelinePage({
                           }`}
                         >
                           {row.completed && (
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M2 5.2L4.2 7.5 8 2.5" />
-                            </svg>
+                            <Check size={10} strokeWidth={1.5} aria-hidden />
                           )}
                         </button>
                       </td>
@@ -4130,9 +4174,7 @@ function PipelineProspectDetailPage({
               onClick={onBack}
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#12518c] hover:underline mb-2"
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M7.5 2.5L4 6l3.5 3.5" />
-              </svg>
+              <ChevronLeft size={12} strokeWidth={1.5} aria-hidden />
               Back to Pipeline
             </button>
             <div className="flex flex-wrap items-center gap-2">
@@ -4247,9 +4289,7 @@ function PipelineProspectDetailPage({
                     <span className="w-1.5 h-1.5 rounded-full bg-white/90" aria-hidden />
                   )}
                   {!current && visited && (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                      <path d="M2 5.2L4.2 7.5 8 2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <Check size={10} strokeWidth={1.5} aria-hidden />
                   )}
                   {stageLabel}
                 </button>
@@ -4614,7 +4654,7 @@ function PipelineProspectDetailPage({
                           }`}
                         >
                           {task.completed && (
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 5.2L4.2 7.5 8 2.5" /></svg>
+                            <Check size={10} strokeWidth={1.5} aria-hidden />
                           )}
                         </button>
                         <div className="min-w-0 flex-1">
@@ -4726,7 +4766,7 @@ function PipelineProspectDetailPage({
                           }`}
                         >
                           {task.completed && (
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 5.2L4.2 7.5 8 2.5" /></svg>
+                            <Check size={10} strokeWidth={1.5} aria-hidden />
                           )}
                         </button>
                         <div className="min-w-0 flex-1">
@@ -4803,7 +4843,7 @@ function PipelineProspectDetailPage({
             {docs.map(doc => (
               <div key={doc.id} className="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-2.5">
                 <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center shrink-0">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" /></svg>
+                  <Paperclip size={14} strokeWidth={1.5} aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
@@ -4821,7 +4861,7 @@ function PipelineProspectDetailPage({
                   className="p-1.5 rounded-lg text-slate-400 hover:text-[#bb5757] hover:bg-[#bb5757]/10"
                   aria-label="Delete document"
                 >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2.5 3.5h9M5.5 3.5V2.5h3v1M4 3.5l.5 8h5l.5-8" /></svg>
+                  <Trash2 size={14} strokeWidth={1.5} aria-hidden />
                 </button>
               </div>
             ))}
@@ -4856,7 +4896,7 @@ function PipelineEditProspectModal({
           <p className="text-[11px] text-slate-500">Update contact and lead details</p>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 3l8 8M11 3l-8 8" /></svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-5 py-5 grid grid-cols-2 gap-3.5">
@@ -4983,9 +5023,7 @@ function PipelineAddProspectModal({
           <p className="text-[11px] text-slate-500">Create a new company in the pipeline</p>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-5 py-5 grid grid-cols-2 gap-3.5">
@@ -5066,9 +5104,7 @@ function PipelineTaskAttachmentModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8.5 3.5l-4.2 4.2a2 2 0 0 0 2.8 2.8l4.6-4.6a1.5 1.5 0 0 0-2.1-2.1L5 8.4" />
-            </svg>
+            <Paperclip size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">View attachment</h3>
@@ -5076,9 +5112,7 @@ function PipelineTaskAttachmentModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-5 py-5 space-y-3">
@@ -5091,9 +5125,7 @@ function PipelineTaskAttachmentModal({
       <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2.5">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">Close</button>
         <button type="button" onClick={onDownload} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
-          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M2.5 11.5h9" />
-          </svg>
+          <Download size={12} strokeWidth={1.5} aria-hidden />
           Download
         </button>
       </div>
@@ -5158,9 +5190,7 @@ function PipelineAddTaskModal({
           <p className="text-[11px] text-slate-500">Create a follow-up for a pipeline prospect</p>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-5 py-5 space-y-3.5">
@@ -5541,9 +5571,7 @@ function LicensingPage({
                 onClick={() => { setSearch(''); setTypeFilter(''); setStateFilter(''); setPage(1) }}
                 className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
+                <X size={12} strokeWidth={1.5} aria-hidden />
                 Clear
               </button>
             )}
@@ -5563,19 +5591,7 @@ function LicensingPage({
                         className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors"
                       >
                         State
-                        <svg
-                          width="10"
-                          height="10"
-                          viewBox="0 0 10 10"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className={`transition-transform ${sortAsc ? '' : 'rotate-180'}`}
-                        >
-                          <path d="M5 8V2M2.5 4.5L5 2l2.5 2.5" />
-                        </svg>
+                        <Upload size={10} strokeWidth={1.5} aria-hidden />
                       </button>
                     </th>
                   )}
@@ -5660,10 +5676,7 @@ function LicensingPage({
                             className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                             title="View"
                           >
-                            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                              <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                              <circle cx="8" cy="8" r="1.75" />
-                            </svg>
+                            <Eye size={15} strokeWidth={1.5} aria-hidden />
                           </button>
                           <button
                             type="button"
@@ -5671,9 +5684,7 @@ function LicensingPage({
                             className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                             title="Edit"
                           >
-                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                              <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                            </svg>
+                            <Pencil size={14} strokeWidth={1.5} aria-hidden />
                           </button>
                           <button
                             type="button"
@@ -5681,12 +5692,7 @@ function LicensingPage({
                             className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                             title="Delete"
                           >
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 6h18" />
-                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                              <path d="M10 11v6M14 11v6" />
-                            </svg>
+                            <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                           </button>
                         </div>
                       </td>
@@ -5756,9 +5762,7 @@ function LicensingPage({
                 onClick={clearLogFilters}
                 className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
+                <X size={12} strokeWidth={1.5} aria-hidden />
                 Clear
               </button>
             )}
@@ -5776,9 +5780,7 @@ function LicensingPage({
                         className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors"
                       >
                         Status Date
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className={logSortDesc ? '' : 'rotate-180'}>
-                          <path d="M2.5 4L5 6.5 7.5 4" />
-                        </svg>
+                        <ChevronDown size={10} strokeWidth={1.5} aria-hidden />
                       </button>
                     </th>
                   )}
@@ -5870,9 +5872,7 @@ function LicensingPage({
                 onClick={() => setLogPage(p => Math.max(1, p - 1))}
                 aria-label="Previous page"
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M9 3L5 7l4 4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <ChevronLeft size={14} strokeWidth={1.5} aria-hidden />
               </button>
               {logPageNumbers.map(pageNum => (
                 <button
@@ -5895,9 +5895,7 @@ function LicensingPage({
                 onClick={() => setLogPage(p => Math.min(logPages, p + 1))}
                 aria-label="Next page"
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M5 3l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <ChevronRight size={14} strokeWidth={1.5} aria-hidden />
               </button>
             </div>
           </div>
@@ -6208,10 +6206,7 @@ function LicenseCatalogAddPage({
             <>
             <div className="rounded-xl border border-slate-200 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
               <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-                  <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
-                  <path d="M9.5 2.5V6H13" />
-                </svg>
+                <FileText size={14} strokeWidth={1.5} aria-hidden />
                 <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">License Information</span>
               </div>
               <div className="p-4 bg-white space-y-4">
@@ -6374,9 +6369,7 @@ function LicenseCatalogAddPage({
                     ) : !isView ? (
                       <div className="flex justify-end">
                         <button type="button" onClick={handleAddNewItem} className={btnPrimary}>
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                            <path d="M6 2.5v7M2.5 6h7" />
-                          </svg>
+                          <Plus size={12} strokeWidth={1.5} aria-hidden />
                           Add New Item
                         </button>
                       </div>
@@ -6388,9 +6381,7 @@ function LicenseCatalogAddPage({
             {stateCode && addedItems.length > 0 && (
               <div className="rounded-xl border border-slate-200 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
                 <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-                    <path d="M3.5 4.5h9M3.5 8h9M3.5 11.5h6" />
-                  </svg>
+                  <List size={14} strokeWidth={1.5} aria-hidden />
                   <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Items</span>
                 </div>
                 <div className="overflow-x-auto">
@@ -6428,9 +6419,7 @@ function LicenseCatalogAddPage({
                                 className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                                 title="Edit"
                               >
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                                  <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                                </svg>
+                                <Pencil size={14} strokeWidth={1.5} aria-hidden />
                               </button>
                               <button
                                 type="button"
@@ -6438,12 +6427,7 @@ function LicenseCatalogAddPage({
                                 className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                                 title="Delete"
                               >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M3 6h18" />
-                                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                  <path d="M10 11v6M14 11v6" />
-                                </svg>
+                                <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                               </button>
                             </div>
                           </td>
@@ -6634,9 +6618,7 @@ function QueryFilterChip({ label, onRemove }: { label: string; onRemove: () => v
     <span className="inline-flex items-center gap-1 h-7 pl-2.5 pr-1 rounded-full bg-[#12518c]/10 text-[#12518c] text-[11px] font-semibold">
       {label}
       <button type="button" onClick={onRemove} className="w-5 h-5 inline-flex items-center justify-center rounded-full hover:bg-[#12518c]/15" aria-label={`Remove ${label}`}>
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-          <path d="M2 2l6 6M8 2L2 8" />
-        </svg>
+        <X size={10} strokeWidth={1.5} aria-hidden />
       </button>
     </span>
   )
@@ -7576,10 +7558,7 @@ function WorkInProgressPage({ title }: { title?: string }) {
     <PreviewFrame token={title ?? 'work'} skeleton={<RecordsSkeleton tables={1} />}>
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] text-center">
       <div className="w-16 h-16 rounded-2xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center mb-5">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
-          <circle cx="12" cy="12" r="4" />
-        </svg>
+        <Settings2 size={28} strokeWidth={1.5} aria-hidden />
       </div>
       {title && <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{title}</p>}
       <h1 className="text-2xl font-bold text-slate-900">Work in Progress</h1>
@@ -7598,19 +7577,198 @@ type Favorite = {
   status: string
   alertStatus: AlertStatus
   starred: boolean
+  assigned?: boolean
+}
+
+type DashboardWidgetKey =
+  | 'summary'
+  | 'companies'
+  | 'renewals'
+  | 'reporting'
+  | 'workStops'
+  | 'actionItems'
+  | 'pipelineTasks'
+  | 'newLicenses'
+  | 'activity'
+  | 'quickLinks'
+
+type DashboardWidgetMeta = {
+  key: DashboardWidgetKey
+  label: string
+  description: string
+  role?: 'licensing' | 'reporting'
+}
+
+const DASHBOARD_WIDGET_CATALOG: DashboardWidgetMeta[] = [
+  { key: 'summary', label: 'Summary cards', description: 'Counts for renewals, reports, and action items' },
+  { key: 'companies', label: 'My Companies', description: 'Assigned and favorited companies with alerts' },
+  { key: 'renewals', label: 'Licensing renewals', description: 'Renewals due in the next 30 days', role: 'licensing' },
+  { key: 'reporting', label: 'Reporting deadlines', description: 'Upcoming and past-due reports', role: 'reporting' },
+  { key: 'workStops', label: 'Work Stop & Pending', description: 'Companies flagged Work Stop or Pending' },
+  { key: 'actionItems', label: 'Cellar action items', description: 'Change requests waiting for your approval' },
+  { key: 'newLicenses', label: 'New active licenses', description: 'Recently activated licenses', role: 'licensing' },
+  { key: 'pipelineTasks', label: 'Pipeline my tasks', description: 'Open pipeline follow-ups' },
+  { key: 'activity', label: 'Recent activity', description: 'Latest renewals, Cellar, and Work Stop updates' },
+  { key: 'quickLinks', label: 'Quick links', description: 'Shortcuts to Cellar, Query, Pipeline, Companies' },
+]
+
+const DEFAULT_WIDGET_ORDER: DashboardWidgetKey[] = DASHBOARD_WIDGET_CATALOG.map(w => w.key)
+
+const DEFAULT_WIDGET_ENABLED: Record<DashboardWidgetKey, boolean> = {
+  summary: true,
+  companies: true,
+  renewals: true,
+  reporting: false,
+  workStops: true,
+  actionItems: true,
+  pipelineTasks: false,
+  newLicenses: false,
+  activity: true,
+  quickLinks: false,
 }
 
 function DashboardPage({
   favorites,
   toggleStar,
   setAlertStatus,
+  actionItems,
+  onOpenActionItems,
+  onOpenQuery,
+  onOpenPipeline,
+  onOpenNav,
 }: {
   favorites: Favorite[]
   toggleStar: (index: number) => void
   setAlertStatus: (index: number, status: AlertStatus) => void
+  actionItems: ActionItemRow[]
+  onOpenActionItems: () => void
+  onOpenQuery: (view: 'licenses' | 'workstop') => void
+  onOpenPipeline: () => void
+  onOpenNav: (nav: string) => void
 }) {
+  const actionItemCount = actionItems.length
+  const [roleView, setRoleView] = useState<DashboardRoleView>('Licensing')
+  const [widgetsOpen, setWidgetsOpen] = useState(false)
+  const roleAllowsLicensing = roleView === 'Licensing' || roleView === 'Both'
+  const roleAllowsReporting = roleView === 'Reporting' || roleView === 'Both'
+
+  const [savedOrder, setSavedOrder] = useState<DashboardWidgetKey[]>(DEFAULT_WIDGET_ORDER)
+  const [savedEnabled, setSavedEnabled] = useState<Record<DashboardWidgetKey, boolean>>(DEFAULT_WIDGET_ENABLED)
+  const [draftOrder, setDraftOrder] = useState<DashboardWidgetKey[]>(DEFAULT_WIDGET_ORDER)
+  const [draftEnabled, setDraftEnabled] = useState<Record<DashboardWidgetKey, boolean>>(DEFAULT_WIDGET_ENABLED)
+  const [dragKey, setDragKey] = useState<DashboardWidgetKey | null>(null)
+  const [dragOverKey, setDragOverKey] = useState<DashboardWidgetKey | null>(null)
+
+  const isWidgetLocked = (key: DashboardWidgetKey) => {
+    const meta = DASHBOARD_WIDGET_CATALOG.find(w => w.key === key)
+    if (meta?.role === 'licensing' && !roleAllowsLicensing) return true
+    if (meta?.role === 'reporting' && !roleAllowsReporting) return true
+    return false
+  }
+
+  const openWidgetsModal = () => {
+    setDraftOrder([...savedOrder])
+    setDraftEnabled({ ...savedEnabled })
+    setWidgetsOpen(true)
+  }
+
+  const closeWidgetsModal = () => {
+    setWidgetsOpen(false)
+    setDragKey(null)
+    setDragOverKey(null)
+  }
+
+  const saveWidgetsModal = () => {
+    const nextEnabled = { ...draftEnabled }
+    DASHBOARD_WIDGET_CATALOG.forEach(w => {
+      if (isWidgetLocked(w.key)) nextEnabled[w.key] = false
+    })
+    setSavedOrder([...draftOrder])
+    setSavedEnabled(nextEnabled)
+    closeWidgetsModal()
+  }
+
+  useEffect(() => {
+    setSavedEnabled(prev => {
+      const next = { ...prev }
+      DASHBOARD_WIDGET_CATALOG.forEach(w => {
+        if (w.role === 'licensing') next[w.key] = roleAllowsLicensing ? (prev[w.key] || w.key === 'renewals') : false
+        if (w.role === 'reporting') next[w.key] = roleAllowsReporting ? (prev[w.key] || w.key === 'reporting') : false
+      })
+      if (roleAllowsLicensing && !prev.renewals && !next.renewals) next.renewals = true
+      if (roleAllowsReporting && !prev.reporting) next.reporting = true
+      return next
+    })
+  }, [roleView, roleAllowsLicensing, roleAllowsReporting])
+
+  const widgetOrderIndex = (key: DashboardWidgetKey) => {
+    const idx = savedOrder.indexOf(key)
+    return idx === -1 ? 99 : idx
+  }
+
+  const showLicensing = roleAllowsLicensing && savedEnabled.renewals
+  const showReporting = roleAllowsReporting && savedEnabled.reporting
+  const showSummary = savedEnabled.summary
+  const showCompanies = savedEnabled.companies
+  const showWorkStops = savedEnabled.workStops
+  const showActionItems = savedEnabled.actionItems
+  const showPipelineTasks = savedEnabled.pipelineTasks
+  const showNewLicenses = roleAllowsLicensing && savedEnabled.newLicenses
+  const showActivity = savedEnabled.activity
+  const showQuickLinks = savedEnabled.quickLinks
+
+  // Assigned OR favorited → same dashboard visibility (no duplicates by company name)
+  const visibleCompanies = favorites.filter(c => c.assigned || c.starred)
+  const favoritedCount = favorites.filter(c => c.starred).length
+  const visibleNames = new Set(visibleCompanies.map(c => c.name))
+  const scopedRenewals = RENEWALS.filter(r => visibleNames.has(r.name))
+  const pastDueCount = scopedRenewals.filter(r => r.actionDays === 'Expired').length
+  const renewingSoonCount = scopedRenewals.filter(r => r.actionDays !== 'Expired').length
+  const scopedReports = REPORTING_DEADLINES.filter(r => visibleNames.has(r.name))
+  const pastDueReports = scopedReports.filter(r => r.status === 'Past Due').length
+  const dueSoonReports = scopedReports.filter(r => r.status === 'Due Soon').length
+  const workStopCompanies = visibleCompanies.filter(c => c.alertStatus === 'Work Stop' || c.alertStatus === 'Pending')
+  const openPipelineTasks = PIPELINE_TASKS.filter(t => !t.completed)
+  const scopedNewLicenses = DASHBOARD_NEW_LICENSES.filter(r => visibleNames.has(r.name))
+
+  const moveDraftWidget = (fromKey: DashboardWidgetKey, toKey: DashboardWidgetKey) => {
+    if (fromKey === toKey) return
+    setDraftOrder(prev => {
+      const next = [...prev]
+      const from = next.indexOf(fromKey)
+      const to = next.indexOf(toKey)
+      if (from < 0 || to < 0) return prev
+      next.splice(from, 1)
+      next.splice(to, 0, fromKey)
+      return next
+    })
+  }
+
+  const toggleDraftWidget = (key: DashboardWidgetKey) => {
+    if (isWidgetLocked(key)) return
+    const turningOff = draftEnabled[key]
+    setDraftEnabled(prev => ({ ...prev, [key]: !prev[key] }))
+    if (turningOff) {
+      // Off widgets sink to the bottom of the list
+      setDraftOrder(prev => {
+        const next = prev.filter(k => k !== key)
+        next.push(key)
+        return next
+      })
+    } else {
+      // On again → sit above the off widgets
+      setDraftOrder(prev => {
+        const without = prev.filter(k => k !== key)
+        const insertAt = without.findIndex(k => !draftEnabled[k])
+        without.splice(insertAt < 0 ? without.length : insertAt, 0, key)
+        return without
+      })
+    }
+  }
+
   const favCols = useTableColumns([
     { key: 'name', label: 'Company Name' },
+    { key: 'visibility', label: 'Why Visible' },
     { key: 'type', label: 'Company Type' },
     { key: 'dba', label: 'DBA' },
     { key: 'status', label: 'Status' },
@@ -7626,35 +7784,236 @@ function DashboardPage({
     { key: 'expiryDate', label: 'Expiration Date' },
     { key: 'actionDays', label: 'Action (Days)' },
   ])
+  const reportCols = useTableColumns([
+    { key: 'name', label: 'Company Name' },
+    { key: 'state', label: 'State' },
+    { key: 'report', label: 'Report' },
+    { key: 'dueDate', label: 'Due Date' },
+    { key: 'status', label: 'Status' },
+  ])
+
+  const licensingStats = [
+    { label: 'New Active Licenses', value: '24', change: '+2 this month', color: 'bg-[#12518c]/10 text-[#12518c]', onClick: () => onOpenQuery('licenses') },
+    { label: 'Past Due Renewals', value: String(pastDueCount), change: 'Renewal timing past due', color: 'bg-danger-light text-danger', onClick: () => onOpenQuery('licenses') },
+    { label: 'Renewing Soon', value: String(renewingSoonCount || 12), change: 'Next 30 days', color: 'bg-[#e1c16e]/15 text-[#a1802b]', onClick: () => onOpenQuery('licenses') },
+    { label: 'My Action Items', value: String(actionItemCount), change: 'Pending Cellar requests', color: 'bg-[#BBDCFC] text-[#3B4A59]', onClick: onOpenActionItems },
+  ]
+
+  const reportingStats = [
+    { label: 'Past Due Reports', value: String(pastDueReports), change: 'Needs attention', color: 'bg-danger-light text-danger', onClick: () => {} },
+    { label: 'Due Soon', value: String(dueSoonReports), change: 'Next 30 days', color: 'bg-[#e1c16e]/15 text-[#a1802b]', onClick: () => {} },
+    { label: 'My Action Items', value: String(actionItemCount), change: 'Pending Cellar requests', color: 'bg-[#BBDCFC] text-[#3B4A59]', onClick: onOpenActionItems },
+  ]
+
+  const summaryCards = roleAllowsLicensing && !roleAllowsReporting
+    ? licensingStats
+    : !roleAllowsLicensing && roleAllowsReporting
+      ? reportingStats
+      : [
+          ...licensingStats.slice(0, 3),
+          reportingStats[0],
+          licensingStats[3],
+        ]
+
+  const visibilityLabel = (c: Favorite) => {
+    if (c.assigned && c.starred) return 'Assigned + Favorite'
+    if (c.assigned) return 'Assigned specialist'
+    if (c.starred) return 'Favorite only'
+    return '—'
+  }
+
   return (
     <>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Compliance Management Overview</p>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-500 mt-0.5">One dashboard — widgets by role. Favorites and assignments share the same visibility.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 self-start">
+          <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5" role="group" aria-label="Demo role view">
+            {(['Licensing', 'Reporting', 'Both'] as const).map(role => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setRoleView(role)}
+                className={`px-3 h-8 rounded-md text-xs font-semibold transition-colors ${
+                  roleView === role ? 'bg-white text-[#12518c] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+                aria-pressed={roleView === role}
+              >
+                {role}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={openWidgetsModal}
+            className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition-colors ${
+              widgetsOpen
+                ? 'border-[#12518c] bg-[#12518c]/5 text-[#12518c]'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+            }`}
+            aria-haspopup="dialog"
+          >
+            <LayoutGrid size={14} strokeWidth={1.5} aria-hidden />
+            Customize widgets
+          </button>
+        </div>
       </div>
 
-      <PreviewFrame token="dashboard" skeleton={<RecordsSkeleton stats tables={2} />}>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'New Active Licenses', value: '24', change: '+2 this month', color: 'bg-[#12518c]/10 text-[#12518c]' },
-          { label: 'Expired', value: '5', change: 'Needs attention (expired and past due)', color: 'bg-danger-light text-danger' },
-          { label: 'Renewing Soon', value: '12', change: 'Next 30 days', color: 'bg-[#e1c16e]/15 text-[#a1802b]' },
-          { label: 'Favorite Companies', value: '1', change: 'Pinned', color: 'bg-[#BBDCFC] text-[#3B4A59]' },
-        ].map(stat => (
-          <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-4">
+      {widgetsOpen && (
+        <AddressModalShell maxWidth="max-w-2xl" onClose={closeWidgetsModal}>
+          <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-slate-100">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-slate-900">Customize dashboard</h2>
+              <p className="text-sm text-slate-500 mt-1">Select widgets, drag to reorder, then save. Layout applies to your dashboard.</p>
+            </div>
+            <button
+              type="button"
+              onClick={closeWidgetsModal}
+              className="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 flex items-center justify-center shrink-0"
+              aria-label="Close"
+            >
+              <X size={16} strokeWidth={1.5} aria-hidden />
+            </button>
+          </div>
+          <div className="px-5 py-4 max-h-[min(60vh,520px)] overflow-y-auto space-y-2.5">
+            {draftOrder.filter(key => !isWidgetLocked(key)).map(key => {
+              const meta = DASHBOARD_WIDGET_CATALOG.find(w => w.key === key)!
+              const selected = draftEnabled[key]
+              const isDragging = dragKey === key
+              const isOver = dragOverKey === key && dragKey !== key
+              return (
+                <div
+                  key={key}
+                  draggable
+                  onDragStart={e => {
+                    setDragKey(key)
+                    e.dataTransfer.effectAllowed = 'move'
+                    e.dataTransfer.setData('text/widget-key', key)
+                  }}
+                  onDragEnd={() => {
+                    setDragKey(null)
+                    setDragOverKey(null)
+                  }}
+                  onDragOver={e => {
+                    if (!dragKey) return
+                    e.preventDefault()
+                    setDragOverKey(key)
+                  }}
+                  onDrop={e => {
+                    e.preventDefault()
+                    const from = (e.dataTransfer.getData('text/widget-key') || dragKey) as DashboardWidgetKey
+                    if (from) moveDraftWidget(from, key)
+                    setDragKey(null)
+                    setDragOverKey(null)
+                  }}
+                  className={`w-full rounded-xl border px-4 py-3.5 transition-all ${
+                    selected
+                      ? 'border-[#12518c]/35 bg-[#12518c]/5 shadow-sm'
+                      : 'border-slate-200 bg-white'
+                  } ${isDragging ? 'opacity-50 ring-2 ring-[#12518c]/20' : ''} ${isOver ? 'border-[#12518c] border-dashed' : ''}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 text-slate-400 cursor-grab active:cursor-grabbing hover:bg-slate-100"
+                      title="Drag to reorder"
+                      aria-hidden
+                    >
+                      <GripVertical size={14} strokeWidth={1.5} aria-hidden />
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleDraftWidget(key)}
+                      className="flex-1 min-w-0 text-left"
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-sm font-semibold ${selected ? 'text-slate-900' : 'text-slate-600'}`}>{meta.label}</span>
+                        {meta.role && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+                            {meta.role}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-snug">{meta.description}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleDraftWidget(key)}
+                      className={`shrink-0 w-10 h-6 rounded-full transition-colors relative ${
+                        selected ? 'bg-[#12518c]' : 'bg-slate-200'
+                      }`}
+                      aria-pressed={selected}
+                      aria-label={`${selected ? 'Hide' : 'Show'} ${meta.label}`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                          selected ? 'translate-x-4' : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100 bg-slate-50/80 rounded-b-2xl">
+            <button
+              type="button"
+              onClick={closeWidgetsModal}
+              className="h-9 px-4 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveWidgetsModal}
+              className="h-9 px-4 rounded-lg bg-[#12518c] text-sm font-semibold text-white hover:bg-[#0e4173]"
+            >
+              Save dashboard
+            </button>
+          </div>
+        </AddressModalShell>
+      )}
+
+      <PreviewFrame
+        token={`dashboard-${roleView}-${savedOrder.join('.')}-${Object.values(savedEnabled).map(v => (v ? 1 : 0)).join('')}`}
+        skeleton={<RecordsSkeleton stats tables={2} />}
+      >
+      <div className="flex flex-col">
+      {showSummary && (
+      <div style={{ order: widgetOrderIndex('summary') }} className={`grid grid-cols-2 ${summaryCards.length > 4 ? 'xl:grid-cols-5' : 'lg:grid-cols-4'} gap-4 mb-6`}>
+        {summaryCards.map(stat => (
+          <button
+            key={stat.label}
+            type="button"
+            onClick={stat.onClick}
+            className="text-left bg-white rounded-xl border border-slate-200 p-4 hover:border-[#12518c]/40 hover:shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#12518c]/30"
+          >
             <div className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md mb-3 ${stat.color}`}>
               {stat.change}
             </div>
             <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
-            <div className="text-sm text-slate-500 mt-0.5">{stat.label}</div>
-          </div>
+            <div className="text-sm text-slate-500 mt-0.5 flex items-center justify-between gap-2">
+              <span>{stat.label}</span>
+              <span className="text-[#12518c] text-xs font-semibold shrink-0">Open →</span>
+            </div>
+          </button>
         ))}
       </div>
+      )}
 
-      <div className="mb-5">
-        <h2 className="text-base font-semibold text-slate-900 mb-3">My Favorite Companies</h2>
+      {showCompanies && (
+      <div style={{ order: widgetOrderIndex('companies') }} className="mb-5">
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-base font-semibold text-slate-900">My Companies</h2>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
+            {favoritedCount} favorite{favoritedCount === 1 ? '' : 's'}
+          </span>
+          <span className="text-xs text-slate-400">Assigned or favorited · counted once</span>
+        </div>
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <TableSectionHeader title="My Favorite Companies">
+        <TableSectionHeader title="My Companies">
           <SearchInput placeholder="Search here…" />
           <Select placeholder="Status" options={['Active', 'Inactive', 'Archived']} />
           <Select placeholder="Alerts" options={['Pending', 'Work Stop', 'No Alert']} />
@@ -7666,6 +8025,7 @@ function DashboardPage({
               <tr className="border-b border-slate-100">
                 <th className="pl-4 pr-0 py-3 w-7" />
                 {favCols.show('name') && <th className="text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide pl-2 pr-5 text-left">Company Name</th>}
+                {favCols.show('visibility') && <th className="text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide px-5 text-left">Why Visible</th>}
                 {favCols.show('type') && <th className="text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide px-5 text-left">Company Type</th>}
                 {favCols.show('dba') && <th className="text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide px-5 text-left">DBA</th>}
                 {favCols.show('status') && <th className="text-xs font-semibold text-slate-500 py-3 uppercase tracking-wide px-5 text-center">Status</th>}
@@ -7673,9 +8033,11 @@ function DashboardPage({
               </tr>
             </thead>
             <tbody>
-              {favorites.map((c, i) => (
+              {visibleCompanies.map((c) => {
+                const i = favorites.findIndex(f => f.name === c.name && f.dba === c.dba)
+                return (
                 <tr
-                  key={i}
+                  key={`${c.name}-${c.dba}`}
                   className={`transition-colors ${
                     c.alertStatus === 'Work Stop'
                       ? 'bg-danger-light hover:bg-danger-lighter text-danger'
@@ -7684,18 +8046,21 @@ function DashboardPage({
                 >
                   <td className="pl-4 pr-0 py-3.5">
                     <button
-                      onClick={() => toggleStar(i)}
+                      onClick={() => i >= 0 && toggleStar(i)}
                       className="group flex items-center justify-center w-6 h-6 rounded-md hover:bg-[#e1c16e]/20 transition-colors"
                       title={c.starred ? 'Remove from favorites' : 'Add to favorites'}
                     >
-                      <svg width="15" height="15" viewBox="0 0 15 15" fill={c.starred ? '#e1c16e' : 'none'} stroke={c.starred ? '#e1c16e' : (c.alertStatus === 'Work Stop' ? '#bb5757' : '#94a3b8')} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="transition-all group-hover:scale-110">
-                        <path d="M7.5 1.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" />
-                      </svg>
+                      <Star size={15} strokeWidth={1.4} className="transition-all group-hover:scale-110" fill={c.starred ? '#e1c16e' : 'none'} stroke={c.starred ? '#e1c16e' : (c.alertStatus === 'Work Stop' ? '#bb5757' : '#94a3b8')} aria-hidden />
                     </button>
                   </td>
                   {favCols.show('name') && (
                     <td className="pl-2 pr-5 py-3.5">
                       <span className={`text-sm font-medium cursor-pointer ${c.alertStatus === 'Work Stop' ? 'text-danger hover:text-danger-hover' : 'text-[#12518c] hover:text-[#0e4173]'}`}>{c.name}</span>
+                    </td>
+                  )}
+                  {favCols.show('visibility') && (
+                    <td className="px-5 py-3.5">
+                      <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600">{visibilityLabel(c)}</span>
                     </td>
                   )}
                   {favCols.show('type') && <td className={`px-5 py-3.5 text-sm ${c.alertStatus === 'Work Stop' ? 'text-danger' : 'text-slate-600'}`}>{c.type}</td>}
@@ -7710,20 +8075,22 @@ function DashboardPage({
                       <div className="flex justify-center">
                         <AlertDropdown
                           status={c.alertStatus}
-                          onChange={(s) => setAlertStatus(i, s)}
+                          onChange={(s) => i >= 0 && setAlertStatus(i, s)}
                         />
                       </div>
                     </td>
                   )}
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
         </div>
       </div>
+      )}
 
-      <div>
+      {showLicensing && (
+      <div style={{ order: widgetOrderIndex('renewals') }} className="mb-5">
         <h2 className="text-base font-semibold text-slate-900 mb-3">Renewals Due in the Next 30 Days</h2>
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <TableSectionHeader title="Renewals Due in the Next 30 Days">
@@ -7747,7 +8114,7 @@ function DashboardPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {RENEWALS.map((r, i) => (
+              {scopedRenewals.map((r, i) => (
                 <tr key={i} className="hover:bg-slate-50 transition-colors">
                   {renewalCols.show('name') && (
                     <td className="px-5 py-3.5">
@@ -7766,9 +8133,13 @@ function DashboardPage({
                   {renewalCols.show('expiryDate') && <td className="px-5 py-3.5 text-sm text-slate-500">{r.expiryDate || '—'}</td>}
                   {renewalCols.show('actionDays') && (
                     <td className="px-5 py-3.5">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-danger-light text-danger border border-danger-border">
-                        <span className="w-1.5 h-1.5 rounded-full bg-danger-muted inline-block" />
-                        {r.actionDays}
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                        r.actionDays === 'Expired'
+                          ? 'bg-danger-light text-danger border-danger-border'
+                          : 'bg-[#e1c16e]/15 text-[#a1802b] border-[#e1c16e]/40'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full inline-block ${r.actionDays === 'Expired' ? 'bg-danger-muted' : 'bg-[#e1c16e]'}`} />
+                        {r.actionDays === 'Expired' ? 'Past Due' : r.actionDays}
                       </span>
                     </td>
                   )}
@@ -7778,14 +8149,279 @@ function DashboardPage({
           </table>
         </div>
         <div className="flex justify-end px-5 py-3.5 border-t border-slate-100">
-          <button className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] transition-colors flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onOpenQuery('licenses')}
+            className="text-sm font-medium text-[#12518c] hover:text-[#0e4173] transition-colors flex items-center gap-1"
+          >
             View All
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 7h10M8 3l4 4-4 4" />
-            </svg>
+            <ArrowRight size={14} strokeWidth={1.5} aria-hidden />
           </button>
         </div>
         </div>
+      </div>
+      )}
+
+      {showReporting && (
+      <div style={{ order: widgetOrderIndex('reporting') }} className="mb-5">
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-base font-semibold text-slate-900">Reporting Deadlines</h2>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#e1c16e]/20 text-[#8a6d24]">
+            Placeholder — Reporting module
+          </span>
+        </div>
+        <div className="bg-white rounded-xl border border-dashed border-slate-300 overflow-hidden">
+        <TableSectionHeader title="Upcoming & Past-Due Reports">
+          <p className="text-xs text-slate-500 mr-auto">Sample layout for OOS Reporting. Final fields ship with the Reporting module.</p>
+          <ColumnSettingsDropdown {...reportCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+        </TableSectionHeader>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100">
+                {reportCols.show('name') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Company Name</th>}
+                {reportCols.show('state') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">State</th>}
+                {reportCols.show('report') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Report</th>}
+                {reportCols.show('dueDate') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Due Date</th>}
+                {reportCols.show('status') && <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Status</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {scopedReports.map((r, i) => (
+                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                  {reportCols.show('name') && (
+                    <td className="px-5 py-3.5">
+                      <span className="text-sm font-medium text-[#12518c]">{r.name}</span>
+                    </td>
+                  )}
+                  {reportCols.show('state') && (
+                    <td className="px-5 py-3.5">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">{r.state}</span>
+                    </td>
+                  )}
+                  {reportCols.show('report') && <td className="px-5 py-3.5 text-sm text-slate-600">{r.report}</td>}
+                  {reportCols.show('dueDate') && <td className="px-5 py-3.5 text-sm text-slate-600">{r.dueDate}</td>}
+                  {reportCols.show('status') && (
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                        r.status === 'Past Due'
+                          ? 'bg-danger-light text-danger border-danger-border'
+                          : 'bg-[#e1c16e]/15 text-[#a1802b] border-[#e1c16e]/40'
+                      }`}>
+                        {r.status}
+                      </span>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        </div>
+      </div>
+      )}
+
+      {showWorkStops && (
+      <div style={{ order: widgetOrderIndex('workStops') }} className="mb-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-slate-900">Work Stop & Pending Alerts</h2>
+            <span className="inline-flex min-w-[22px] h-5 px-1.5 rounded-full text-[10px] font-bold items-center justify-center bg-danger-light text-danger border border-danger-border">
+              {workStopCompanies.length}
+            </span>
+          </div>
+          <button type="button" onClick={() => onOpenQuery('workstop')} className="text-sm font-medium text-[#12518c] hover:text-[#0e4173]">
+            View in Query →
+          </button>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {workStopCompanies.length === 0 ? (
+            <p className="px-5 py-8 text-sm text-slate-400 text-center">No Work Stop or Pending alerts on your companies.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {workStopCompanies.map(c => (
+                <li key={`${c.name}-alert`} className={`flex items-center justify-between gap-3 px-5 py-3.5 ${c.alertStatus === 'Work Stop' ? 'bg-danger-light/40' : ''}`}>
+                  <div className="min-w-0">
+                    <p className={`text-sm font-medium truncate ${c.alertStatus === 'Work Stop' ? 'text-danger' : 'text-slate-800'}`}>{c.name}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{visibilityLabel(c)}</p>
+                  </div>
+                  <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${
+                    c.alertStatus === 'Work Stop'
+                      ? 'bg-danger-light text-danger border-danger-border'
+                      : 'bg-[#e1c16e]/15 text-[#8a6d24] border-[#e1c16e]/40'
+                  }`}>
+                    {c.alertStatus}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      )}
+
+      {showActionItems && (
+      <div style={{ order: widgetOrderIndex('actionItems') }} className="mb-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-slate-900">My Action Items</h2>
+            <span className="inline-flex min-w-[22px] h-5 px-1.5 rounded-full text-[10px] font-bold items-center justify-center bg-[#BBDCFC] text-[#3B4A59]">
+              {actionItemCount}
+            </span>
+          </div>
+          <button type="button" onClick={onOpenActionItems} className="text-sm font-medium text-[#12518c] hover:text-[#0e4173]">
+            Open Cellar →
+          </button>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {actionItems.length === 0 ? (
+            <p className="px-5 py-8 text-sm text-slate-400 text-center">No pending Cellar requests for you.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Company</th>
+                    <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Field</th>
+                    <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Change</th>
+                    <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Requested</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {actionItems.map(row => (
+                    <tr key={row.id} className="hover:bg-slate-50 cursor-pointer" onClick={onOpenActionItems}>
+                      <td className="px-5 py-3.5 text-sm font-medium text-[#12518c]">{row.companyContactName}</td>
+                      <td className="px-5 py-3.5 text-sm text-slate-600">{row.field}</td>
+                      <td className="px-5 py-3.5 text-sm text-slate-500">
+                        <span className="line-through text-slate-400 mr-1">{row.previousData}</span>
+                        → {row.updatedData}
+                      </td>
+                      <td className="px-5 py-3.5 text-xs text-slate-400 whitespace-nowrap">{row.requestDate}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+      )}
+
+      {showNewLicenses && (
+      <div style={{ order: widgetOrderIndex('newLicenses') }} className="mb-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold text-slate-900">New Active Licenses</h2>
+          <button type="button" onClick={() => onOpenQuery('licenses')} className="text-sm font-medium text-[#12518c] hover:text-[#0e4173]">
+            View All →
+          </button>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Company</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">State</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Item</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">License #</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">Activated</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {scopedNewLicenses.map((r, i) => (
+                  <tr key={i} className="hover:bg-slate-50">
+                    <td className="px-5 py-3.5 text-sm font-medium text-[#12518c]">{r.name}</td>
+                    <td className="px-5 py-3.5"><span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">{r.state}</span></td>
+                    <td className="px-5 py-3.5 text-sm text-slate-600">{r.item}</td>
+                    <td className="px-5 py-3.5 text-sm font-mono text-slate-700">{r.license}</td>
+                    <td className="px-5 py-3.5 text-sm text-slate-500">{r.activated}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {showPipelineTasks && (
+      <div style={{ order: widgetOrderIndex('pipelineTasks') }} className="mb-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-slate-900">Pipeline — My Tasks</h2>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500">Explore</span>
+          </div>
+          <button type="button" onClick={onOpenPipeline} className="text-sm font-medium text-[#12518c] hover:text-[#0e4173]">
+            Open Pipeline →
+          </button>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <ul className="divide-y divide-slate-100">
+            {openPipelineTasks.map(task => (
+              <li key={task.id} className="px-5 py-3.5 hover:bg-slate-50">
+                <p className="text-sm font-medium text-slate-800 line-clamp-2">{task.task}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
+                  <span className="text-[#12518c] font-medium">{task.company}</span>
+                  <span aria-hidden>·</span>
+                  <span>{task.date}</span>
+                  <span aria-hidden>·</span>
+                  <span>{task.createdBy}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      )}
+
+      {showActivity && (
+      <div style={{ order: widgetOrderIndex('activity') }} className="mb-5">
+        <h2 className="text-base font-semibold text-slate-900 mb-3">Recent Activity</h2>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <ul className="divide-y divide-slate-100">
+            {DASHBOARD_ACTIVITY.map(item => (
+              <li key={item.title} className="flex gap-3 px-5 py-3.5 hover:bg-slate-50">
+                <span
+                  className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${
+                    item.tone === 'danger' ? 'bg-danger'
+                      : item.tone === 'warning' ? 'bg-[#e1c16e]'
+                      : item.tone === 'action' ? 'bg-[#12518c]'
+                      : 'bg-slate-300'
+                  }`}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-800">{item.title}</p>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{item.detail}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{item.time}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      )}
+
+      {showQuickLinks && (
+      <div style={{ order: widgetOrderIndex('quickLinks') }} className="mb-5">
+        <h2 className="text-base font-semibold text-slate-900 mb-3">Quick Links</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {DASHBOARD_QUICK_LINKS.map(({ label, hint, nav, Icon }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => onOpenNav(nav)}
+              className="text-left bg-white rounded-xl border border-slate-200 px-4 py-3.5 hover:border-[#12518c]/40 hover:shadow-sm transition-all group"
+            >
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-[#12518c]/10 text-[#12518c] mb-2.5 group-hover:bg-[#12518c]/15 transition-colors">
+                <Icon size={18} strokeWidth={1.5} aria-hidden />
+              </span>
+              <p className="text-sm font-semibold text-[#12518c]">{label}</p>
+              <p className="text-xs text-slate-500 mt-1">{hint}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+      )}
       </div>
       </PreviewFrame>
     </>
@@ -7847,9 +8483,7 @@ function ApprovalNotesModal({
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0 disabled:opacity-40"
           aria-label="Close"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -7915,10 +8549,7 @@ function ApprovalNotesModal({
           }`}
         >
           {submitting && (
-            <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
-              <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-            </svg>
+            <Loader2 size={13} strokeWidth={1.5} className="animate-spin" aria-hidden />
           )}
           {submitting ? 'Submitting…' : submitLabel}
         </button>
@@ -7959,9 +8590,7 @@ function NotesPreviewModal({
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0"
           aria-label="Close"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-6 py-5">
@@ -7983,9 +8612,7 @@ function NotesPreviewModal({
 function CellarToast({ message }: { message: string }) {
   return createPortal(
     <div className="fixed bottom-6 right-6 z-[10000] flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#BBDCFC] text-[#12518c] text-sm font-medium shadow-lg animate-[fadeIn_0.2s_ease-out]">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3.5 8.5l3 3 6-6" />
-      </svg>
+      <Check size={16} strokeWidth={1.5} aria-hidden />
       {message}
     </div>,
     document.body
@@ -8394,9 +9021,7 @@ function CellarPage({
                 onClick={clearFinalFilters}
                 className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
+                <X size={12} strokeWidth={1.5} aria-hidden />
                 Clear
               </button>
             )}
@@ -8501,10 +9126,7 @@ function CellarPage({
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-white bg-[#bb5757] hover:bg-[#a64a4a] transition-colors"
                             title="Revert this decision"
                           >
-                            <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 5.5A5 5 0 1 1 2.5 8" />
-                              <path d="M3 2.5v3h3" />
-                            </svg>
+                            <RefreshCw size={11} strokeWidth={1.5} aria-hidden />
                             Revert
                           </button>
                         </div>
@@ -8529,9 +9151,7 @@ function CellarPage({
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 aria-label="Previous page"
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M9 3L5 7l4 4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <ChevronLeft size={14} strokeWidth={1.5} aria-hidden />
               </button>
               {finalPageNumbers.map(pageNum => (
                 <button
@@ -8554,9 +9174,7 @@ function CellarPage({
                 onClick={() => setPage(p => Math.min(finalDecisionPages, p + 1))}
                 aria-label="Next page"
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M5 3l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <ChevronRight size={14} strokeWidth={1.5} aria-hidden />
               </button>
             </div>
           </div>
@@ -8595,9 +9213,7 @@ function CellarPage({
                         className="inline-flex items-center gap-1 hover:text-[#12518c] transition-colors"
                       >
                         Request Date
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={sortDesc ? '' : 'rotate-180'}>
-                          <path d="M2.5 3.5L5 6l2.5-2.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                        <ChevronUp size={10} strokeWidth={1.5} aria-hidden />
                       </button>
                     </th>
                   )}
@@ -8737,9 +9353,7 @@ function CellarPage({
                 onClick={clearPendingFilters}
                 className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M3 3l8 8M11 3l-8 8" />
-                </svg>
+                <X size={12} strokeWidth={1.5} aria-hidden />
                 Clear
               </button>
             )}
@@ -8837,10 +9451,7 @@ function CellarPage({
                             className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-[#12518c] transition-colors"
                             title="View notes"
                           >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M4 2h5l3 3v8.5a1.5 1.5 0 0 1-1.5 1.5h-6.5A1.5 1.5 0 0 1 2.5 13.5v-10A1.5 1.5 0 0 1 4 2z" />
-                              <path d="M9 2v3h3M5.5 8h5M5.5 10.5h5M5.5 13h3" />
-                            </svg>
+                            <FileText size={16} strokeWidth={1.5} aria-hidden />
                           </button>
                           <button
                             type="button"
@@ -8940,10 +9551,7 @@ function PeoplePage({
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="All People" subtitle="Manage contacts across clients, agencies, vendors, and industry partners">
           <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="5" cy="5" r="3.5" />
-              <path d="M8 8l2.5 2.5" strokeLinecap="round" />
-            </svg>
+            <Check size={13} strokeWidth={1.5} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
             <input
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
@@ -8973,9 +9581,7 @@ function PeoplePage({
           </FilterSelect>
           {filtersActive && (
             <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={12} strokeWidth={1.5} aria-hidden />
               Clear
             </button>
           )}
@@ -9210,9 +9816,7 @@ function AgenciesPage({
               onClick={clearFilters}
               className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
             >
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={12} strokeWidth={1.5} aria-hidden />
               Clear
             </button>
           )}
@@ -9237,19 +9841,7 @@ function AgenciesPage({
                       className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors"
                     >
                       Agency Name
-                      <svg
-                        width="10"
-                        height="10"
-                        viewBox="0 0 10 10"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={`transition-transform ${sortAsc ? '' : 'rotate-180'}`}
-                      >
-                        <path d="M5 8V2M2.5 4.5L5 2l2.5 2.5" />
-                      </svg>
+                      <Upload size={10} strokeWidth={1.5} aria-hidden />
                     </button>
                   </th>
                 )}
@@ -9350,9 +9942,7 @@ function AgenciesPage({
                           className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                           title="Edit"
                         >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                          </svg>
+                          <Pencil size={14} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -9360,12 +9950,7 @@ function AgenciesPage({
                           className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                           title="Delete"
                         >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            <path d="M10 11v6M14 11v6" />
-                          </svg>
+                          <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                       </div>
                     </td>
@@ -9478,10 +10063,7 @@ function AgencyFormModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 14V7l6-5 6 5v7H2z" />
-              <rect x="6" y="10" width="4" height="4" />
-            </svg>
+            <Home size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'Edit Agency' : 'Add Agency'}</h3>
@@ -9491,9 +10073,7 @@ function AgencyFormModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -9664,10 +10244,7 @@ function AgencyDetailPage({
                 onClick={() => setLicenseToast(true)}
                 className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
               >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="2" width="10" height="12" rx="1.5" />
-                  <path d="M6 6h4M6 9h4M6 12h2" />
-                </svg>
+                <FileText size={14} strokeWidth={1.5} aria-hidden />
                 View Client Licenses
               </button>
               <button
@@ -9676,9 +10253,7 @@ function AgencyDetailPage({
                 className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
                 title="Edit"
               >
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                </svg>
+                <Pencil size={15} strokeWidth={1.5} aria-hidden />
               </button>
               <button
                 type="button"
@@ -9686,11 +10261,7 @@ function AgencyDetailPage({
                 className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                 title="Delete"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                </svg>
+                <Trash2 size={15} strokeWidth={1.5} aria-hidden />
               </button>
             </div>
           </div>
@@ -9857,10 +10428,7 @@ function AgencySummaryTab({
                     title={agency.website}
                   >
                     <span className="truncate">{agency.website.replace(/^https?:\/\//, '')}</span>
-                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 opacity-70">
-                      <path d="M5 2H2.5A1.5 1.5 0 0 0 1 3.5v6A1.5 1.5 0 0 0 2.5 11h6A1.5 1.5 0 0 0 10 9.5V7" />
-                      <path d="M7 1h4v4M11 1L5.5 6.5" />
-                    </svg>
+                    <ExternalLink size={11} strokeWidth={1.5} className="flex-shrink-0 opacity-70" aria-hidden />
                   </a>
                 ) : (
                   <span className="text-slate-400">—</span>
@@ -10130,9 +10698,7 @@ function AgencyContactsTab({
                       onClick={openAdd}
                       className="mt-4 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
                     >
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                        <path d="M6 2.5v7M2.5 6h7" />
-                      </svg>
+                      <Plus size={12} strokeWidth={1.5} aria-hidden />
                       Add New
                     </button>
                   </td>
@@ -10199,10 +10765,7 @@ function AgencyContactsTab({
                           className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                           title="View"
                         >
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                            <circle cx="8" cy="8" r="1.75" />
-                          </svg>
+                          <Eye size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -10210,9 +10773,7 @@ function AgencyContactsTab({
                           className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                           title="Edit"
                         >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                          </svg>
+                          <Pencil size={14} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -10220,12 +10781,7 @@ function AgencyContactsTab({
                           className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                           title="Delete"
                         >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            <path d="M10 11v6M14 11v6" />
-                          </svg>
+                          <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                       </div>
                     </td>
@@ -10329,19 +10885,19 @@ function ContactNoteEditor({
           </ToolBtn>
           <span className="w-px h-4 bg-slate-200 mx-0.5" />
           <ToolBtn title="Quote" onClick={() => run('formatBlock', 'blockquote')}>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3 12h3l2-4V4H2v4h3zm7 0h3l2-4V4H9v4h3z" /></svg>
+            <Wine size={12} strokeWidth={1.5} aria-hidden />
           </ToolBtn>
           <ToolBtn title="Bulleted list" onClick={() => run('insertUnorderedList')}>
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="2.5" cy="4" r="1.2"/><circle cx="2.5" cy="8" r="1.2"/><circle cx="2.5" cy="12" r="1.2"/><path d="M6 3.5h8v1H6zm0 4h8v1H6zm0 4h8v1H6z"/></svg>
+            <Menu size={13} strokeWidth={1.5} aria-hidden />
           </ToolBtn>
           <ToolBtn title="Numbered list" onClick={() => run('insertOrderedList')}>
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h1.5v3H2V2zm0 5h2v.8H3v.4h1v.8H2V7zm0 4.2h1.2V12H2v-.8zm0 1.6h2V14H2v-.2zM6 3.5h8v1H6zm0 4h8v1H6zm0 4h8v1H6z"/></svg>
+            <Menu size={13} strokeWidth={1.5} aria-hidden />
           </ToolBtn>
           <ToolBtn title="Decrease indent" onClick={() => run('outdent')}>
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 4h7M7 8h7M7 12h7M5 8H2m0 0l2-2M2 8l2 2"/></svg>
+            <ListStart size={13} strokeWidth={1.5} aria-hidden />
           </ToolBtn>
           <ToolBtn title="Increase indent" onClick={() => run('indent')}>
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 4h7M7 8h7M7 12h7M2 8h3m0 0L3 6m2 2L3 10"/></svg>
+            <ListEnd size={13} strokeWidth={1.5} aria-hidden />
           </ToolBtn>
           <span className="w-px h-4 bg-slate-200 mx-0.5" />
           <ToolBtn
@@ -10351,7 +10907,7 @@ function ContactNoteEditor({
               if (url) run('createLink', url)
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6.5 9.5l3-3M7 11.5l-1.5 1.5a2.5 2.5 0 01-3.5-3.5L3.5 8M9 4.5l1.5-1.5a2.5 2.5 0 013.5 3.5L12.5 8"/></svg>
+            <Unlink size={13} strokeWidth={1.5} aria-hidden />
           </ToolBtn>
           <ToolBtn
             title="Insert image"
@@ -10360,7 +10916,7 @@ function ContactNoteEditor({
               if (url) run('insertImage', url)
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1"/><path d="M2 11l3.5-3 2.5 2.5L11 7.5l3 3.5"/></svg>
+            <BarChart3 size={13} strokeWidth={1.5} aria-hidden />
           </ToolBtn>
           <ToolBtn title="Clear formatting" onClick={() => run('removeFormat')}>
             <span className="text-[10px] font-semibold tracking-tight">Tx</span>
@@ -10454,35 +11010,14 @@ function ContactSearchDropdown({
         <span className={`truncate ${selected ? 'text-slate-800' : 'text-slate-400'}`}>
           {selected ? `${selected.name} — ${selected.email}` : 'Select…'}
         </span>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          className={`flex-shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
-        >
-          <path d="M3 4.5L6 7.5L9 4.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <ChevronDown size={12} strokeWidth={1.5} aria-hidden />
       </button>
 
       {open && (
         <div className="absolute z-30 left-0 right-0 mt-1.5 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden animate-[fadeIn_0.12s_ease-out]">
           <div className="p-2 border-b border-slate-100">
             <div className="relative">
-              <svg
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                width="13"
-                height="13"
-                viewBox="0 0 12 12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <circle cx="5" cy="5" r="3.5" />
-                <path d="M8 8l2.5 2.5" strokeLinecap="round" />
-              </svg>
+              <Check size={13} strokeWidth={1.5} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden />
               <input
                 ref={inputRef}
                 type="text"
@@ -10687,9 +11222,7 @@ function AgencyContactFormModal({
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           aria-label="Close"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -11170,10 +11703,7 @@ function AgencyAddressesTab({
                           className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                           title="View"
                         >
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                            <circle cx="8" cy="8" r="1.75" />
-                          </svg>
+                          <Eye size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -11181,9 +11711,7 @@ function AgencyAddressesTab({
                           className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                           title="Edit"
                         >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                          </svg>
+                          <Pencil size={14} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -11191,12 +11719,7 @@ function AgencyAddressesTab({
                           className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                           title="Delete"
                         >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            <path d="M10 11v6M14 11v6" />
-                          </svg>
+                          <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                       </div>
                     </td>
@@ -11383,10 +11906,7 @@ function AgencyAddressFormModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 14s5-3.8 5-7.2A5 5 0 0 0 3 6.8C3 10.2 8 14 8 14z" />
-              <circle cx="8" cy="6.8" r="1.6" />
-            </svg>
+            <Heart size={15} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900 truncate">{title}</h3>
@@ -11399,9 +11919,7 @@ function AgencyAddressFormModal({
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           aria-label="Close"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -12225,10 +12743,7 @@ function PersonDetailPage({
       <div className={`rounded-2xl border bg-white overflow-hidden shadow-sm ${workStopActive ? 'border-danger-border' : 'border-slate-200'}`}>
         {workStopActive && (
           <div className="px-5 py-2 bg-[#bb5757] text-white text-xs font-semibold flex items-center gap-2">
-            <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
-              <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.8" />
-              <path d="M5.5 5.5l7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
+            <X size={14} strokeWidth={1.5} aria-hidden />
             Work Stop is active — compliance work is paused for this person
           </div>
         )}
@@ -12240,9 +12755,7 @@ function PersonDetailPage({
                 onClick={onBack}
                 className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#12518c] transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 3L5 7l4 4" />
-                </svg>
+                <ChevronLeft size={12} strokeWidth={1.5} aria-hidden />
                 People
               </button>
               <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -12275,9 +12788,7 @@ function PersonDetailPage({
                 className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
                 title="Edit"
               >
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                </svg>
+                <Pencil size={15} strokeWidth={1.5} aria-hidden />
               </button>
               <button
                 type="button"
@@ -12285,11 +12796,7 @@ function PersonDetailPage({
                 className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                 title="Delete"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                </svg>
+                <Trash2 size={15} strokeWidth={1.5} aria-hidden />
               </button>
             </div>
           </div>
@@ -12348,9 +12855,7 @@ function PersonDetailPage({
               <h2 className="text-sm font-semibold text-[#12518c]">General Information</h2>
               <div className="flex items-center gap-1">
                 <button type="button" className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100" title="Edit">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                    <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                  </svg>
+                  <Pencil size={14} strokeWidth={1.5} aria-hidden />
                 </button>
               </div>
             </div>
@@ -12445,9 +12950,7 @@ function PersonAssociationCard({
             aria-label={open ? 'Collapse' : 'Expand'}
             aria-expanded={open}
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" className={open ? '' : 'rotate-180'}>
-              <path d="M2.5 7.5L6 4l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <ChevronUp size={12} strokeWidth={1.5} aria-hidden />
           </button>
         ) : null}
         <h2 className="text-base font-semibold text-slate-900">{title}</h2>
@@ -12607,9 +13110,7 @@ function PersonDetailFieldsPage({
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M2 4.5h12M2 8h12M2 11.5h8" strokeLinecap="round" />
-            </svg>
+            <List size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-slate-900">Person Detail</h2>
@@ -12630,9 +13131,7 @@ function PersonDetailFieldsPage({
               onClick={saveEditing}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M2 6.5l2.5 2.5L10 3" />
-              </svg>
+              <Check size={12} strokeWidth={1.5} aria-hidden />
               Save
             </button>
           </div>
@@ -12642,9 +13141,7 @@ function PersonDetailFieldsPage({
             onClick={startEditing}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M8.5 1.5l2 2L3.5 10.5H1.5v-2L8.5 1.5z" />
-            </svg>
+            <Pencil size={12} strokeWidth={1.5} aria-hidden />
             Edit
           </button>
         )}
@@ -13094,9 +13591,7 @@ function PersonAddNoteModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 14s-5-3.2-5-7a3 3 0 0 1 5-2.2A3 3 0 0 1 13 7c0 3.8-5 7-5 7z" />
-            </svg>
+            <Heart size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'Edit Note' : 'Add Note'}</h3>
@@ -13104,9 +13599,7 @@ function PersonAddNoteModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -13173,10 +13666,7 @@ function PersonViewNoteModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-              <circle cx="8" cy="8" r="2" />
-            </svg>
+            <Eye size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">View Note</h3>
@@ -13184,9 +13674,7 @@ function PersonViewNoteModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -13254,9 +13742,7 @@ function PersonNoteDeleteModal({
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0"
             aria-label="Close"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <path d="M3 3l8 8M11 3l-8 8" />
-            </svg>
+            <X size={14} strokeWidth={1.5} aria-hidden />
           </button>
         </div>
         <div className="mt-3 w-full rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
@@ -13383,9 +13869,7 @@ function PersonNotesPage() {
                         className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                         title="Edit"
                       >
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                          <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                        </svg>
+                        <Pencil size={14} strokeWidth={1.5} aria-hidden />
                       </button>
                       <button
                         type="button"
@@ -13393,12 +13877,7 @@ function PersonNotesPage() {
                         className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                         title="Delete"
                       >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 6h18" />
-                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                          <path d="M10 11v6M14 11v6" />
-                        </svg>
+                        <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                       </button>
                     </div>
                   </td>
@@ -13533,9 +14012,7 @@ function AddCompanyPage({
         <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M2 4.5h12M2 8h12M2 11.5h8" strokeLinecap="round" />
-              </svg>
+              <List size={16} strokeWidth={1.5} aria-hidden />
             </span>
             <div className="min-w-0">
               <h2 className="text-sm font-semibold text-slate-900">Company Detail</h2>
@@ -13773,9 +14250,7 @@ function CompaniesPage({
               onClick={clearFilters}
               className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
             >
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={12} strokeWidth={1.5} aria-hidden />
               Clear
             </button>
           )}
@@ -13794,9 +14269,7 @@ function CompaniesPage({
                   <th className="pl-2 pr-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     <span className="inline-flex items-center gap-1">
                       Company Name
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400">
-                        <path d="M5 7.5V2.5M2.5 5L5 2.5 7.5 5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      <Upload size={10} strokeWidth={1.5} className="text-slate-400" aria-hidden />
                     </span>
                   </th>
                 )}
@@ -13832,19 +14305,7 @@ function CompaniesPage({
                       className="group flex items-center justify-center w-6 h-6 rounded-md hover:bg-[#e1c16e]/20 transition-colors"
                       title={c.starred ? 'Remove from favorites' : 'Add to favorites'}
                     >
-                      <svg
-                        width="15"
-                        height="15"
-                        viewBox="0 0 15 15"
-                        fill={c.starred ? '#e1c16e' : 'none'}
-                        stroke={c.starred ? '#e1c16e' : (c.alert === 'Work Stop' ? '#bb5757' : '#94a3b8')}
-                        strokeWidth="1.4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="transition-all group-hover:scale-110"
-                      >
-                        <path d="M7.5 1.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" />
-                      </svg>
+                      <Star size={15} strokeWidth={1.4} className="transition-all group-hover:scale-110" fill={c.starred ? '#e1c16e' : 'none'} stroke={c.starred ? '#e1c16e' : (c.alert === 'Work Stop' ? '#bb5757' : '#94a3b8')} aria-hidden />
                     </button>
                   </td>
                   {companyCols.show('name') && (
@@ -13905,9 +14366,7 @@ function CompaniesPage({
               disabled={page === 1}
               onClick={() => setPage(p => Math.max(1, p - 1))}
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M9 3L5 7l4 4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ChevronLeft size={14} strokeWidth={1.5} aria-hidden />
             </button>
             {[1, 2, 3, 4, 5].map(n => (
               <button
@@ -13927,9 +14386,7 @@ function CompaniesPage({
               disabled={page === 5}
               onClick={() => setPage(p => Math.min(5, p + 1))}
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M5 3l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ChevronRight size={14} strokeWidth={1.5} aria-hidden />
             </button>
           </div>
         </div>
@@ -14002,10 +14459,7 @@ function CompanySummaryPage({
       }`}>
         {workStopActive && (
           <div className="px-5 py-2 bg-[#bb5757] text-white text-xs font-semibold flex items-center gap-2">
-            <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
-              <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.8" />
-              <path d="M5.5 5.5l7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
+            <X size={14} strokeWidth={1.5} aria-hidden />
             Work Stop is active — compliance work is paused for this company
           </div>
         )}
@@ -14019,16 +14473,7 @@ function CompanySummaryPage({
                   className="w-8 h-8 rounded-lg hover:bg-[#e1c16e]/20 flex items-center justify-center transition-colors"
                   title={starred ? 'Remove from favorites' : 'Add to favorites'}
                 >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 15 15"
-                    fill={starred ? '#e1c16e' : 'none'}
-                    stroke={starred ? '#e1c16e' : (workStopActive ? '#bb5757' : '#94a3b8')}
-                    strokeWidth="1.4"
-                  >
-                    <path d="M7.5 1.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" />
-                  </svg>
+                  <Star size={16} strokeWidth={1.4} fill={starred ? '#e1c16e' : 'none'} stroke={starred ? '#e1c16e' : (workStopActive ? '#bb5757' : '#94a3b8')} aria-hidden />
                 </button>
                 <h1 className={`text-xl sm:text-2xl font-bold truncate ${workStopActive ? 'text-danger' : 'text-slate-900'}`}>
                   {company.name}
@@ -14068,16 +14513,10 @@ function CompanySummaryPage({
                 title="Edit company"
                 aria-label="Edit company"
               >
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                </svg>
+                <Pencil size={15} strokeWidth={1.5} aria-hidden />
               </button>
               <button type="button" className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" title="More">
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
-                  <circle cx="8" cy="3" r="1.2" />
-                  <circle cx="8" cy="8" r="1.2" />
-                  <circle cx="8" cy="13" r="1.2" />
-                </svg>
+                <MoreVertical size={15} strokeWidth={1.5} aria-hidden />
               </button>
             </div>
           </div>
@@ -14379,15 +14818,11 @@ function CompanySummaryPage({
                       title="Clear filter"
                       aria-label="Clear filter"
                     >
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                        <path d="M2 2l6 6M8 2L2 8" />
-                      </svg>
+                      <X size={10} strokeWidth={1.5} aria-hidden />
                     </button>
                   ) : null}
                   <span className="w-5 h-5 flex items-center justify-center text-slate-400">
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M2.5 3.5L5 6.5 7.5 3.5" />
-                    </svg>
+                    <ChevronDown size={10} strokeWidth={1.5} aria-hidden />
                   </span>
                 </div>
               </div>
@@ -14673,23 +15108,13 @@ function CompanyContactsPage({
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button type="button" onClick={() => openView(c)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                            <circle cx="8" cy="8" r="1.75" />
-                          </svg>
+                          <Eye size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button type="button" onClick={() => openEdit(c)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                          </svg>
+                          <Pencil size={14} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button type="button" onClick={() => setDeleteConfirmId(c.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            <path d="M10 11v6M14 11v6" />
-                          </svg>
+                          <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                       </div>
                     </td>
@@ -15008,9 +15433,7 @@ function AddContactPage({
   }
 
   const addressIcon = (
-    <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 7.5h12v8H3zM5 7.5V4h8v3.5M6 11h.01M9 11h.01M12 11h.01" />
-    </svg>
+    <Building2 size={17} strokeWidth={1.5} aria-hidden />
   )
 
   return (
@@ -15037,10 +15460,7 @@ function AddContactPage({
         title="Contact Information"
         description="Choose the contact type and enter their primary details."
         icon={
-          <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <circle cx="9" cy="6" r="3" />
-            <path d="M3.5 16c0-3 2.4-5 5.5-5s5.5 2 5.5 5" />
-          </svg>
+          <User size={17} strokeWidth={1.5} aria-hidden />
         }
       >
         <div className="space-y-5">
@@ -15282,9 +15702,7 @@ function EditContactPage({
   }
 
   const addressIcon = (
-    <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 7.5h12v8H3zM5 7.5V4h8v3.5M6 11h.01M9 11h.01M12 11h.01" />
-    </svg>
+    <Building2 size={17} strokeWidth={1.5} aria-hidden />
   )
 
   return (
@@ -15311,10 +15729,7 @@ function EditContactPage({
         title="Contact Information"
         description="Update company-level role and contact details."
         icon={
-          <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <circle cx="9" cy="6" r="3" />
-            <path d="M3.5 16c0-3 2.4-5 5.5-5s5.5 2 5.5 5" />
-          </svg>
+          <User size={17} strokeWidth={1.5} aria-hidden />
         }
       >
         <div className="space-y-5">
@@ -15410,9 +15825,7 @@ function EditContactPage({
         title="Notes"
         description="Internal notes for this company contact."
         icon={
-          <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <path d="M4 3.5h10v11H4zM6.5 6.5h5M6.5 9h5M6.5 11.5h3" />
-          </svg>
+          <FileText size={17} strokeWidth={1.5} aria-hidden />
         }
       >
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-[#12518c] focus-within:ring-2 focus-within:ring-[#12518c]/20">
@@ -15658,9 +16071,7 @@ function OwnershipFormSection({
         <span className={`flex-1 text-xs font-semibold uppercase tracking-wide ${open ? 'text-[#12518c]' : 'text-slate-500'}`}>
           {title}
         </span>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className={`transition-transform ${open ? 'rotate-180 text-[#12518c]' : 'text-slate-400'}`}>
-          <path d="M3.5 5.25L7 8.75l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <ChevronDown size={14} strokeWidth={1.5} aria-hidden />
       </button>
       {open && <div className="p-4 bg-white space-y-4">{children}</div>}
     </section>
@@ -15820,9 +16231,7 @@ function EmploymentFormModal({
             Save
           </button>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <path d="M3 3l8 8M11 3l-8 8" />
-            </svg>
+            <X size={14} strokeWidth={1.5} aria-hidden />
           </button>
         </div>
       </div>
@@ -16126,7 +16535,7 @@ function AddOwnershipPage({
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
         <OwnershipFormSection title="Principal Configuration" defaultOpen icon={
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M8 1.5l1.5 3 3.3.5-2.4 2.3.6 3.3L8 9.2 5 10.6l.6-3.3L3.2 5l3.3-.5L8 1.5z" strokeLinejoin="round" /></svg>
+          <Star size={14} strokeWidth={1.5} aria-hidden />
         }>
           <div className={`grid gap-4 ${principalType === 'person' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
             <OwnershipRadioGroup
@@ -16158,7 +16567,7 @@ function AddOwnershipPage({
         {principalType === 'person' ? (
           <>
             <OwnershipFormSection title="Person Information" icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><circle cx="8" cy="5.5" r="2.5" /><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" /></svg>
+              <User size={14} strokeWidth={1.5} aria-hidden />
             }>
               <OwnershipRadioGroup
                 label="Person"
@@ -16212,7 +16621,7 @@ function AddOwnershipPage({
             </OwnershipFormSection>
 
             <OwnershipFormSection title="Team Contact" defaultOpen={false} icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M2 4h12v8H2z" /><path d="M2 6l6 4 6-4" /></svg>
+              <Mail size={14} strokeWidth={1.5} aria-hidden />
             }>
               <OwnershipRadioGroup
                 label="Is this a Team Contact?"
@@ -16227,7 +16636,7 @@ function AddOwnershipPage({
             </OwnershipFormSection>
 
             <OwnershipFormSection title="Contact Information" icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M3 2.5h4l1 2.5H13v9H3z" /><circle cx="8" cy="9" r="2" /></svg>
+              <Folder size={14} strokeWidth={1.5} aria-hidden />
             }>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                 <OwnershipFormField label="Email" value={personForm.email} onChange={v => setPerson('email', v)} readOnly={readOnly} type="email" />
@@ -16246,7 +16655,7 @@ function AddOwnershipPage({
             </OwnershipFormSection>
 
             <OwnershipFormSection title="Personal Information" defaultOpen={false} icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2" y="3" width="12" height="10" rx="1" /><path d="M5 7h6M5 10h4" /></svg>
+              <FileText size={14} strokeWidth={1.5} aria-hidden />
             }>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <OwnershipFormField label="Social Security Number" value={personForm.ssn} onChange={v => setPerson('ssn', v)} readOnly={readOnly} placeholder="XXX-XX-XXXX" />
@@ -16277,7 +16686,7 @@ function AddOwnershipPage({
             </OwnershipFormSection>
 
             <OwnershipFormSection title="Employment Information" defaultOpen={false} icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2" y="4" width="12" height="9" rx="1" /><path d="M6 4V3a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1" /></svg>
+              <Briefcase size={14} strokeWidth={1.5} aria-hidden />
             }>
               <button
                 type="button"
@@ -16285,7 +16694,7 @@ function AddOwnershipPage({
                 onClick={openAddEmployment}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors disabled:opacity-60"
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 2.5v7M2.5 6h7" /></svg>
+                <Plus size={12} strokeWidth={1.5} aria-hidden />
                 Add Employment
               </button>
 
@@ -16321,17 +16730,10 @@ function AddOwnershipPage({
                           <td className="px-3 py-2.5">
                             <div className="flex items-center gap-1">
                               <button type="button" onClick={() => openEditEmployment(e)} disabled={readOnly} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50" title="Edit">
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                                  <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                                </svg>
+                                <Pencil size={14} strokeWidth={1.5} aria-hidden />
                               </button>
                               <button type="button" onClick={() => removeEmployment(e.id)} disabled={readOnly} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors disabled:opacity-50" title="Delete">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M3 6h18" />
-                                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                  <path d="M10 11v6M14 11v6" />
-                                </svg>
+                                <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                               </button>
                             </div>
                           </td>
@@ -16345,7 +16747,7 @@ function AddOwnershipPage({
 
             {personForm.holdsOwnership === 'yes' && (
               <OwnershipFormSection title="Ownership Details" icon={
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M8 2v12M4 6h8M4 10h8" /></svg>
+                <Hash size={14} strokeWidth={1.5} aria-hidden />
               }>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                   <OwnershipFormField label="Title" value={personForm.title} onChange={v => setPerson('title', v)} readOnly={readOnly} />
@@ -16360,7 +16762,7 @@ function AddOwnershipPage({
             )}
 
             <OwnershipFormSection title="Questionnaire" defaultOpen={false} icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><circle cx="8" cy="8" r="6" /><path d="M6.2 6.2a1.8 1.8 0 0 1 3.3 1c0 1.2-1.5 1.5-1.5 2.8M8 11.5h.01" strokeLinecap="round" /></svg>
+              <CircleHelp size={14} strokeWidth={1.5} aria-hidden />
             }>
               <div className="space-y-3">
                 <OwnershipQuestionRow
@@ -16405,7 +16807,7 @@ function AddOwnershipPage({
         ) : (
           <>
             <OwnershipFormSection title="Sub-Company Information" icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M2 13V5l6-3 6 3v8" /><path d="M6 13V9h4v4" /></svg>
+              <Home size={14} strokeWidth={1.5} aria-hidden />
             }>
               <OwnershipRadioGroup
                 label="Sub-Company"
@@ -16446,7 +16848,7 @@ function AddOwnershipPage({
             </OwnershipFormSection>
 
             <OwnershipFormSection title="Sub-Company Ownership Information" icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M8 3v10M4 7h8M4 11h5" /></svg>
+              <Hash size={14} strokeWidth={1.5} aria-hidden />
             }>
               <OwnershipFormField label="Title" value={subForm.title} onChange={v => setSub('title', v)} readOnly={readOnly} />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -16460,7 +16862,7 @@ function AddOwnershipPage({
             </OwnershipFormSection>
 
             <OwnershipFormSection title="Principal" defaultOpen={false} icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M3 4h10v9H3z" /><path d="M6 2h4v2H6z" /></svg>
+              <Clipboard size={14} strokeWidth={1.5} aria-hidden />
             }>
               <button
                 type="button"
@@ -16670,15 +17072,10 @@ function CompanyOwnershipPage({
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-0.5">
                         <button type="button" onClick={() => openView(o)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                            <circle cx="8" cy="8" r="1.75" />
-                          </svg>
+                          <Eye size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button type="button" onClick={() => openEdit(o)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                          </svg>
+                          <Pencil size={14} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -16686,19 +17083,10 @@ function CompanyOwnershipPage({
                           className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                           title="Add Variation"
                         >
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
-                            <path d="M10.5 5.5V4.2A1.2 1.2 0 0 0 9.3 3H4.2A1.2 1.2 0 0 0 3 4.2v5.1A1.2 1.2 0 0 0 4.2 10.5H5.5" />
-                            <path d="M9.5 8.5v3M8 10h3" />
-                          </svg>
+                          <Copy size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button type="button" onClick={() => setDeleteConfirmId(o.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            <path d="M10 11v6M14 11v6" />
-                          </svg>
+                          <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                       </div>
                     </td>
@@ -16778,11 +17166,7 @@ function OwnershipVariationModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
-              <path d="M10.5 5.5V4.2A1.2 1.2 0 0 0 9.3 3H4.2A1.2 1.2 0 0 0 3 4.2v5.1A1.2 1.2 0 0 0 4.2 10.5H5.5" />
-              <path d="M9.5 8.5v3M8 10h3" />
-            </svg>
+            <Copy size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">Add Ownership Variation</h3>
@@ -16790,9 +17174,7 @@ function OwnershipVariationModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -16932,14 +17314,9 @@ function ReportSecretCell({ value, label }: { value: string; label: string }) {
         title={revealed ? `Hide ${label}` : `Show ${label}`}
       >
         {revealed ? (
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-            <path d="M2 2l12 12M6.5 6.7A3 3 0 0 0 8 11a3 3 0 0 0 2.9-2.2M4.2 4.3C2.7 5.4 1.5 7 1.5 8s2.5 4.5 6.5 4.5c1.1 0 2.1-.3 3-.8M11 5.5A3 3 0 0 1 12.5 8" />
-          </svg>
+          <EyeOff size={14} strokeWidth={1.4} aria-hidden />
         ) : (
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-            <circle cx="8" cy="8" r="2" />
-          </svg>
+          <Eye size={14} strokeWidth={1.5} aria-hidden />
         )}
       </button>
     </div>
@@ -16962,9 +17339,7 @@ function ListingNotesModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2.5 3.5h11v8.5H7l-2.5 2v-2H2.5V3.5z" />
-            </svg>
+            <MessageSquare size={16} strokeWidth={1.4} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
@@ -16972,9 +17347,7 @@ function ListingNotesModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-5 py-5 space-y-4">
@@ -17232,23 +17605,13 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-center gap-0.5">
           <button type="button" onClick={() => setViewReport(r)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-              <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-              <circle cx="8" cy="8" r="1.75" />
-            </svg>
+            <Eye size={15} strokeWidth={1.5} aria-hidden />
           </button>
           <button type="button" onClick={() => { setEditReport(r); setAddReportOpen(true) }} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-              <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-            </svg>
+            <Pencil size={14} strokeWidth={1.5} aria-hidden />
           </button>
           <button type="button" onClick={() => setDeleteReportId(r.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18" />
-              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-              <path d="M10 11v6M14 11v6" />
-            </svg>
+            <Trash2 size={15} strokeWidth={1.5} aria-hidden />
           </button>
         </div>
       </td>
@@ -17487,31 +17850,18 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                         <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-0.5">
                             <button type="button" onClick={() => setViewLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
-                              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                                <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                                <circle cx="8" cy="8" r="1.75" />
-                              </svg>
+                              <Eye size={15} strokeWidth={1.5} aria-hidden />
                             </button>
                             <button type="button" onClick={() => setEditLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
-                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                                <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                              </svg>
+                              <Pencil size={14} strokeWidth={1.5} aria-hidden />
                             </button>
                             {SHOW_REPORTING_AND_CREDENTIALS && (
                             <button type="button" onClick={() => setReportLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="Report">
-                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                                <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
-                                <path d="M9.5 2.5V6H13" />
-                              </svg>
+                              <FileText size={14} strokeWidth={1.5} aria-hidden />
                             </button>
                             )}
                             <button type="button" onClick={() => setDeleteId(l.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M3 6h18" />
-                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                <path d="M10 11v6M14 11v6" />
-                              </svg>
+                              <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                             </button>
                           </div>
                         </td>
@@ -17635,19 +17985,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 aria-expanded={pastReportsOpen}
                 title={pastReportsOpen ? 'Collapse' : 'Expand'}
               >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className={`transition-transform ${pastReportsOpen ? 'rotate-90' : ''}`}
-                >
-                  <path d="M6 4l4 4-4 4" />
-                </svg>
+                <ChevronRight size={14} strokeWidth={1.5} aria-hidden />
               </button>
               <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
               <ColumnSettingsDropdown {...reportCols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
@@ -17737,9 +18075,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
               <p className="text-[11px] text-slate-500">{viewReport.state} · {viewReport.func}</p>
             </div>
             <button type="button" onClick={() => setViewReport(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={14} strokeWidth={1.5} aria-hidden />
             </button>
           </div>
           <div className="px-5 py-5 grid grid-cols-2 gap-4">
@@ -17776,11 +18112,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
           <div className="px-5 py-5">
             <div className="flex items-start gap-3">
               <span className="flex items-center justify-center w-10 h-10 rounded-full bg-danger-light text-[#bb5757] shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                </svg>
+                <Trash2 size={20} strokeWidth={1.5} aria-hidden />
               </span>
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">Delete report?</h3>
@@ -17890,10 +18222,7 @@ function CredentialSensitiveCell({
       </span>
       {canCopy && (
         <button type="button" onClick={copy} className="p-1 rounded text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors flex-shrink-0" title="Copy">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-            <rect x="5.5" y="5.5" width="8" height="8" rx="1" />
-            <path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5" />
-          </svg>
+          <Copy size={12} strokeWidth={1.5} aria-hidden />
         </button>
       )}
     </div>
@@ -17933,10 +18262,7 @@ function UnlockCredentialsModal({
       <div className="px-5 pt-5 pb-2">
         <div className="flex flex-col items-center text-center">
           <span className="w-12 h-12 rounded-2xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center mb-3">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="5" y="11" width="14" height="10" rx="2" />
-              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-            </svg>
+            <Lock size={22} strokeWidth={1.5} aria-hidden />
           </span>
           <h3 className="text-sm font-semibold text-slate-900">Unlock credentials</h3>
           <p className="text-xs text-slate-500 mt-1.5 leading-relaxed max-w-[260px]">
@@ -17965,23 +18291,16 @@ function UnlockCredentialsModal({
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? (
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                    <path d="M2 2l12 12M6.5 6.7A3 3 0 0 0 8 11a3 3 0 0 0 2.9-2.2M4.2 4.3C2.7 5.4 1.5 7 1.5 8s2.5 4.5 6.5 4.5c1.1 0 2.1-.3 3-.8M11 5.5A3 3 0 0 1 12.5 8" />
-                  </svg>
+                  <EyeOff size={15} strokeWidth={1.4} aria-hidden />
                 ) : (
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                    <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                    <circle cx="8" cy="8" r="1.75" />
-                  </svg>
+                  <Eye size={15} strokeWidth={1.5} aria-hidden />
                 )}
               </button>
             </div>
           </label>
           {error && (
             <p className="mt-2 text-[11px] text-[#bb5757] flex items-center gap-1">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <circle cx="8" cy="8" r="6" /><path d="M8 5.5v3M8 10.5h.01" />
-              </svg>
+              <Info size={12} strokeWidth={1.5} aria-hidden />
               Invalid password. Please try again.
             </p>
           )}
@@ -17999,17 +18318,12 @@ function UnlockCredentialsModal({
         >
           {submitting ? (
             <>
-              <svg className="animate-spin" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M8 2v3M8 11v3M2 8h3M11 8h3" strokeLinecap="round" />
-              </svg>
+              <Loader2 size={14} strokeWidth={1.5} className="animate-spin" aria-hidden />
               Verifying…
             </>
           ) : (
             <>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <rect x="4" y="7" width="8" height="6" rx="1" />
-                <path d="M6 7V5a2 2 0 0 1 4 0v2" />
-              </svg>
+              <Lock size={14} strokeWidth={1.5} aria-hidden />
               Unlock
             </>
           )}
@@ -18125,9 +18439,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
           </FilterSelect>
           {filtersActive && (
             <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={12} strokeWidth={1.5} aria-hidden />
               Clear
             </button>
           )}
@@ -18184,23 +18496,13 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button type="button" onClick={() => setViewScope(s)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                            <circle cx="8" cy="8" r="1.75" />
-                          </svg>
+                          <Eye size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button type="button" onClick={() => { setEditScope(s); setAddOpen(true) }} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                          </svg>
+                          <Pencil size={14} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button type="button" onClick={() => setDeleteId(s.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            <path d="M10 11v6M14 11v6" />
-                          </svg>
+                          <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                       </div>
                     </td>
@@ -18266,11 +18568,7 @@ function CompanyScopePage({ companyId }: { companyId: number }) {
           <div className="px-5 py-5">
             <div className="flex items-start gap-3">
               <span className="flex items-center justify-center w-10 h-10 rounded-full bg-danger-light text-[#bb5757] shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                </svg>
+                <Trash2 size={20} strokeWidth={1.5} aria-hidden />
               </span>
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">Delete scope?</h3>
@@ -18319,9 +18617,7 @@ function ViewScopeModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 14s-5-3.2-5-7a3 3 0 0 1 5-2.2A3 3 0 0 1 13 7c0 3.8-5 7-5 7z" />
-            </svg>
+            <Heart size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">Company — View Scope</h3>
@@ -18329,9 +18625,7 @@ function ViewScopeModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -18437,9 +18731,7 @@ function AddScopeModal({
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 14s-5-3.2-5-7a3 3 0 0 1 5-2.2A3 3 0 0 1 13 7c0 3.8-5 7-5 7z" />
-            </svg>
+            <Heart size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'Company — Edit Scope' : 'Company — Add Scope'}</h3>
@@ -18447,9 +18739,7 @@ function AddScopeModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -18669,9 +18959,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
           </label>
           {filtersActive && (
             <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={12} strokeWidth={1.5} aria-hidden />
               Clear
             </button>
           )}
@@ -18690,9 +18978,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                     className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors"
                   >
                     Status Date
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className={sortDesc ? '' : 'rotate-180'}>
-                      <path d="M2.5 4L5 6.5 7.5 4" />
-                    </svg>
+                    <ChevronDown size={10} strokeWidth={1.5} aria-hidden />
                   </button>
                 </th>
                 )}
@@ -18764,12 +19050,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                             className="p-1.5 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                             title="Restore deleted item"
                           >
-                            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M2.5 8a5.5 5.5 0 0 1 9.4-3.9" />
-                              <path d="M13.5 8a5.5 5.5 0 0 1-9.4 3.9" />
-                              <path d="M11.5 2.5v2.5H14" />
-                              <path d="M4.5 13.5v-2.5H2" />
-                            </svg>
+                            <RefreshCw size={15} strokeWidth={1.5} aria-hidden />
                           </button>
                         )}
                         {e.changeType === 'Delete' && e.restored && (
@@ -18784,10 +19065,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                             className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                             title="View change details"
                           >
-                            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                              <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                              <circle cx="8" cy="8" r="1.75" />
-                            </svg>
+                            <Eye size={15} strokeWidth={1.5} aria-hidden />
                           </button>
                         )}
                       </div>
@@ -18831,12 +19109,7 @@ function RestoreChangeLogModal({
       <div className="flex items-start justify-between gap-3 px-5 py-4">
         <div className="flex items-start gap-3 min-w-0 pr-2">
           <span className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2.5 8a5.5 5.5 0 0 1 9.4-3.9" />
-              <path d="M13.5 8a5.5 5.5 0 0 1-9.4 3.9" />
-              <path d="M11.5 2.5v2.5H14" />
-              <path d="M4.5 13.5v-2.5H2" />
-            </svg>
+            <RefreshCw size={18} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0 pt-0.5">
             <h3 className="text-sm font-semibold text-slate-900">Restore deleted item?</h3>
@@ -18846,9 +19119,7 @@ function RestoreChangeLogModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -18900,12 +19171,7 @@ function ViewChangeLogModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2.5 8a5.5 5.5 0 0 1 9.4-3.9" />
-              <path d="M13.5 8a5.5 5.5 0 0 1-9.4 3.9" />
-              <path d="M11.5 2.5v2.5H14" />
-              <path d="M4.5 13.5v-2.5H2" />
-            </svg>
+            <RefreshCw size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">Company — View Change</h3>
@@ -18913,9 +19179,7 @@ function ViewChangeLogModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -19011,9 +19275,7 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
           </FilterSelect>
           {filtersActive && (
             <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={12} strokeWidth={1.5} aria-hidden />
               Clear
             </button>
           )}
@@ -19062,12 +19324,7 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
                           className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                           title="Delete"
                         >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            <path d="M10 11v6M14 11v6" />
-                          </svg>
+                          <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                       </div>
                     </td>
@@ -19086,11 +19343,7 @@ function CompanyWorkStopPage({ companyId }: { companyId: number }) {
           <div className="px-5 py-5">
             <div className="flex items-start gap-3">
               <span className="flex items-center justify-center w-10 h-10 rounded-full bg-danger-light text-[#bb5757] shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                </svg>
+                <Trash2 size={20} strokeWidth={1.5} aria-hidden />
               </span>
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">Delete work stop record?</h3>
@@ -19277,9 +19530,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
           />
           {filtersActive && (
             <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={12} strokeWidth={1.5} aria-hidden />
               Clear
             </button>
           )}
@@ -19368,9 +19619,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                               : 'bg-white text-slate-600 border border-slate-200 hover:border-[#12518c]/30 hover:text-[#12518c]'
                           }`}
                         >
-                          <svg width="11" height="11" viewBox="0 0 16 16" fill={a.following ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.4">
-                            <path d="M8 2.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" />
-                          </svg>
+                          <Star size={11} strokeWidth={1.4} fill={a.following ? 'currentColor' : 'none'} stroke="currentColor" aria-hidden />
                           {a.following ? 'Following' : 'Follow'}
                         </button>
                       </div>
@@ -19379,23 +19628,13 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1 flex-wrap">
                         <button type="button" onClick={() => setViewActivity(a)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                            <circle cx="8" cy="8" r="1.75" />
-                          </svg>
+                          <Eye size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button type="button" onClick={() => { setEditActivity(a); setAddOpen(true) }} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                          </svg>
+                          <Pencil size={14} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button type="button" onClick={() => setDeleteId(a.id)} className="p-1 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            <path d="M10 11v6M14 11v6" />
-                          </svg>
+                          <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                       </div>
                     </td>
@@ -19414,9 +19653,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
           <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 14s-5-3.2-5-7a3 3 0 0 1 5-2.2A3 3 0 0 1 13 7c0 3.8-5 7-5 7z" />
-                </svg>
+                <Heart size={16} strokeWidth={1.5} aria-hidden />
               </span>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-slate-900">Company — View Note</h3>
@@ -19424,9 +19661,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
               </div>
             </div>
             <button type="button" onClick={() => setViewActivity(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={14} strokeWidth={1.5} aria-hidden />
             </button>
           </div>
           <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
@@ -19503,11 +19738,7 @@ function CompanyAccountActivityPage({ companyId, companyName }: { companyId: num
           <div className="px-5 py-5">
             <div className="flex items-start gap-3">
               <span className="flex items-center justify-center w-10 h-10 rounded-full bg-danger-light text-[#bb5757] shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                </svg>
+                <Trash2 size={20} strokeWidth={1.5} aria-hidden />
               </span>
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">Delete activity?</h3>
@@ -19769,9 +20000,7 @@ function BackgroundDetailsModal({
           <p className="text-[11px] text-slate-500 mt-0.5 truncate">{activity.subject}</p>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -19934,9 +20163,7 @@ function AddAccountActivityModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 14s-5-3.2-5-7a3 3 0 0 1 5-2.2A3 3 0 0 1 13 7c0 3.8-5 7-5 7z" />
-            </svg>
+            <Heart size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'Company — Edit Note' : 'Company — Add Note'}</h3>
@@ -19944,9 +20171,7 @@ function AddAccountActivityModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -20167,12 +20392,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
               className={`p-1 rounded-md transition-colors ${unlocked ? 'text-slate-400 hover:text-[#bb5757] hover:bg-danger-light' : 'text-slate-300 cursor-not-allowed'}`}
               title={unlocked ? 'Delete' : 'Unlock to delete'}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6h18" />
-                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                <path d="M10 11v6M14 11v6" />
-              </svg>
+              <Trash2 size={15} strokeWidth={1.5} aria-hidden />
             </button>
           )}
         </div>
@@ -20186,9 +20406,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-              <path d="M3.5 3.5h9M3.5 6.5h9M3.5 9.5h6" />
-            </svg>
+            <List size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-slate-700">Credentials Note</span>
           </div>
           {!notesEditing ? (
@@ -20197,9 +20415,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
               onClick={() => { setNotesDraft(notes); setNotesEditing(true) }}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
             >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-              </svg>
+              <Pencil size={12} strokeWidth={1.5} aria-hidden />
               Edit
             </button>
           ) : (
@@ -20239,15 +20455,9 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
             unlocked ? 'bg-emerald-100 text-emerald-600' : 'bg-[#e1c16e]/30 text-[#a1802b]'
           }`}>
             {unlocked ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="5" y="11" width="14" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 7.5-2" />
-              </svg>
+              <Lock size={18} strokeWidth={1.5} aria-hidden />
             ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="5" y="11" width="14" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-              </svg>
+              <Lock size={18} strokeWidth={1.5} aria-hidden />
             )}
           </span>
           <div className="min-w-0">
@@ -20272,18 +20482,12 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
         >
           {unlocked ? (
             <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="5" y="11" width="14" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-              </svg>
+              <Lock size={14} strokeWidth={1.5} aria-hidden />
               Lock now
             </>
           ) : (
             <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="5" y="11" width="14" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-              </svg>
+              <Lock size={14} strokeWidth={1.5} aria-hidden />
               Unlock credentials
             </>
           )}
@@ -20314,9 +20518,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
           </FilterSelect>
           {filtersActive && (
             <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-semibold text-[#12518c] hover:bg-[#12518c]/10 transition-colors">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M3 3l8 8M11 3l-8 8" />
-              </svg>
+              <X size={12} strokeWidth={1.5} aria-hidden />
               Clear
             </button>
           )}
@@ -20367,19 +20569,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
             aria-expanded={pastOpen}
             title={pastOpen ? 'Collapse' : 'Expand'}
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`transition-transform ${pastOpen ? 'rotate-90' : ''}`}
-            >
-              <path d="M6 4l4 4-4 4" />
-            </svg>
+            <ChevronRight size={14} strokeWidth={1.5} aria-hidden />
           </button>
           <AddressSearchInput value={pastSearch} onChange={setPastSearch} />
         </TableSectionHeader>
@@ -20431,11 +20621,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
           <div className="px-5 py-5">
             <div className="flex items-start gap-3">
               <span className="flex items-center justify-center w-10 h-10 rounded-full bg-danger-light text-[#bb5757] shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                </svg>
+                <Trash2 size={20} strokeWidth={1.5} aria-hidden />
               </span>
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">Delete credential?</h3>
@@ -20619,10 +20805,7 @@ function AddCredentialModal({
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 21V7l9-4 9 4v14" />
-              <path d="M9 21V12h6v9" />
-            </svg>
+            <Home size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">Company — Add Credential</h3>
@@ -20631,9 +20814,7 @@ function AddCredentialModal({
         </div>
         <div className="flex items-center">
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <path d="M3 3l8 8M11 3l-8 8" />
-            </svg>
+            <X size={14} strokeWidth={1.5} aria-hidden />
           </button>
         </div>
       </div>
@@ -20642,10 +20823,7 @@ function AddCredentialModal({
         {/* Ownership */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-              <circle cx="8" cy="5.5" r="2.5" />
-              <path d="M3 13c0-2.5 2.2-4 5-4s5 1.5 5 4" />
-            </svg>
+            <User size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Ownership</span>
           </div>
           <div className="p-4 space-y-4 bg-white">
@@ -20705,10 +20883,7 @@ function AddCredentialModal({
         {/* Jurisdiction */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4">
-              <circle cx="8" cy="8" r="5.5" />
-              <path d="M8 5.5v3M8 10.5h.01" strokeLinecap="round" />
-            </svg>
+            <Info size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Jurisdiction</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
@@ -20741,9 +20916,7 @@ function AddCredentialModal({
                   onClick={addFunction}
                   className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors shrink-0"
                 >
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                    <path d="M6 2.5v7M2.5 6h7" />
-                  </svg>
+                  <Plus size={11} strokeWidth={1.5} aria-hidden />
                   Add Function
                 </button>
               </div>
@@ -20768,9 +20941,7 @@ function AddCredentialModal({
                         title="Remove function"
                         aria-label="Remove function"
                       >
-                        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                          <path d="M3 3l8 8M11 3l-8 8" />
-                        </svg>
+                        <X size={12} strokeWidth={1.5} aria-hidden />
                       </button>
                     </div>
                   ))}
@@ -20794,10 +20965,7 @@ function AddCredentialModal({
         {/* Access credentials */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="7" width="10" height="6.5" rx="1.2" />
-              <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
-            </svg>
+            <Lock size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Access Credentials</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
@@ -20835,14 +21003,9 @@ function AddCredentialModal({
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                      <path d="M2 2l12 12M6.5 6.7A3 3 0 0 0 8 11a3 3 0 0 0 2.9-2.2" />
-                    </svg>
+                    <EyeOff size={14} strokeWidth={1.4} aria-hidden />
                   ) : (
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                      <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                      <circle cx="8" cy="8" r="1.75" />
-                    </svg>
+                    <Eye size={14} strokeWidth={1.5} aria-hidden />
                   )}
                 </button>
               </div>
@@ -20872,9 +21035,7 @@ function AddCredentialModal({
         {/* Notes */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-              <path d="M3.5 3.5h9M3.5 6.5h9M3.5 9.5h6" />
-            </svg>
+            <List size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Notes</span>
           </div>
           <div className="p-4 space-y-4 bg-white">
@@ -21264,10 +21425,7 @@ function AddLicenseModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-              <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
-              <path d="M9.5 2.5V6H13" />
-            </svg>
+            <FileText size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'Company — Update License' : 'Company — Add License'}</h3>
@@ -21277,9 +21435,7 @@ function AddLicenseModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -21311,10 +21467,7 @@ function AddLicenseModal({
         {/* License Setup */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4">
-              <circle cx="8" cy="8" r="5.5" />
-              <path d="M8 5.5v3M8 10.5h.01" strokeLinecap="round" />
-            </svg>
+            <Info size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">License Setup</span>
           </div>
           <div className="p-4 space-y-4 bg-white">
@@ -21403,9 +21556,7 @@ function AddLicenseModal({
         {showItemListing && (
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-              <path d="M3.5 4.5h9M3.5 8h9M3.5 11.5h6" />
-            </svg>
+            <List size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Item Details</span>
           </div>
           <div className="p-4 space-y-3 bg-white">
@@ -21426,12 +21577,7 @@ function AddLicenseModal({
                       title="Remove item"
                       aria-label={`Remove item ${index + 1}`}
                     >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18" />
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                        <path d="M10 11v6M14 11v6" />
-                      </svg>
+                      <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                     </button>
                   )}
                 </div>
@@ -21498,9 +21644,7 @@ function AddLicenseModal({
                 onClick={addLicenseItem}
                 className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M6 2.5v7M2.5 6h7" />
-                </svg>
+                <Plus size={12} strokeWidth={1.5} aria-hidden />
                 Add Another Item
               </button>
             </div>
@@ -21511,10 +21655,7 @@ function AddLicenseModal({
         {/* License Information */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-              <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
-              <path d="M9.5 2.5V6H13" />
-            </svg>
+            <FileText size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">License Information</span>
           </div>
           <div className="p-4 space-y-4 bg-white">
@@ -21607,9 +21748,7 @@ function AddLicenseModal({
                 onClick={addSecondary}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M6 2.5v7M2.5 6h7" />
-                </svg>
+                <Plus size={12} strokeWidth={1.5} aria-hidden />
                 Add Secondary Identifier
               </button>
               <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -21625,10 +21764,7 @@ function AddLicenseModal({
         {!shipViaOther && (
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-              <rect x="2.5" y="3.5" width="11" height="10" rx="1.2" />
-              <path d="M2.5 6.5h11M5.5 2.5v2M10.5 2.5v2" />
-            </svg>
+            <Calendar size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Dates</span>
           </div>
           <div className="p-4 space-y-4 bg-white">
@@ -21815,10 +21951,7 @@ function ViewLicenseModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-              <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
-              <path d="M9.5 2.5V6H13" />
-            </svg>
+            <FileText size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900 truncate">Company — View License</h3>
@@ -21828,9 +21961,7 @@ function ViewLicenseModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -21844,9 +21975,7 @@ function ViewLicenseModal({
           <ViewSectionHeader
             title="License Setup"
             icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                <path d="M2.5 5h11M2.5 8h11M2.5 11h7" />
-              </svg>
+              <List size={14} strokeWidth={1.4} aria-hidden />
             }
           />
           <div className="p-4 space-y-4">
@@ -21875,10 +22004,7 @@ function ViewLicenseModal({
           <ViewSectionHeader
             title="License Information"
             icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
-                <path d="M5.5 6.5h5M5.5 9.5h3" />
-              </svg>
+              <FileText size={14} strokeWidth={1.5} aria-hidden />
             }
           />
           <div className="p-4 space-y-4">
@@ -21899,10 +22025,7 @@ function ViewLicenseModal({
           <ViewSectionHeader
             title="Dates"
             icon={
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                <rect x="2.5" y="3.5" width="11" height="9.5" rx="1.5" />
-                <path d="M2.5 6.5h11M5.5 2v2.5M10.5 2v2.5" />
-              </svg>
+              <Image size={14} strokeWidth={1.5} aria-hidden />
             }
           />
           <div className="p-4 space-y-4">
@@ -21932,9 +22055,7 @@ function ViewLicenseModal({
             <ViewSectionHeader
               title="Comment"
               icon={
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2.5 3.5h11v7h-6l-2.5 2v-2h-2.5v-7z" />
-                </svg>
+                <MessageSquare size={14} strokeWidth={1.4} aria-hidden />
               }
             />
             <div className="p-4">
@@ -21946,9 +22067,7 @@ function ViewLicenseModal({
 
       <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
         <button type="button" onClick={onEdit} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-          </svg>
+          <Pencil size={13} strokeWidth={1.5} aria-hidden />
           Edit
         </button>
       </div>
@@ -22064,10 +22183,7 @@ function LicenseReportModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-              <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
-              <path d="M9.5 2.5V6H13" />
-            </svg>
+            <FileText size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900 truncate">
@@ -22079,18 +22195,13 @@ function LicenseReportModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
       <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
         <div className="flex items-start gap-2.5 rounded-xl border border-[#e1c16e]/60 bg-[#e1c16e]/15 px-3.5 py-2.5">
-          <svg className="mt-0.5 flex-shrink-0 text-[#e1c16e]" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <circle cx="8" cy="8" r="6.5" />
-            <path d="M8 5v3.5M8 11h.01" />
-          </svg>
+          <CircleAlert size={14} strokeWidth={1.5} className="mt-0.5 flex-shrink-0 text-[#e1c16e]" aria-hidden />
           <p className="text-xs text-[#73591e]">Some values are pulled from existing Licensing/Reporting data.</p>
         </div>
 
@@ -22144,9 +22255,7 @@ function LicenseReportModal({
               onClick={addIdentifier}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
             >
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M6 2.5v7M2.5 6h7" />
-              </svg>
+              <Plus size={11} strokeWidth={1.5} aria-hidden />
               Add Identifier
             </button>
           </div>
@@ -22166,9 +22275,7 @@ function LicenseReportModal({
                     className="mb-1 p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors flex-shrink-0"
                     title="Remove identifier"
                   >
-                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                      <path d="M3 3l8 8M11 3l-8 8" />
-                    </svg>
+                    <X size={13} strokeWidth={1.5} aria-hidden />
                   </button>
                 </div>
               ))}
@@ -22202,9 +22309,7 @@ function LicenseReportModal({
               onClick={() => setAddCredentialOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
             >
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M6 2.5v7M2.5 6h7" />
-              </svg>
+              <Plus size={11} strokeWidth={1.5} aria-hidden />
               Add New Credential
             </button>
           </div>
@@ -22213,9 +22318,7 @@ function LicenseReportModal({
             {errors.credential && <p className="mt-1 text-[11px] text-[#bb5757]">Select a credential or add a new one.</p>}
             {credentialJustAdded && form.credential && (
               <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600">
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M2 6.5l2.5 2.5L10 3" />
-                </svg>
+                <Check size={11} strokeWidth={1.5} aria-hidden />
                 New credential created and selected
               </p>
             )}
@@ -22282,9 +22385,7 @@ function ReportDefaultSettingsModal({
       <div className="flex items-center justify-between gap-3 px-6 py-4">
         <h3 className="text-base font-semibold text-[#12518c]">Client Reporting Settings</h3>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-6 pb-4">
@@ -22407,10 +22508,7 @@ function AddReportModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 2.5h5.5L13 6v7.5H4V2.5z" />
-              <path d="M9.5 2.5V6H13M6 8.5h4M6 11h4" />
-            </svg>
+            <FileText size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">{isEdit ? 'Edit Report' : 'Add Report'}</h3>
@@ -22418,9 +22516,7 @@ function AddReportModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -22428,10 +22524,7 @@ function AddReportModal({
         {/* Report Setup */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-              <circle cx="8" cy="8" r="5.5" />
-              <path d="M8 5.5v3M8 10.5h.01" />
-            </svg>
+            <Info size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Report Setup</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
@@ -22468,10 +22561,7 @@ function AddReportModal({
         {/* Access & Credentials */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="7" width="10" height="6.5" rx="1.2" />
-              <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
-            </svg>
+            <Lock size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Access &amp; Credentials</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
@@ -22485,9 +22575,7 @@ function AddReportModal({
         {/* Notes */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-[#12518c]/5 border-b border-[#12518c]/10">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#12518c" strokeWidth="1.4" strokeLinecap="round">
-              <path d="M3.5 3.5h9M3.5 6.5h9M3.5 9.5h6" />
-            </svg>
+            <List size={14} strokeWidth={1.5} aria-hidden />
             <span className="text-xs font-semibold text-[#12518c] uppercase tracking-wide">Notes</span>
           </div>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white">
@@ -22747,10 +22835,7 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
                           className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                           title="View"
                         >
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                            <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-                            <circle cx="8" cy="8" r="1.75" />
-                          </svg>
+                          <Eye size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -22758,9 +22843,7 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
                           className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                           title="Edit"
                         >
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                            <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
-                          </svg>
+                          <Pencil size={14} strokeWidth={1.5} aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -22768,12 +22851,7 @@ function CompanyAddressesPage({ companyId }: { companyId: number }) {
                           className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors"
                           title="Delete"
                         >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            <path d="M10 11v6M14 11v6" />
-                          </svg>
+                          <Trash2 size={15} strokeWidth={1.5} aria-hidden />
                         </button>
                       </div>
                     </td>
@@ -22935,10 +23013,7 @@ function AddressConfirmInactiveModal({
       <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
         <div className="flex items-start gap-3 min-w-0">
           <span className="mt-0.5 w-9 h-9 rounded-xl bg-[#e1c16e]/15 text-[#a1802b] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <circle cx="8" cy="8" r="6" />
-              <path d="M8 5v4M8 11.2h.01" />
-            </svg>
+            <CircleAlert size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0 pt-0.5">
             <h3 className="text-sm font-semibold text-slate-900">Confirm inactive</h3>
@@ -22953,9 +23028,7 @@ function AddressConfirmInactiveModal({
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0"
           aria-label="Close"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
@@ -23012,9 +23085,7 @@ function AddressReasonModal({
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           aria-label="Close"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-5 py-5">
@@ -23062,10 +23133,7 @@ function AddressPendingSuccessModal({ onGotIt }: { onGotIt: () => void }) {
     <AddressModalShell onClose={onGotIt}>
       <div className="px-6 pt-7 pb-5 text-center">
         <span className="mx-auto mb-4 w-11 h-11 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="10" cy="10" r="7.5" />
-            <path d="M6.5 10.2l2.3 2.3 4.7-4.8" />
-          </svg>
+          <CircleAlert size={20} strokeWidth={1.5} aria-hidden />
         </span>
         <h3 className="text-sm font-semibold text-slate-900 mb-2">Update submitted</h3>
         <p className="text-sm text-slate-600 leading-relaxed max-w-sm mx-auto">
@@ -23184,10 +23252,7 @@ function AddressFormModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 14s5-3.8 5-7.2A5 5 0 0 0 3 6.8C3 10.2 8 14 8 14z" />
-              <circle cx="8" cy="6.8" r="1.6" />
-            </svg>
+            <Heart size={15} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900 truncate">{title}</h3>
@@ -23200,9 +23265,7 @@ function AddressFormModal({
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           aria-label="Close"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -23256,9 +23319,7 @@ function AddressFormModal({
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                 }`}
               >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <path d="M5 2v6M2 5h6" />
-                </svg>
+                <Plus size={10} strokeWidth={1.6} aria-hidden />
                 Variation
               </button>
             </div>
@@ -23367,9 +23428,7 @@ function AddressFormModal({
                   className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-600"
                   title="Clear"
                 >
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                    <path d="M2 2l6 6M8 2l-6 6" />
-                  </svg>
+                  <X size={10} strokeWidth={1.5} aria-hidden />
                 </button>
               )}
             </div>
@@ -23437,11 +23496,7 @@ function AddressDeleteConfirmModal({
       <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
         <div className="flex items-start gap-3 min-w-0">
           <span className="mt-0.5 w-9 h-9 rounded-xl bg-danger-light text-[#bb5757] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18" />
-              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-            </svg>
+            <Trash2 size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0 pt-0.5">
             <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
@@ -23456,9 +23511,7 @@ function AddressDeleteConfirmModal({
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0"
           aria-label="Close"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
       <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
@@ -23557,10 +23610,7 @@ function ContactFormModal({
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <circle cx="8" cy="5.5" r="2.5" />
-              <path d="M3 13.5c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5" />
-            </svg>
+            <User size={15} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900 truncate">{title}</h3>
@@ -23568,9 +23618,7 @@ function ContactFormModal({
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
 
@@ -23706,9 +23754,7 @@ function TableAddNewButton({
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors shadow-sm shrink-0 ${className}`}
     >
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-        <path d="M6 2.5v7M2.5 6h7" />
-      </svg>
+      <Plus size={12} strokeWidth={1.5} aria-hidden />
       {label}
     </button>
   )
@@ -23764,19 +23810,7 @@ function MoreFiltersButton({
       {!open && extraCount > 0 && (
         <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#12518c] text-white text-[10px] font-bold leading-4">{extraCount}</span>
       )}
-      <svg
-        width="12"
-        height="12"
-        viewBox="0 0 12 12"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={`transition-transform ${open ? 'rotate-180' : ''}`}
-      >
-        <path d="M3 4.5L6 7.5 9 4.5" />
-      </svg>
+      <ChevronDown size={12} strokeWidth={1.5} aria-hidden />
     </button>
   )
 }
@@ -23839,10 +23873,7 @@ function AddressSearchInput({
 }) {
   return (
     <div className={`relative ${className}`}>
-      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="5" cy="5" r="3.5" />
-        <path d="M8 8l2.5 2.5" strokeLinecap="round" />
-      </svg>
+      <Check size={13} strokeWidth={1.5} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden />
       <input
         type="text"
         value={value}
@@ -23921,9 +23952,7 @@ function AddressTableFooter({
           disabled={page <= 1}
           onClick={() => onPageChange(Math.max(1, page - 1))}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M9 3L5 7l4 4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <ChevronLeft size={14} strokeWidth={1.5} aria-hidden />
         </button>
         <button
           type="button"
@@ -23937,9 +23966,7 @@ function AddressTableFooter({
           disabled={page >= lastPage}
           onClick={() => onPageChange(Math.min(lastPage, page + 1))}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M5 3l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <ChevronRight size={14} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
     </div>
@@ -24029,9 +24056,7 @@ function CompanyDetailPage({
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-8 h-8 rounded-lg bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M2 4.5h12M2 8h12M2 11.5h8" strokeLinecap="round" />
-            </svg>
+            <List size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-slate-900">Company Detail</h2>
@@ -24052,9 +24077,7 @@ function CompanyDetailPage({
               onClick={saveEditing}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#12518c] text-white hover:bg-[#0e4173] transition-colors"
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M2 6.5l2.5 2.5L10 3" />
-              </svg>
+              <Check size={12} strokeWidth={1.5} aria-hidden />
               Save
             </button>
           </div>
@@ -24064,9 +24087,7 @@ function CompanyDetailPage({
             onClick={startEditing}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-800 transition-colors"
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M8.5 1.5l2 2L3.5 10.5H1.5v-2L8.5 1.5z" />
-            </svg>
+            <Pencil size={12} strokeWidth={1.5} aria-hidden />
             Edit
           </button>
         )}
@@ -24225,22 +24246,7 @@ function DetailSection({
         }`}>
           {title}
         </h3>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={`flex-shrink-0 transition-transform duration-200 ${
-            open ? 'rotate-180 text-[#12518c]' : 'text-slate-400'
-          }`}
-          aria-hidden
-        >
-          <path d="M3.5 5.25L7 8.75l3.5-3.5" />
-        </svg>
+        <ChevronDown size={14} strokeWidth={1.5} aria-hidden />
       </button>
       {open && <div className="p-4 bg-white">{children}</div>}
     </section>
@@ -24371,9 +24377,7 @@ function DetailSelect({
             }}
             className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100"
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <path d="M2 2l6 6M8 2l-6 6" />
-            </svg>
+            <X size={10} strokeWidth={1.5} aria-hidden />
           </button>
         )}
       </div>
@@ -24455,9 +24459,7 @@ function ContactTypeMultiSelect({
               }`}
             >
               {selected && (
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 5.2L4.2 7.5 8 2.5" />
-                </svg>
+                <Check size={10} strokeWidth={1.5} aria-hidden />
               )}
             </span>
             <span className="font-medium">{type}</span>
@@ -24601,9 +24603,7 @@ function CheckboxMultiSelect({
               }`}
             >
               {selected && (
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 5.2L4.2 7.5 8 2.5" />
-                </svg>
+                <Check size={10} strokeWidth={1.5} aria-hidden />
               )}
             </span>
             <span className="font-medium">{option}</span>
@@ -24856,9 +24856,7 @@ function ColumnSettingsDropdown({
               }`}
             >
               {col.visible && (
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 5.2L4.2 7.5 8 2.5" />
-                </svg>
+                <Check size={10} strokeWidth={1.5} aria-hidden />
               )}
             </span>
             <span className="font-medium">{col.label}</span>
@@ -24969,10 +24967,7 @@ function AlertDropdown({
         className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 text-slate-700 transition-colors"
       >
         <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="6" stroke="#e1c16e" strokeWidth="1.5" strokeDasharray="3 2" />
-            <circle cx="7" cy="7" r="2" fill="#e1c16e" />
-          </svg>
+          <CircleDashed size={14} strokeWidth={1.5} aria-hidden />
         </span>
         Set to Pending
       </button>
@@ -24981,10 +24976,7 @@ function AlertDropdown({
         className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 text-slate-700 transition-colors"
       >
         <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="6" stroke="#ef4444" strokeWidth="1.5" />
-            <path d="M4.5 4.5l5 5M9.5 4.5l-5 5" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+          <CircleX size={14} strokeWidth={1.5} aria-hidden />
         </span>
         Set to Work Stop
       </button>
@@ -24994,10 +24986,7 @@ function AlertDropdown({
         className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 text-slate-500 transition-colors"
       >
         <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="6" stroke="#94a3b8" strokeWidth="1.5" />
-            <path d="M4.5 7h5" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+          <Minus size={14} strokeWidth={1.5} aria-hidden />
         </span>
         Clear Status
       </button>
@@ -25014,9 +25003,7 @@ function AlertDropdown({
       >
         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${badge.dot}`} />
         {badge.label}
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
-          <path d="M2.5 4l2.5 2.5L7.5 4" />
-        </svg>
+        <ChevronDown size={10} strokeWidth={1.5} className="opacity-60" aria-hidden />
       </button>
       {menu}
     </div>
@@ -25042,10 +25029,7 @@ function StatusBadge({ status, alert }: { status: string; alert?: boolean }) {
 function SearchInput({ placeholder }: { placeholder: string }) {
   return (
     <div className="relative w-80">
-      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="5" cy="5" r="3.5" />
-        <path d="M8 8l2.5 2.5" strokeLinecap="round" />
-      </svg>
+      <Check size={13} strokeWidth={1.5} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden />
       <input
         type="text"
         placeholder={placeholder}
@@ -25113,15 +25097,11 @@ function FilterSelect({
           aria-label="Clear filter"
           title="Clear filter"
         >
-          <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M3 3l8 8M11 3l-8 8" />
-          </svg>
+          <X size={10} strokeWidth={1.5} aria-hidden />
         </button>
       )}
       <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 4.5L6 7.5 9 4.5" />
-        </svg>
+        <ChevronDown size={12} strokeWidth={1.5} aria-hidden />
       </span>
     </div>
   )
@@ -25154,113 +25134,55 @@ function Select({
 }
 
 function GridViewIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-      <rect x="1" y="1" width="5" height="5" rx="1" />
-      <rect x="8" y="1" width="5" height="5" rx="1" />
-      <rect x="1" y="8" width="5" height="5" rx="1" />
-      <rect x="8" y="8" width="5" height="5" rx="1" />
-    </svg>
-  )
+  return <LayoutGrid size={14} strokeWidth={1.5} aria-hidden />
 }
 
-/* ── Sidebar icons ───────────────────────────────────────────────── */
+/* ── Sidebar icons (Lucide) ──────────────────────────────────────── */
+
+function navStroke(active: boolean) {
+  return active ? '#12518c' : 'currentColor'
+}
 
 function GridIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill={active ? '#12518c' : 'currentColor'} className="flex-shrink-0">
-      <rect x="1" y="1" width="6" height="6" rx="1.5" />
-      <rect x="9" y="1" width="6" height="6" rx="1.5" />
-      <rect x="1" y="9" width="6" height="6" rx="1.5" />
-      <rect x="9" y="9" width="6" height="6" rx="1.5" />
-    </svg>
-  )
+  return <LayoutGrid size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
 
 function WineIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
-      <path d="M5 2h6l-1 5a3 3 0 0 1-4 0L5 2z" />
-      <path d="M8 7v7M5.5 14h5" />
-    </svg>
-  )
+  return <Wine size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
 
 function BuildingIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-      <rect x="2" y="4" width="12" height="10" rx="1" />
-      <path d="M5 14V8h6v6M8 4V2" />
-    </svg>
-  )
+  return <Building2 size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
 
 function PeopleIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
-      <circle cx="6" cy="5" r="2.5" />
-      <path d="M1 14c0-3 2-4.5 5-4.5s5 1.5 5 4.5" />
-      <path d="M11 3a2.5 2.5 0 0 1 0 5M15 14c0-2.5-1.5-4-4-4" />
-    </svg>
-  )
+  return <Users size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
 
 function AgencyIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-      <path d="M2 14V7l6-5 6 5v7H2z" />
-      <rect x="6" y="10" width="4" height="4" />
-    </svg>
-  )
+  return <Landmark size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
 
 function PipelineIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-      <path d="M2 3h12L10.5 8v5l-5 2V8L2 3z" />
-    </svg>
-  )
+  return <Filter size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
 
 function QueryIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
-      <circle cx="7" cy="7" r="5" />
-      <path d="M12.5 12.5L15 15" />
-    </svg>
-  )
+  return <Search size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
 
 function LicenseIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-      <rect x="3" y="2" width="10" height="12" rx="1.5" />
-      <path d="M6 6h4M6 9h4M6 12h2" />
-    </svg>
-  )
+  return <FileText size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
 
 function ReportIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-      <path d="M2 12V4l4 4 3-4 5 6" />
-    </svg>
-  )
+  return <BarChart3 size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
 
 function BulkIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-      <path d="M2 4h12M2 8h12M2 12h8" />
-    </svg>
-  )
+  return <List size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
 
 function UsersIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? '#12518c' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" className="flex-shrink-0">
-      <circle cx="8" cy="5" r="3" />
-      <path d="M2 15c0-3.5 2.5-5.5 6-5.5s6 2 6 5.5" />
-    </svg>
-  )
+  return <UserRound size={16} color={navStroke(active)} strokeWidth={1.5} className="flex-shrink-0" aria-hidden />
 }
