@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, Children, isValidElement, type ReactNode } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useContext, createContext, Children, isValidElement, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   LayoutGrid,
@@ -1138,10 +1138,10 @@ const COMPANY_CHANGE_LOG = [
     statusDate: '07/17/2026 07:59:19 PM',
     tab: 'Scope',
     recordName: '1260 Summit Lake LLC',
-    field: 'Effective Date, EIN, Ownership Holder, Ownership Percentage',
+    field: 'EIN, Ownership Holder, Ownership Percentage',
     changeType: 'Update' as const,
     previousData: 'Ownership Holder: True, Ownership Percentage: 25%',
-    updatedData: 'Ownership Holder: False, Ownership Percentage: 0%, Effective Date: 07/17/2026, EIN: 84-2219940',
+    updatedData: 'Ownership Holder: False, Ownership Percentage: 0%, EIN: 84-2219940',
     notes: '',
     requestedBy: 'HI',
     hasAction: true,
@@ -2508,6 +2508,7 @@ export default function App() {
   }
 
   return (
+    <ChangeLogPreviewProvider>
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
       {/* Sidebar */}
       <aside
@@ -2841,6 +2842,7 @@ export default function App() {
         </main>
       </div>
     </div>
+    </ChangeLogPreviewProvider>
   )
 }
 
@@ -5296,8 +5298,7 @@ function LicensingPage({
     { key: 'item', label: 'Item' },
     { key: 'field', label: 'Field' },
     { key: 'changeType', label: 'Change Type' },
-    { key: 'previousData', label: 'Previous Data' },
-    { key: 'updatedData', label: 'Updated Data' },
+    { key: 'change', label: 'Change' },
     { key: 'requestedBy', label: 'Requested By' },
   ])
 
@@ -5704,6 +5705,8 @@ function LicensingPage({
           <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
         </section>
       ) : (
+        <div className="space-y-4">
+          <ChangeLogPreviewBanner />
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
           <TableSectionHeader title="Change Log" subtitle="Audit trail of license record changes">
             <AddressSearchInput
@@ -5787,8 +5790,7 @@ function LicensingPage({
                   {logCols.show('item') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Item</th>}
                   {logCols.show('field') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Field</th>}
                   {logCols.show('changeType') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Change Type</th>}
-                  {logCols.show('previousData') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Previous Data</th>}
-                  {logCols.show('updatedData') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Updated Data</th>}
+                  {logCols.show('change') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Change</th>}
                   {logCols.show('requestedBy') && <th className="px-4 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
                 </tr>
               </thead>
@@ -5833,14 +5835,22 @@ function LicensingPage({
                           </span>
                         </td>
                       )}
-                      {logCols.show('previousData') && (
-                        <td className="px-4 py-3 text-sm text-slate-500 max-w-[180px]">
-                          <span className="line-clamp-2" title={entry.previousData || undefined}>{entry.previousData || '—'}</span>
-                        </td>
-                      )}
-                      {logCols.show('updatedData') && (
-                        <td className="px-4 py-3 text-sm text-slate-700 max-w-[180px]">
-                          <span className="line-clamp-2" title={entry.updatedData || undefined}>{entry.updatedData || '—'}</span>
+                      {logCols.show('change') && (
+                        <td className="px-4 py-3 max-w-[280px]">
+                          <ChangeColumnCell
+                            expandKey={`licensing-log-${entry.id}`}
+                            entry={{
+                              id: entry.id,
+                              changeType: entry.changeType,
+                              previousData: entry.previousData,
+                              updatedData: entry.updatedData,
+                              statusDate: entry.statusDate,
+                              field: entry.field,
+                              recordName: entry.item,
+                              tab: `${entry.state} · ${entry.func}`,
+                              requestedBy: entry.requestedBy,
+                            }}
+                          />
                         </td>
                       )}
                       {logCols.show('requestedBy') && (
@@ -5898,6 +5908,7 @@ function LicensingPage({
             </div>
           </div>
         </section>
+        </div>
       )}
       </PreviewFrame>
 
@@ -6550,6 +6561,424 @@ function QueryStatusPill({ status }: { status: string }) {
     <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${map[status] ?? 'bg-slate-100 text-slate-600'}`}>
       {status}
     </span>
+  )
+}
+
+function inferChangeType(previousData?: string, updatedData?: string, changeType?: string): 'Add' | 'Update' | 'Delete' {
+  if (changeType === 'Add' || changeType === 'Update' || changeType === 'Delete') return changeType
+  const prev = (previousData || '').trim()
+  const next = (updatedData || '').trim()
+  if (!prev && next) return 'Add'
+  if (prev && !next) return 'Delete'
+  return 'Update'
+}
+
+function parseKeyedPairs(value: string): { key: string; value: string }[] | null {
+  const parts = value.split(/,\s*/).map(p => p.trim()).filter(Boolean)
+  if (parts.length === 0) return null
+  const pairs = parts.map(part => {
+    const idx = part.indexOf(':')
+    if (idx <= 0) return null
+    return { key: part.slice(0, idx).trim(), value: part.slice(idx + 1).trim() }
+  })
+  if (pairs.some(p => !p)) return null
+  return pairs as { key: string; value: string }[]
+}
+
+type ChangeDelta = {
+  key: string
+  kind: 'changed' | 'added' | 'removed'
+  previous?: string
+  next?: string
+}
+
+function buildChangeDeltas(previousData: string, updatedData: string): ChangeDelta[] {
+  const prevPairs = previousData ? parseKeyedPairs(previousData) : null
+  const nextPairs = updatedData ? parseKeyedPairs(updatedData) : null
+  if (!prevPairs && !nextPairs) return []
+
+  const prevMap = new Map((prevPairs || []).map(p => [p.key, p.value]))
+  const nextMap = new Map((nextPairs || []).map(p => [p.key, p.value]))
+  const keys: string[] = []
+  for (const p of prevPairs || []) {
+    if (!keys.includes(p.key)) keys.push(p.key)
+  }
+  for (const p of nextPairs || []) {
+    if (!keys.includes(p.key)) keys.push(p.key)
+  }
+
+  const deltas: ChangeDelta[] = []
+  for (const key of keys) {
+    const hasPrev = prevMap.has(key)
+    const hasNext = nextMap.has(key)
+    const previous = prevMap.get(key)
+    const next = nextMap.get(key)
+    if (hasPrev && hasNext) {
+      if (previous === next) continue
+      deltas.push({ key, kind: 'changed', previous, next })
+    } else if (hasNext) {
+      deltas.push({ key, kind: 'added', next })
+    } else if (hasPrev) {
+      deltas.push({ key, kind: 'removed', previous })
+    }
+  }
+  return deltas
+}
+
+function changeSummaryLabel(changeType?: string, previousData = '', updatedData = '') {
+  const type = inferChangeType(previousData, updatedData, changeType)
+  const deltas = buildChangeDeltas(previousData, updatedData)
+  if (deltas.length > 0) {
+    const names = deltas.map(d => d.key)
+    if (names.length === 1) {
+      const d = deltas[0]
+      if (d.kind === 'changed') return `${d.key}: ${d.previous || '—'} → ${d.next || '—'}`
+      if (d.kind === 'added') return `${type === 'Add' ? 'Added' : 'Added'} ${d.key}`
+      return `Removed ${d.key}`
+    }
+    const preview = names.slice(0, 2).join(' · ')
+    const extra = names.length > 2 ? ` · +${names.length - 2}` : ''
+    return `${names.length} fields updated · ${preview}${extra}`
+  }
+  if (type === 'Add') return updatedData.trim() ? `Added · ${updatedData.trim()}` : 'Added'
+  if (type === 'Delete') return previousData.trim() ? `Removed · ${previousData.trim()}` : 'Removed'
+  if (!previousData.trim() && !updatedData.trim()) return 'No change detail'
+  return `${previousData.trim() || '—'} → ${updatedData.trim() || '—'}`
+}
+
+function ChangeDeltaStack({
+  previousData = '',
+  updatedData = '',
+  changeType,
+}: {
+  previousData?: string
+  updatedData?: string
+  changeType?: string
+}) {
+  const deltas = buildChangeDeltas(previousData, updatedData)
+  if (deltas.length === 0) {
+    return (
+      <ChangeDiffCell changeType={changeType} previousData={previousData} updatedData={updatedData} />
+    )
+  }
+  return (
+    <div className="space-y-1.5 min-w-0 text-sm">
+      {deltas.map(d => (
+        <div key={d.key} className="leading-snug">
+          <span className="font-medium text-slate-600">{d.key}:</span>{' '}
+          {d.kind === 'changed' && (
+            <>
+              <span className="line-through text-slate-400">{d.previous || '—'}</span>
+              <span className="mx-1 text-slate-400">→</span>
+              <span className="font-semibold text-slate-800">{d.next || '—'}</span>
+            </>
+          )}
+          {d.kind === 'added' && (
+            <>
+              <span className="text-slate-400">—</span>
+              <span className="mx-1 text-slate-400">→</span>
+              <span className="font-semibold text-slate-800">{d.next || '—'}</span>
+            </>
+          )}
+          {d.kind === 'removed' && (
+            <>
+              <span className="line-through text-slate-400">{d.previous || '—'}</span>
+              <span className="mx-1 text-slate-400">→</span>
+              <span className="text-slate-400">—</span>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ChangeTwoToneCards({
+  previousData = '',
+  updatedData = '',
+  changeType,
+}: {
+  previousData?: string
+  updatedData?: string
+  changeType?: string
+}) {
+  const deltas = buildChangeDeltas(previousData, updatedData)
+  if (deltas.length === 0) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Previous</p>
+          <p className="text-sm text-slate-500 line-through whitespace-pre-wrap">{previousData || '—'}</p>
+        </div>
+        <div className="rounded-xl border border-[#12518c]/20 bg-[#12518c]/5 px-3 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#12518c] mb-1.5">Updated</p>
+          <p className="text-sm font-semibold text-slate-800 whitespace-pre-wrap">{updatedData || '—'}</p>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-slate-500">
+        {inferChangeType(previousData, updatedData, changeType)} · {deltas.length} field{deltas.length === 1 ? '' : 's'}
+      </p>
+      <div className="space-y-2">
+        {deltas.map(d => (
+          <div key={d.key} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-[10px] font-semibold text-slate-500 mb-0.5">{d.key} · previous</p>
+              <p className={`text-sm ${d.kind === 'added' ? 'text-slate-400' : 'text-slate-500 line-through'}`}>
+                {d.kind === 'added' ? '—' : d.previous || '—'}
+              </p>
+            </div>
+            <div className="rounded-lg border border-[#12518c]/20 bg-[#12518c]/5 px-3 py-2">
+              <p className="text-[10px] font-semibold text-[#12518c] mb-0.5">{d.key} · updated</p>
+              <p className={`text-sm font-semibold ${d.kind === 'removed' ? 'text-slate-400' : 'text-slate-800'}`}>
+                {d.kind === 'removed' ? '—' : d.next || '—'}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ChangeDiffCell({
+  changeType,
+  previousData = '',
+  updatedData = '',
+  compact = false,
+}: {
+  changeType?: string
+  previousData?: string
+  updatedData?: string
+  compact?: boolean
+}) {
+  const type = inferChangeType(previousData, updatedData, changeType)
+  const prev = (previousData || '').trim()
+  const next = (updatedData || '').trim()
+  const textClass = compact ? 'text-sm' : 'text-sm'
+  const chip = (label: string, className: string) => (
+    <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold ${className}`}>{label}</span>
+  )
+
+  const deltas = buildChangeDeltas(prev, next)
+  if (deltas.length > 0) {
+    return <ChangeDeltaStack changeType={changeType} previousData={prev} updatedData={next} />
+  }
+
+  if (type === 'Add') {
+    return (
+      <div className={`flex flex-wrap items-start gap-1.5 min-w-0 ${textClass}`}>
+        {chip('Added', 'bg-[#BBDCFC] text-[#3B4A59]')}
+        <span className="font-semibold text-slate-800 break-words">{next || '—'}</span>
+      </div>
+    )
+  }
+
+  if (type === 'Delete') {
+    return (
+      <div className={`flex flex-wrap items-start gap-1.5 min-w-0 ${textClass}`}>
+        {chip('Removed', 'bg-danger-light text-[#bb5757]')}
+        <span className="line-through text-slate-400 break-words">{prev || '—'}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`leading-snug min-w-0 ${textClass}`}>
+      {prev ? <span className="line-through text-slate-400 break-words">{prev}</span> : <span className="text-slate-400">—</span>}
+      <span className="mx-1 text-slate-400">→</span>
+      <span className="font-semibold text-slate-800 break-words">{next || '—'}</span>
+    </div>
+  )
+}
+
+const CHANGE_LOG_PREVIEW_OPTIONS = [
+  { id: '1' as const, label: '1', hint: 'Inline expand' },
+  { id: '2' as const, label: '2', hint: 'Side drawer' },
+  { id: '3' as const, label: '3', hint: 'Cards in View' },
+]
+
+type ChangeLogPreviewMode = (typeof CHANGE_LOG_PREVIEW_OPTIONS)[number]['id']
+
+type ChangeDetailEntry = {
+  id: number | string
+  previousData?: string
+  updatedData?: string
+  changeType?: string
+  statusDate?: string
+  recordName?: string
+  tab?: string
+  field?: string
+  notes?: string
+  requestedBy?: string
+}
+
+type ChangeLogPreviewContextValue = {
+  mode: ChangeLogPreviewMode
+  setMode: (mode: ChangeLogPreviewMode) => void
+  isExpanded: (key: string) => boolean
+  toggleExpanded: (key: string) => void
+  openDetail: (entry: ChangeDetailEntry) => void
+  clearExpanded: () => void
+}
+
+const ChangeLogPreviewContext = createContext<ChangeLogPreviewContextValue | null>(null)
+
+function useChangeLogPreview() {
+  const ctx = useContext(ChangeLogPreviewContext)
+  if (!ctx) throw new Error('useChangeLogPreview must be used within ChangeLogPreviewProvider')
+  return ctx
+}
+
+function ChangeLogPreviewProvider({ children }: { children: ReactNode }) {
+  const [mode, setModeState] = useState<ChangeLogPreviewMode>('1')
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([])
+  const [detailEntry, setDetailEntry] = useState<ChangeDetailEntry | null>(null)
+
+  const setMode = (next: ChangeLogPreviewMode) => {
+    setModeState(next)
+    setExpandedKeys([])
+    setDetailEntry(null)
+  }
+
+  const value: ChangeLogPreviewContextValue = {
+    mode,
+    setMode,
+    isExpanded: key => expandedKeys.includes(key),
+    toggleExpanded: key => {
+      setExpandedKeys(prev => (prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]))
+    },
+    openDetail: entry => setDetailEntry(entry),
+    clearExpanded: () => setExpandedKeys([]),
+  }
+
+  return (
+    <ChangeLogPreviewContext.Provider value={value}>
+      {children}
+      {detailEntry && mode === '2' && (
+        <ChangeLogDrawer entry={detailEntry} onClose={() => setDetailEntry(null)} />
+      )}
+      {detailEntry && mode !== '2' && (
+        <ViewChangeLogModal
+          entry={detailEntry}
+          detailStyle={mode === '3' ? 'cards' : 'stack'}
+          onClose={() => setDetailEntry(null)}
+        />
+      )}
+    </ChangeLogPreviewContext.Provider>
+  )
+}
+
+function ChangeLogPreviewToggle({
+  value,
+  onChange,
+}: {
+  value: ChangeLogPreviewMode
+  onChange: (mode: ChangeLogPreviewMode) => void
+}) {
+  const active = CHANGE_LOG_PREVIEW_OPTIONS.find(o => o.id === value)
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Change UI</span>
+      <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+        {CHANGE_LOG_PREVIEW_OPTIONS.map(option => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onChange(option.id)}
+            title={option.hint}
+            className={`min-w-[28px] h-7 px-2 rounded-md text-xs font-bold transition-colors ${
+              value === option.id
+                ? 'bg-[#12518c] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-white hover:text-slate-900'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      {active && <span className="text-[11px] text-slate-500">{active.hint}</span>}
+    </div>
+  )
+}
+
+function ChangeLogPreviewBanner() {
+  const { mode, setMode } = useChangeLogPreview()
+  return (
+    <div className="rounded-xl border border-[#12518c]/15 bg-[#12518c]/5 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p className="text-xs font-semibold text-slate-800">Change column preview (TC-1144)</p>
+        <p className="text-[11px] text-slate-500 mt-0.5">Toggle 1–3 to compare layouts for client review.</p>
+      </div>
+      <ChangeLogPreviewToggle value={mode} onChange={setMode} />
+    </div>
+  )
+}
+
+function ChangeColumnCell({
+  entry,
+  expandKey,
+}: {
+  entry: ChangeDetailEntry
+  expandKey: string
+}) {
+  const { mode, isExpanded, toggleExpanded, openDetail } = useChangeLogPreview()
+  const summary = changeSummaryLabel(entry.changeType, entry.previousData, entry.updatedData)
+  const expanded = isExpanded(expandKey)
+
+  if (mode === '1') {
+    return (
+      <div className="min-w-0">
+        <button
+          type="button"
+          onClick={() => toggleExpanded(expandKey)}
+          className="w-full text-left"
+          title={expanded ? 'Collapse' : 'Expand'}
+        >
+          {expanded ? (
+            <ChangeDeltaStack
+              changeType={entry.changeType}
+              previousData={entry.previousData}
+              updatedData={entry.updatedData}
+            />
+          ) : (
+            <span className="line-clamp-1 text-sm font-medium text-slate-700">{summary}</span>
+          )}
+          <span className="mt-0.5 block text-[11px] font-medium text-[#12518c]">
+            {expanded ? 'Show less' : 'Expand'}
+          </span>
+        </button>
+      </div>
+    )
+  }
+
+  if (mode === '2') {
+    return (
+      <button
+        type="button"
+        onClick={() => openDetail(entry)}
+        className="text-left text-sm text-slate-700 hover:text-[#12518c] transition-colors"
+        title={summary}
+      >
+        <span className="line-clamp-1 font-medium">{summary}</span>
+        <span className="mt-0.5 block text-[11px] font-medium text-[#12518c]">Open drawer</span>
+      </button>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => openDetail(entry)}
+      className="text-left text-sm text-slate-700 hover:text-[#12518c] transition-colors"
+      title={summary}
+    >
+      <span className="line-clamp-1 font-medium">{summary}</span>
+      <span className="mt-0.5 block text-[11px] font-medium text-[#12518c]">View details</span>
+    </button>
   )
 }
 
@@ -8241,9 +8670,20 @@ function DashboardPage({
                     <tr key={row.id} className="hover:bg-slate-50 cursor-pointer" onClick={onOpenActionItems}>
                       <td className="px-5 py-3.5 text-sm font-medium text-[#12518c]">{row.companyContactName}</td>
                       <td className="px-5 py-3.5 text-sm text-slate-600">{row.field}</td>
-                      <td className="px-5 py-3.5 text-sm text-slate-500">
-                        <span className="line-through text-slate-400 mr-1">{row.previousData}</span>
-                        → {row.updatedData}
+                      <td className="px-5 py-3.5 max-w-[280px]">
+                        <ChangeColumnCell
+                          expandKey={`dashboard-action-${row.id}`}
+                          entry={{
+                            id: row.id,
+                            previousData: row.previousData,
+                            updatedData: row.updatedData,
+                            statusDate: row.requestDate,
+                            field: row.field,
+                            recordName: row.companyContactName,
+                            requestedBy: row.requestedBy,
+                            tab: row.companyContactName,
+                          }}
+                        />
                       </td>
                       <td className="px-5 py-3.5 text-xs text-slate-400 whitespace-nowrap">{row.requestDate}</td>
                     </tr>
@@ -8607,8 +9047,7 @@ function CellarPage({
     { key: 'recordName', label: 'Record Name' },
     { key: 'requestDate', label: 'Request Date' },
     { key: 'field', label: 'Field' },
-    { key: 'previousData', label: 'Previous Data' },
-    { key: 'updatedData', label: 'Updated Data' },
+    { key: 'change', label: 'Change' },
     { key: 'notes', label: 'Notes' },
     { key: 'requestedBy', label: 'Requested By' },
     { key: 'action', label: 'Action' },
@@ -8628,8 +9067,7 @@ function CellarPage({
     { key: 'recordName', label: 'Record Name' },
     { key: 'decisionDate', label: 'Decision Date' },
     { key: 'field', label: 'Field' },
-    { key: 'previousData', label: 'Previous Data' },
-    { key: 'updatedData', label: 'Updated Data' },
+    { key: 'change', label: 'Change' },
     { key: 'requestedBy', label: 'Requested By' },
     { key: 'specialist', label: 'Specialist' },
     { key: 'status', label: 'Status' },
@@ -8903,6 +9341,10 @@ function CellarPage({
         <h1 className="text-2xl font-bold text-slate-900">The Cellar</h1>
       </div>
 
+      <div className="mb-5">
+        <ChangeLogPreviewBanner />
+      </div>
+
       <div className="flex items-center gap-2 mb-5">
         {CELLAR_TABS.map(tab => (
           <button
@@ -8985,8 +9427,7 @@ function CellarPage({
                   {finalCols.show('recordName') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Record Name</th>}
                   {finalCols.show('decisionDate') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Decision Date</th>}
                   {finalCols.show('field') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Field</th>}
-                  {finalCols.show('previousData') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Previous Data</th>}
-                  {finalCols.show('updatedData') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Updated Data</th>}
+                  {finalCols.show('change') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Change</th>}
                   {finalCols.show('requestedBy') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
                   {finalCols.show('specialist') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Specialist</th>}
                   {finalCols.show('status') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Status</th>}
@@ -9022,14 +9463,21 @@ function CellarPage({
                       )}
                       {finalCols.show('decisionDate') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{row.decisionDate}</td>}
                       {finalCols.show('field') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{row.field}</td>}
-                      {finalCols.show('previousData') && (
-                        <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap max-w-[160px] truncate" title={row.previousData}>
-                          {row.previousData || '—'}
-                        </td>
-                      )}
-                      {finalCols.show('updatedData') && (
-                        <td className="px-3 py-3 text-sm text-slate-700 font-medium whitespace-nowrap max-w-[160px] truncate" title={row.updatedData}>
-                          {row.updatedData || '—'}
+                      {finalCols.show('change') && (
+                        <td className="px-3 py-3 max-w-[240px]">
+                          <ChangeColumnCell
+                            expandKey={`cellar-final-${row.id}`}
+                            entry={{
+                              id: row.id,
+                              previousData: row.previousData,
+                              updatedData: row.updatedData,
+                              statusDate: row.decisionDate,
+                              field: row.field,
+                              recordName: row.recordName || row.companyContactName,
+                              requestedBy: row.requestedBy,
+                              tab: row.companyContactName,
+                            }}
+                          />
                         </td>
                       )}
                       {finalCols.show('requestedBy') && (
@@ -9167,8 +9615,7 @@ function CellarPage({
                     </th>
                   )}
                   {actionItemCols.show('field') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Field</th>}
-                  {actionItemCols.show('previousData') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Previous Data</th>}
-                  {actionItemCols.show('updatedData') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Updated Data</th>}
+                  {actionItemCols.show('change') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Change</th>}
                   {actionItemCols.show('notes') && <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Notes</th>}
                   {actionItemCols.show('requestedBy') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
                   {actionItemCols.show('action') && <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap w-[150px]">Action</th>}
@@ -9211,8 +9658,24 @@ function CellarPage({
                         {actionItemCols.show('recordName') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{row.recordName || '—'}</td>}
                         {actionItemCols.show('requestDate') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{row.requestDate}</td>}
                         {actionItemCols.show('field') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{row.field}</td>}
-                        {actionItemCols.show('previousData') && <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap">{row.previousData || '—'}</td>}
-                        {actionItemCols.show('updatedData') && <td className="px-3 py-3 text-sm text-slate-700 font-medium whitespace-nowrap">{row.updatedData || '—'}</td>}
+                        {actionItemCols.show('change') && (
+                          <td className="px-3 py-3 max-w-[240px]">
+                            <ChangeColumnCell
+                              expandKey={`cellar-action-${row.id}`}
+                              entry={{
+                                id: row.id,
+                                previousData: row.previousData,
+                                updatedData: row.updatedData,
+                                statusDate: row.requestDate,
+                                field: row.field,
+                                recordName: row.recordName || row.companyContactName,
+                                notes: row.notes,
+                                requestedBy: row.requestedBy,
+                                tab: row.companyContactName,
+                              }}
+                            />
+                          </td>
+                        )}
                         {actionItemCols.show('notes') && (
                           <td className="px-3 py-3">
                             {row.notes ? (
@@ -13420,88 +13883,96 @@ function PersonChangeLogPage() {
   const cols = useTableColumns([
     { key: 'statusDate', label: 'Status Date' },
     { key: 'field', label: 'Field' },
-    { key: 'previousData', label: 'Previous Data' },
-    { key: 'updatedData', label: 'Updated Data' },
+    { key: 'change', label: 'Change' },
     { key: 'notes', label: 'Notes' },
     { key: 'requestedBy', label: 'Requested By' },
   ])
   return (
-    <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.25s_ease-out]">
-      <TableSectionHeader title="Change Log" subtitle="History of field changes for this person">
-        <AddressSearchInput
-          value={search}
-          onChange={v => {
-            setSearch(v)
-            setPage(1)
-          }}
-        />
-        <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
-      </TableSectionHeader>
+    <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+      <ChangeLogPreviewBanner />
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <TableSectionHeader title="Change Log" subtitle="History of field changes for this person">
+          <AddressSearchInput
+            value={search}
+            onChange={v => {
+              setSearch(v)
+              setPage(1)
+            }}
+          />
+          <ColumnSettingsDropdown {...cols.dropdownProps} buttonClassName={TABLE_COL_BTN} />
+        </TableSectionHeader>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px]">
-          <thead>
-            <tr className="border-y border-slate-100 bg-slate-50/60">
-              {cols.show('statusDate') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Status Date</th>}
-              {cols.show('field') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Field</th>}
-              {cols.show('previousData') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Previous Data</th>}
-              {cols.show('updatedData') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Updated Data</th>}
-              {cols.show('notes') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Notes</th>}
-              {cols.show('requestedBy') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={cols.visibleCount} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
-                  No record Found!
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px]">
+            <thead>
+              <tr className="border-y border-slate-100 bg-slate-50/60">
+                {cols.show('statusDate') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Status Date</th>}
+                {cols.show('field') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Field</th>}
+                {cols.show('change') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Change</th>}
+                {cols.show('notes') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Notes</th>}
+                {cols.show('requestedBy') && <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Requested By</th>}
               </tr>
-            ) : (
-              filtered.map((e, i) => (
-                <tr
-                  key={e.id}
-                  className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
-                    i % 2 === 1 ? 'bg-slate-50/40' : 'bg-[#f8fafc]'
-                  }`}
-                >
-                  {cols.show('statusDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{e.statusDate}</td>}
-                  {cols.show('field') && (
-                    <td className="px-4 py-3 text-sm text-slate-700 max-w-[200px]">
-                      <span className="line-clamp-2" title={e.field}>{e.field}</span>
-                    </td>
-                  )}
-                  {cols.show('previousData') && (
-                    <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px]">
-                      <span className="line-clamp-2" title={e.previousData || undefined}>{e.previousData || '—'}</span>
-                    </td>
-                  )}
-                  {cols.show('updatedData') && (
-                    <td className="px-4 py-3 text-sm text-slate-600 max-w-[220px]">
-                      <span className="line-clamp-2" title={e.updatedData || undefined}>{e.updatedData || '—'}</span>
-                    </td>
-                  )}
-                  {cols.show('notes') && (
-                    <td className="px-4 py-3 text-sm text-slate-500 max-w-[180px]">
-                      <span className="line-clamp-2" title={e.notes || undefined}>{e.notes || '—'}</span>
-                    </td>
-                  )}
-                  {cols.show('requestedBy') && (
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
-                        {e.requestedBy}
-                      </span>
-                    </td>
-                  )}
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={cols.visibleCount} className="px-4 py-12 text-center text-sm text-slate-400 bg-slate-50/50">
+                    No record Found!
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                filtered.map((e, i) => (
+                  <tr
+                    key={e.id}
+                    className={`border-b border-slate-100 transition-colors hover:bg-[#12518c]/5 ${
+                      i % 2 === 1 ? 'bg-slate-50/40' : 'bg-[#f8fafc]'
+                    }`}
+                  >
+                    {cols.show('statusDate') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap tabular-nums">{e.statusDate}</td>}
+                    {cols.show('field') && (
+                      <td className="px-4 py-3 text-sm text-slate-700 max-w-[200px]">
+                        <span className="line-clamp-2" title={e.field}>{e.field}</span>
+                      </td>
+                    )}
+                    {cols.show('change') && (
+                      <td className="px-4 py-3 max-w-[280px]">
+                        <ChangeColumnCell
+                          expandKey={`person-log-${e.id}`}
+                          entry={{
+                            id: e.id,
+                            previousData: e.previousData,
+                            updatedData: e.updatedData,
+                            statusDate: e.statusDate,
+                            field: e.field,
+                            notes: e.notes,
+                            requestedBy: e.requestedBy,
+                            recordName: e.field,
+                          }}
+                        />
+                      </td>
+                    )}
+                    {cols.show('notes') && (
+                      <td className="px-4 py-3 text-sm text-slate-500 max-w-[180px]">
+                        <span className="line-clamp-2" title={e.notes || undefined}>{e.notes || '—'}</span>
+                      </td>
+                    )}
+                    {cols.show('requestedBy') && (
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
+                          {e.requestedBy}
+                        </span>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
-    </section>
+        <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
+      </section>
+    </div>
   )
 }
 
@@ -18788,17 +19259,16 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
-  const [viewEntry, setViewEntry] = useState<ChangeLogRow | null>(null)
   const [restoreEntry, setRestoreEntry] = useState<ChangeLogRow | null>(null)
   const [sortDesc, setSortDesc] = useState(true)
+  const { openDetail } = useChangeLogPreview()
   const changeLogCols = useTableColumns([
     { key: 'statusDate', label: 'Status Date' },
     { key: 'tab', label: 'Tab' },
     { key: 'recordName', label: 'Record Name' },
     { key: 'field', label: 'Field' },
     { key: 'changeType', label: 'Change Type' },
-    { key: 'previousData', label: 'Previous Data' },
-    { key: 'updatedData', label: 'Updated Data' },
+    { key: 'change', label: 'Change' },
     { key: 'notes', label: 'Notes' },
     { key: 'requestedBy', label: 'Requested By' },
   ])
@@ -18883,6 +19353,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       <ListingHeading title="Change Log" />
+      <ChangeLogPreviewBanner />
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <TableSectionHeader title="Change Log" subtitle={`Company ID ${companyId} · audit trail of record changes`}>
           <AddressSearchInput value={search} onChange={v => { setSearch(v); setPage(1) }} />
@@ -18935,8 +19406,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                 {changeLogCols.show('recordName') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Record Name</th>}
                 {changeLogCols.show('field') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Field</th>}
                 {changeLogCols.show('changeType') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Change Type</th>}
-                {changeLogCols.show('previousData') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Previous Data</th>}
-                {changeLogCols.show('updatedData') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Updated Data</th>}
+                {changeLogCols.show('change') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Change</th>}
                 {changeLogCols.show('notes') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Notes</th>}
                 {changeLogCols.show('requestedBy') && <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-left">Requested By</th>}
                 <th className="px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap text-center">Action</th>
@@ -18968,14 +19438,9 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                       </span>
                     </td>
                     )}
-                    {changeLogCols.show('previousData') && (
-                    <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px]">
-                      <span className="line-clamp-2" title={e.previousData || undefined}>{e.previousData || '—'}</span>
-                    </td>
-                    )}
-                    {changeLogCols.show('updatedData') && (
-                    <td className="px-4 py-3 text-sm text-slate-600 max-w-[220px]">
-                      <span className="line-clamp-2" title={e.updatedData || undefined}>{e.updatedData || '—'}</span>
+                    {changeLogCols.show('change') && (
+                    <td className="px-4 py-3 max-w-[280px]">
+                      <ChangeColumnCell entry={e} expandKey={`company-log-${e.id}`} />
                     </td>
                     )}
                     {changeLogCols.show('notes') && (
@@ -19010,7 +19475,7 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
                         {e.changeType !== 'Delete' && (
                           <button
                             type="button"
-                            onClick={() => setViewEntry(e)}
+                            onClick={() => openDetail(e)}
                             className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors"
                             title="View change details"
                           >
@@ -19028,10 +19493,6 @@ function CompanyChangeLogPage({ companyId }: { companyId: number }) {
 
         <AddressTableFooter total={filtered.length} page={page} onPageChange={setPage} />
       </section>
-
-      {viewEntry && (
-        <ViewChangeLogModal entry={viewEntry} onClose={() => setViewEntry(null)} />
-      )}
 
       {restoreEntry && (
         <RestoreChangeLogModal
@@ -19074,8 +19535,12 @@ function RestoreChangeLogModal({
 
       <div className="px-5 pb-5">
         <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-xs text-slate-600">
-          <p className="font-medium text-slate-700 mb-1">Previous data</p>
-          <p className="leading-relaxed">{entry.previousData || '—'}</p>
+          <p className="font-medium text-slate-700 mb-1.5">Change</p>
+          <ChangeDiffCell
+            changeType="Delete"
+            previousData={entry.previousData}
+            updatedData={entry.updatedData}
+          />
         </div>
       </div>
 
@@ -19102,9 +19567,11 @@ function RestoreChangeLogModal({
 function ViewChangeLogModal({
   entry,
   onClose,
+  detailStyle = 'stack',
 }: {
-  entry: (typeof COMPANY_CHANGE_LOG)[number]
+  entry: ChangeDetailEntry
   onClose: () => void
+  detailStyle?: 'stack' | 'cards'
 }) {
   const changeTypeClass = (type: string) => {
     switch (type) {
@@ -19123,8 +19590,10 @@ function ViewChangeLogModal({
             <RefreshCw size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-slate-900">Company — View Change</h3>
-            <p className="text-[11px] text-slate-500">{entry.tab} · {entry.recordName}</p>
+            <h3 className="text-sm font-semibold text-slate-900">View Change</h3>
+            <p className="text-[11px] text-slate-500">
+              {[entry.tab, entry.recordName].filter(Boolean).join(' · ') || entry.field || 'Change detail'}
+            </p>
           </div>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
@@ -19134,43 +19603,210 @@ function ViewChangeLogModal({
 
       <div className="px-5 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold ${changeTypeClass(entry.changeType)}`}>
-            {entry.changeType}
-          </span>
-          <span className="text-xs text-slate-500 tabular-nums">{entry.statusDate}</span>
-          <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-            by
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
-              {entry.requestedBy}
+          {entry.changeType && (
+            <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold ${changeTypeClass(entry.changeType)}`}>
+              {entry.changeType}
             </span>
-          </span>
+          )}
+          {entry.statusDate && <span className="text-xs text-slate-500 tabular-nums">{entry.statusDate}</span>}
+          {entry.requestedBy && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+              by
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
+                {entry.requestedBy}
+              </span>
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <OwnershipFormField label="Tab" value={entry.tab} onChange={() => {}} readOnly />
-          <OwnershipFormField label="Record Name" value={entry.recordName} onChange={() => {}} readOnly />
+          <OwnershipFormField label="Tab" value={entry.tab || '—'} onChange={() => {}} readOnly />
+          <OwnershipFormField label="Record Name" value={entry.recordName || '—'} onChange={() => {}} readOnly />
         </div>
 
-        <OwnershipFormField label="Field" value={entry.field} onChange={() => {}} readOnly />
+        <OwnershipFormField label="Field" value={entry.field || '—'} onChange={() => {}} readOnly />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="min-w-0">
-            <OwnershipFormLabel>Previous Data</OwnershipFormLabel>
-            <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-600 min-h-[72px] whitespace-pre-wrap">
-              {entry.previousData || '—'}
+        <div className="min-w-0">
+          <OwnershipFormLabel>Change</OwnershipFormLabel>
+          {detailStyle === 'cards' ? (
+            <ChangeTwoToneCards
+              changeType={entry.changeType}
+              previousData={entry.previousData}
+              updatedData={entry.updatedData}
+            />
+          ) : (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 min-h-[72px]">
+              <ChangeDeltaStack
+                changeType={entry.changeType}
+                previousData={entry.previousData}
+                updatedData={entry.updatedData}
+              />
             </div>
-          </div>
-          <div className="min-w-0">
-            <OwnershipFormLabel>Updated Data</OwnershipFormLabel>
-            <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-700 min-h-[72px] whitespace-pre-wrap">
-              {entry.updatedData || '—'}
-            </div>
-          </div>
+          )}
         </div>
 
         <OwnershipFormField label="Notes" value={entry.notes || '—'} onChange={() => {}} readOnly />
       </div>
     </AddressModalShell>
+  )
+}
+
+function ChangeLogDrawer({
+  entry,
+  onClose,
+}: {
+  entry: ChangeDetailEntry
+  onClose: () => void
+}) {
+  const changeTypeClass = (type: string) => {
+    switch (type) {
+      case 'Add': return 'bg-[#BBDCFC] text-[#3B4A59]'
+      case 'Update': return 'bg-sky-50 text-sky-700'
+      case 'Delete': return 'bg-danger-light text-[#bb5757]'
+      default: return 'bg-slate-100 text-slate-600'
+    }
+  }
+
+  const deltas = buildChangeDeltas(entry.previousData || '', entry.updatedData || '')
+  const statusParts = (entry.statusDate || '').trim().split(/\s+/).filter(Boolean)
+  const statusDatePart = statusParts[0] || entry.statusDate || '—'
+  const statusTimePart = statusParts.length > 1 ? statusParts.slice(1).join(' ') : ''
+  const subtitle = [entry.tab, entry.field].filter(Boolean).join(' · ')
+
+  return (
+    <div className="fixed inset-0 z-[80] flex justify-end">
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-900/35 backdrop-blur-[1px] animate-[fadeOverlay_0.22s_ease-out]"
+        aria-label="Close drawer"
+        onClick={onClose}
+      />
+      <aside className="relative z-10 flex h-full w-full max-w-[420px] flex-col bg-white shadow-2xl border-l border-slate-200 animate-[slideInRight_0.28s_cubic-bezier(0.22,1,0.36,1)]">
+        <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
+          <span className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#12518c]/10 text-[#12518c]">
+            <RefreshCw size={16} strokeWidth={1.5} aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Change details</p>
+            <h3 className="mt-0.5 truncate text-sm font-semibold text-slate-900" title={entry.recordName || entry.field}>
+              {entry.recordName || entry.field || 'Change'}
+            </h3>
+            {subtitle && (
+              <p className="mt-0.5 truncate text-[11px] text-slate-500" title={subtitle}>
+                {subtitle}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            aria-label="Close"
+          >
+            <X size={15} strokeWidth={1.5} aria-hidden />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-5">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Type</p>
+              <span className={`mt-1.5 inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${changeTypeClass(entry.changeType || 'Update')}`}>
+                {entry.changeType || 'Update'}
+              </span>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Requested by</p>
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200/80 text-[10px] font-bold text-slate-700">
+                  {entry.requestedBy || '—'}
+                </span>
+                <span className="text-xs font-medium text-slate-700">{entry.requestedBy || '—'}</span>
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Date</p>
+              <p className="mt-1.5 text-sm font-medium tabular-nums text-slate-800">{statusDatePart}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Time</p>
+              <p className="mt-1.5 text-sm font-medium tabular-nums text-slate-800">{statusTimePart || '—'}</p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-2.5 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Field changes</p>
+                {(statusDatePart !== '—' || statusTimePart) && (
+                  <p className="mt-0.5 text-[11px] tabular-nums text-slate-500">
+                    {statusDatePart}{statusTimePart ? ` · ${statusTimePart}` : ''}
+                  </p>
+                )}
+              </div>
+              {deltas.length > 0 && (
+                <span className="text-[10px] font-semibold text-slate-400">
+                  {deltas.length} field{deltas.length === 1 ? '' : 's'}
+                </span>
+              )}
+            </div>
+
+            {deltas.length > 0 ? (
+              <div className="space-y-2.5">
+                {deltas.map(d => (
+                  <div key={d.key} className="overflow-hidden rounded-xl border border-slate-200">
+                    <div className="border-b border-slate-100 bg-slate-50 px-3 py-2">
+                      <p className="text-xs font-semibold text-slate-800">{d.key}</p>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-slate-100">
+                      <div className="px-3 py-2.5">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Previous</p>
+                        <p className={`text-sm break-words ${d.kind === 'added' ? 'text-slate-400' : 'text-slate-500 line-through'}`}>
+                          {d.kind === 'added' ? '—' : d.previous || '—'}
+                        </p>
+                      </div>
+                      <div className="bg-[#12518c]/[0.03] px-3 py-2.5">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#12518c]/70">Updated</p>
+                        <p className={`text-sm font-semibold break-words ${d.kind === 'removed' ? 'text-slate-400' : 'text-slate-800'}`}>
+                          {d.kind === 'removed' ? '—' : d.next || '—'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3">
+                <ChangeDiffCell
+                  changeType={entry.changeType}
+                  previousData={entry.previousData}
+                  updatedData={entry.updatedData}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Notes</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3">
+              <p className="text-sm leading-relaxed text-slate-700">
+                {entry.notes || '—'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Close
+          </button>
+        </div>
+      </aside>
+    </div>
   )
 }
 
@@ -21843,41 +22479,11 @@ function ViewSectionHeader({ icon, title }: { icon: ReactNode; title: string }) 
   )
 }
 
-function ViewField({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+function ReadOnlyValue({ label, value, className = '' }: { label: string; value: ReactNode; className?: string }) {
   return (
     <div className={`min-w-0 ${className}`}>
-      <p className="mb-1 text-[11px] font-medium text-slate-500">{label}</p>
-      <p className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 truncate" title={value}>
-        {value || '—'}
-      </p>
-    </div>
-  )
-}
-
-function ViewRadioGroup({ label, options, selected }: { label: string; options: string[]; selected: string }) {
-  return (
-    <div>
-      <p className="mb-1.5 text-[11px] font-medium text-slate-500">{label}</p>
-      <div className="flex items-center gap-4">
-        {options.map(option => (
-          <span key={option} className={`inline-flex items-center gap-1.5 text-sm ${option === selected ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>
-            <span className={`h-3.5 w-3.5 rounded-full border-4 ${option === selected ? 'border-[#12518c]' : 'border-slate-300'}`} />
-            {option}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ViewToggle({ label, on }: { label: string; on: boolean }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-sm text-slate-700">{label}</span>
-      <span className={`relative inline-flex h-5 w-9 items-center rounded-full ${on ? 'bg-[#12518c]' : 'bg-slate-300'}`}>
-        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
-      </span>
-      <span className={`text-xs font-medium ${on ? 'text-[#12518c]' : 'text-slate-400'}`}>{on ? 'Yes' : 'No'}</span>
+      <p className="mb-0.5 text-[11px] font-medium text-slate-500">{label}</p>
+      <div className="text-sm text-slate-800 break-words">{value || '—'}</div>
     </div>
   )
 }
@@ -21894,30 +22500,45 @@ function ViewLicenseModal({
   const isFederal = license.state === 'TTB'
   const noLicenseNumber = !license.licenseNo
   const doesNotExpire = !license.expiration
+  const title = license.itemName || license.item || 'License'
+  const showUrgentTiming =
+    license.actionIn === 'Expired' || (!doesNotExpire && Number(license.actionIn) <= 30)
 
   return (
     <AddressModalShell maxWidth="max-w-2xl" onClose={onClose}>
-      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+      <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0 mt-0.5">
             <FileText size={16} strokeWidth={1.5} aria-hidden />
           </span>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-slate-900 truncate">Company — View License</h3>
-            <p className="text-[11px] text-slate-500 truncate">
+            <h3 className="text-sm font-semibold text-slate-900 truncate" title={title}>{title}</h3>
+            <p className="mt-0.5 text-[11px] text-slate-500 truncate">
               {license.state} · {license.func} · {license.licenseNo || 'N/A'}
             </p>
           </div>
         </div>
-        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0" aria-label="Close">
-          <X size={14} strokeWidth={1.5} aria-hidden />
-        </button>
+        <div className="flex items-start gap-2 flex-shrink-0">
+          <div className="mt-0.5 flex flex-wrap items-center justify-end gap-1.5">
+            <QueryStatusPill status={license.status} />
+            {showUrgentTiming && (
+              license.actionIn === 'Expired' ? (
+                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#bb5757] text-white">Expired</span>
+              ) : Number(license.actionIn) <= 30 ? (
+                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#e1c16e]/30 text-[#8a6d24]">{license.actionIn}d</span>
+              ) : null
+            )}
+          </div>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0" aria-label="Close">
+            <X size={14} strokeWidth={1.5} aria-hidden />
+          </button>
+        </div>
       </div>
 
       <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <ViewRadioGroup label="Type of License" options={['OPS', 'OOS']} selected={license.func === 'Operational' ? 'OPS' : 'OOS'} />
-          <ViewRadioGroup label="Type" options={['Federal', 'State']} selected={isFederal ? 'Federal' : 'State'} />
+          <ReadOnlyValue label="Type of License" value={license.func === 'Operational' ? 'OPS' : 'OOS'} />
+          <ReadOnlyValue label="Type" value={isFederal ? 'Federal' : 'State'} />
         </div>
 
         <section className="rounded-xl border border-slate-200 overflow-hidden">
@@ -21929,23 +22550,17 @@ function ViewLicenseModal({
           />
           <div className="p-4 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <ViewField label="State" value={license.state} />
-              <ViewField label="Function" value={license.func} />
+              <ReadOnlyValue label="State" value={license.state} />
+              <ReadOnlyValue label="Function" value={license.func} />
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-700 mb-2.5">Item Details</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <ViewField label="Item" value={license.item} />
-                <div>
-                  <p className="mb-1 text-[11px] font-medium text-slate-500">Status</p>
-                  <QueryStatusPill status={license.status} />
-                </div>
+                <ReadOnlyValue label="Item" value={license.item} />
+                <ReadOnlyValue label="City / County" value={license.cityCounty || '—'} />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <ViewField label="Shipping Setup" value="Client License" />
-              <ViewField label="City / County" value={license.cityCounty} />
-            </div>
+            <ReadOnlyValue label="Shipping Setup" value="Client License" />
           </div>
         </section>
 
@@ -21957,16 +22572,11 @@ function ViewLicenseModal({
             }
           />
           <div className="p-4 space-y-4">
-            <ViewField label="Item Name" value={license.itemName} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-              <div>
-                <p className="mb-1.5 text-[11px] font-medium text-slate-500">License Number</p>
-                <ViewToggle label="No License Number" on={noLicenseNumber} />
-              </div>
-              {!noLicenseNumber && (
-                <ViewField label="License / Permit Number" value={license.licenseNo} />
-              )}
-            </div>
+            <ReadOnlyValue label="Item Name" value={license.itemName} />
+            <ReadOnlyValue
+              label="License / Permit Number"
+              value={noLicenseNumber ? 'No license number' : license.licenseNo}
+            />
           </div>
         </section>
 
@@ -21978,23 +22588,30 @@ function ViewLicenseModal({
             }
           />
           <div className="p-4 space-y-4">
-            <ViewToggle label="Does Not Expire" on={doesNotExpire} />
+            <ReadOnlyValue label="Does Not Expire" value={doesNotExpire ? 'Yes' : 'No'} />
             {!doesNotExpire && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <ViewField label="Renewal Due" value={license.renewalDue} />
-                <ViewField label="Expiration" value={license.expiration} />
-                <div>
-                  <p className="mb-1 text-[11px] font-medium text-slate-500">Renewal Timing</p>
-                  {license.actionIn === 'Expired' ? (
-                    <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#bb5757] text-white">Expired</span>
-                  ) : (
-                    <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">{license.actionIn} days</span>
-                  )}
-                </div>
+                <ReadOnlyValue label="Renewal Due" value={license.renewalDue} />
+                <ReadOnlyValue label="Expiration" value={license.expiration} />
+                <ReadOnlyValue
+                  label="Renewal Timing"
+                  value={
+                    license.actionIn === 'Expired' ? (
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#bb5757] text-white">Expired</span>
+                    ) : Number(license.actionIn) <= 30 ? (
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#e1c16e]/30 text-[#8a6d24]">{license.actionIn} days</span>
+                    ) : (
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">{license.actionIn} days</span>
+                    )
+                  }
+                />
               </div>
             )}
             {doesNotExpire && license.actionIn === 'Expired' && (
-              <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#bb5757] text-white">Expired</span>
+              <ReadOnlyValue
+                label="Renewal Timing"
+                value={<span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#bb5757] text-white">Expired</span>}
+              />
             )}
           </div>
         </section>
