@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useContext, createContext, Children, isValidElement, type ReactNode } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useContext, createContext, Children, Fragment, isValidElement, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   LayoutGrid,
@@ -1345,6 +1345,156 @@ const COMPANY_LICENSES = [
   { id: 14, state: 'OR', cityCounty: '', func: 'Wholesale', item: 'Certificate of Authority', itemName: 'Certificate of Authority', licenseNo: 'OR-5510', renewalDue: '06/01/2026', expiration: '06/01/2026', actionIn: '28', status: 'Canceled', comment: '' },
 ]
 
+type LicenseNoteScope = 'license' | 'function' | 'item'
+
+type LicenseNote = {
+  id: number
+  text: string
+  createdAt: string
+  author: string
+  scope: LicenseNoteScope
+  state: string
+  func?: string
+  item?: string
+  itemName?: string
+  licenseId?: number
+}
+
+const LICENSE_NOTES_INIT: LicenseNote[] = [
+  {
+    id: 1,
+    text: 'CA licenses tied to 1234 Bob Street — confirm address before any renewal packet goes out.',
+    createdAt: '11/12/2026 10:14:22 AM',
+    author: 'AD',
+    scope: 'license',
+    state: 'CA',
+  },
+  {
+    id: 2,
+    text: 'Operational function: need to update ownership docs before next bond rider.',
+    createdAt: '11/14/2026 02:41:08 PM',
+    author: 'GL',
+    scope: 'function',
+    state: 'CA',
+    func: 'Operational',
+  },
+  {
+    id: 3,
+    text: 'Bond rider received. Keep this license active until TTB confirms the new bond number.',
+    createdAt: '11/18/2026 09:05:33 AM',
+    author: 'HI',
+    scope: 'item',
+    state: 'CA',
+    func: 'Operational',
+    item: 'Type 02',
+    itemName: 'Winegrower',
+    licenseId: 6,
+  },
+  {
+    id: 4,
+    text: 'Do not show this Type 02 note on the Bond row — item-scoped only.',
+    createdAt: '11/19/2026 04:22:11 PM',
+    author: 'AD',
+    scope: 'item',
+    state: 'CA',
+    func: 'Operational',
+    item: 'Type 02',
+    itemName: 'Winegrower',
+    licenseId: 6,
+  },
+  {
+    id: 5,
+    text: 'Bond: state-specific reminder — certificate must stay current with Type 02.',
+    createdAt: '11/10/2026 11:30:00 AM',
+    author: 'WL',
+    scope: 'item',
+    state: 'CA',
+    func: 'Operational',
+    item: 'Bond',
+    itemName: 'Winegrower Bond',
+    licenseId: 5,
+  },
+  {
+    id: 6,
+    text: 'Permit renewal packet sent to the client. Waiting on signed affidavit.',
+    createdAt: '11/08/2026 03:15:44 PM',
+    author: 'RN',
+    scope: 'item',
+    state: 'AZ',
+    func: 'DTC',
+    item: 'Direct Shippers',
+    itemName: 'Wine Direct Shipper Permit',
+    licenseId: 2,
+  },
+  {
+    id: 7,
+    text: 'WA COA — client asked us to check back in June before renewing.',
+    createdAt: '11/16/2026 01:08:19 PM',
+    author: 'AD',
+    scope: 'item',
+    state: 'WA',
+    func: 'DTC',
+    item: 'Certificate of Approval',
+    itemName: 'COA',
+    licenseId: 13,
+  },
+  {
+    id: 8,
+    text: 'Replaced by new permit',
+    createdAt: '10/02/2026 08:55:02 AM',
+    author: 'GL',
+    scope: 'item',
+    state: 'FL',
+    func: 'DTC',
+    item: 'Wine Shipper',
+    itemName: 'Direct Shipper',
+    licenseId: 9,
+  },
+]
+
+type LicenseRowLike = {
+  id: number
+  state: string
+  func: string
+  item: string
+  itemName: string
+}
+
+function licenseNoteApplies(note: LicenseNote, license: LicenseRowLike, mode: 'item' | 'applicable') {
+  if (note.state !== license.state) return false
+  if (mode === 'item') {
+    return (
+      note.scope === 'item' &&
+      (note.licenseId === license.id ||
+        (note.func === license.func && note.item === license.item && (!note.itemName || note.itemName === license.itemName)))
+    )
+  }
+  if (note.scope === 'license') return true
+  if (note.scope === 'function') return note.func === license.func
+  return (
+    note.licenseId === license.id ||
+    (note.func === license.func && note.item === license.item && (!note.itemName || note.itemName === license.itemName))
+  )
+}
+
+function notesForLicense(notes: LicenseNote[], license: LicenseRowLike, mode: 'item' | 'applicable') {
+  return notes
+    .filter(n => licenseNoteApplies(n, license, mode))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+function licenseNoteScopeLabel(scope: LicenseNoteScope) {
+  if (scope === 'license') return 'License'
+  if (scope === 'function') return 'Function'
+  return 'Item'
+}
+
+function licenseNoteScopeChipClass(scope: LicenseNoteScope) {
+  if (scope === 'license') return 'bg-[#BBDCFC] text-[#3B4A59]'
+  if (scope === 'function') return 'bg-sky-50 text-sky-700'
+  return 'bg-[#12518c]/10 text-[#12518c]'
+}
+
 type QueryLicenseRow = {
   id: number
   companyId: number
@@ -1455,6 +1605,41 @@ const CREDENTIAL_LOGIN_TYPES = ['Shared', 'Shared DTC', 'Individual', 'Agency']
 const CREDENTIAL_FILING_TYPES = ['Online', 'Paper', 'Email']
 const CREDENTIAL_FUNCTIONS = ['3T', 'DTC', '3T, DTC', 'Operational', 'Wholesale']
 const CREDENTIAL_SHARED_TYPES = ['Autofile', 'Client']
+const ATOMIC_FUNCTIONS = ['3T', 'DTC', 'Operational', 'Wholesale', 'DTR'] as const
+
+function splitFunctions(func: string) {
+  return func
+    .split(/,\s*/)
+    .map(s => s.trim())
+    .filter(Boolean)
+}
+
+function uniqueFunctionsFromRows(funcs: string[]) {
+  return [...new Set(funcs.flatMap(splitFunctions))].sort()
+}
+
+function matchesFunctionFilter(func: string, selected: string[]) {
+  if (selected.length === 0) return true
+  const parts = splitFunctions(func)
+  return selected.some(s => parts.includes(s))
+}
+
+function FunctionChips({ func, empty = '—' }: { func: string; empty?: string }) {
+  const parts = splitFunctions(func)
+  if (parts.length === 0) return <span className="text-slate-400">{empty}</span>
+  return (
+    <div className="flex flex-wrap gap-1 max-w-[220px]">
+      {parts.map(part => (
+        <span
+          key={part}
+          className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700"
+        >
+          {part}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 type ActivityComment = {
   id: number
@@ -17743,6 +17928,552 @@ function ReportSecretCell({ value, label }: { value: string; label: string }) {
   )
 }
 
+type NotesPreviewMode = '1' | '2' | '3'
+
+const NOTES_PREVIEW_OPTIONS: { id: NotesPreviewMode; label: string; hint: string }[] = [
+  { id: '1', label: '1', hint: 'Item-scoped drawer' },
+  { id: '2', label: '2', hint: 'Scoped modal + filters' },
+  { id: '3', label: '3', hint: 'Chips + expand panel' },
+]
+
+function NotesPreviewBanner({
+  value,
+  onChange,
+}: {
+  value: NotesPreviewMode
+  onChange: (mode: NotesPreviewMode) => void
+}) {
+  const active = NOTES_PREVIEW_OPTIONS.find(o => o.id === value)
+  return (
+    <div className="rounded-xl border border-[#12518c]/15 bg-[#12518c]/5 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p className="text-xs font-semibold text-slate-800">Notes preview (TC-1048)</p>
+        <p className="text-[11px] text-slate-500 mt-0.5">Toggle 1–3 to compare License Notes layouts for client review.</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Notes UI</span>
+        <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+          {NOTES_PREVIEW_OPTIONS.map(option => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onChange(option.id)}
+              title={option.hint}
+              className={`min-w-[28px] h-7 px-2 rounded-md text-xs font-bold transition-colors ${
+                value === option.id
+                  ? 'bg-[#12518c] text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-white hover:text-slate-900'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        {active && <span className="text-[11px] text-slate-500">{active.hint}</span>}
+      </div>
+    </div>
+  )
+}
+
+function licenseNoteScopeCounts(notes: LicenseNote[]) {
+  const counts = { license: 0, function: 0, item: 0 }
+  for (const n of notes) counts[n.scope] += 1
+  return counts
+}
+
+function LicenseNoteTimelineItem({
+  note,
+  showScope = false,
+  highlighted = false,
+}: {
+  note: LicenseNote
+  showScope?: boolean
+  highlighted?: boolean
+}) {
+  return (
+    <div className={`relative pl-5 ${highlighted ? 'animate-[fadeIn_0.25s_ease-out]' : ''}`}>
+      <span
+        className={`absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 ${
+          highlighted ? 'border-[#12518c] bg-[#12518c]' : 'border-[#12518c] bg-white'
+        }`}
+      />
+      <div
+        className={`rounded-xl px-3.5 py-3 shadow-sm ${
+          highlighted
+            ? 'border-2 border-[#12518c]/40 bg-[#12518c]/[0.06] ring-2 ring-[#12518c]/15'
+            : 'border border-slate-200 bg-white'
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200/80 text-[10px] font-bold text-slate-700">
+            {note.author}
+          </span>
+          <span className="text-xs font-semibold text-slate-800">{note.author}</span>
+          <span className="text-[11px] tabular-nums text-slate-500">{note.createdAt}</span>
+          {showScope && (
+            <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold ${licenseNoteScopeChipClass(note.scope)}`}>
+              {licenseNoteScopeLabel(note.scope)}
+            </span>
+          )}
+          {highlighted && (
+            <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#12518c] text-white">
+              New
+            </span>
+          )}
+        </div>
+        <p className="mt-2 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">{note.text}</p>
+      </div>
+    </div>
+  )
+}
+
+function LicenseNotesAddForm({
+  defaultScope,
+  allowScopeChange,
+  onSave,
+  fullWidth = false,
+  defaultOpen = false,
+  onCancel,
+}: {
+  defaultScope: LicenseNoteScope
+  allowScopeChange: boolean
+  onSave: (text: string, scope: LicenseNoteScope) => void
+  fullWidth?: boolean
+  defaultOpen?: boolean
+  onCancel?: () => void
+}) {
+  const [text, setText] = useState('')
+  const [scope, setScope] = useState<LicenseNoteScope>(defaultScope)
+  const [open, setOpen] = useState(defaultOpen)
+
+  const reset = () => {
+    setText('')
+    setScope(defaultScope)
+    setOpen(false)
+    onCancel?.()
+  }
+
+  const submit = () => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    onSave(trimmed, scope)
+    reset()
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={`inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors ${
+          fullWidth ? 'w-full' : ''
+        }`}
+      >
+        <Plus size={14} strokeWidth={1.75} aria-hidden />
+        Add note
+      </button>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-[#12518c]/15 bg-[#12518c]/[0.03] p-3.5 space-y-3">
+      {allowScopeChange && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Scope</p>
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+            {(['item', 'function', 'license'] as LicenseNoteScope[]).map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setScope(s)}
+                className={`px-2.5 h-7 rounded-md text-[11px] font-semibold transition-colors ${
+                  scope === s ? 'bg-[#12518c] text-white' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {licenseNoteScopeLabel(s)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {!allowScopeChange && (
+        <p className="text-[11px] text-slate-500">
+          Scoped to <span className="font-semibold text-slate-700">{licenseNoteScopeLabel(defaultScope)}</span>
+        </p>
+      )}
+      <textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        rows={3}
+        placeholder="Write a note…"
+        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]/40 resize-y min-h-[72px]"
+      />
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={reset}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!text.trim()}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors disabled:opacity-40 disabled:pointer-events-none"
+        >
+          Save note
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function LicenseNotesDrawer({
+  license,
+  notes,
+  highlightedNoteId,
+  onClose,
+  onAdd,
+}: {
+  license: LicenseRowLike
+  notes: LicenseNote[]
+  highlightedNoteId?: number | null
+  onClose: () => void
+  onAdd: (text: string, scope: LicenseNoteScope) => void
+}) {
+  const itemNotes = notesForLicense(notes, license, 'item')
+  const subtitle = [license.state, license.func, license.item, license.itemName].filter(Boolean).join(' · ')
+
+  return (
+    <div className="fixed inset-0 z-[80] flex justify-end">
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-900/35 backdrop-blur-[1px] animate-[fadeOverlay_0.22s_ease-out]"
+        aria-label="Close drawer"
+        onClick={onClose}
+      />
+      <aside className="relative z-10 flex h-full w-full max-w-[420px] flex-col bg-white shadow-2xl border-l border-slate-200 animate-[slideInRight_0.28s_cubic-bezier(0.22,1,0.36,1)]">
+        <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
+          <span className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#12518c]/10 text-[#12518c]">
+            <MessageSquare size={16} strokeWidth={1.5} aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Item notes</p>
+            <h3 className="mt-0.5 truncate text-sm font-semibold text-slate-900" title={license.item || license.itemName}>
+              {license.item || license.itemName || 'License'}
+            </h3>
+            <p className="mt-0.5 truncate text-[11px] text-slate-500" title={subtitle}>
+              {subtitle}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            aria-label="Close"
+          >
+            <X size={15} strokeWidth={1.5} aria-hidden />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+          {itemNotes.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-8">No item-scoped notes yet.</p>
+          ) : (
+            <div className="relative space-y-3 before:absolute before:left-[4px] before:top-2 before:bottom-2 before:w-px before:bg-slate-200">
+              {itemNotes.map(note => (
+                <LicenseNoteTimelineItem
+                  key={note.id}
+                  note={note}
+                  highlighted={highlightedNoteId === note.id}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-slate-100 bg-white px-5 py-4">
+          <LicenseNotesAddForm defaultScope="item" allowScopeChange={false} onSave={onAdd} fullWidth />
+        </div>
+      </aside>
+    </div>
+  )
+}
+
+function LicenseNotesScopedModal({
+  license,
+  notes,
+  highlightedNoteId,
+  onClose,
+  onAdd,
+}: {
+  license: LicenseRowLike
+  notes: LicenseNote[]
+  highlightedNoteId?: number | null
+  onClose: () => void
+  onAdd: (text: string, scope: LicenseNoteScope) => void
+}) {
+  const [filter, setFilter] = useState<'all' | LicenseNoteScope>('all')
+  const [adding, setAdding] = useState(false)
+  const applicable = notesForLicense(notes, license, 'applicable')
+  const filtered =
+    filter === 'all' ? applicable : applicable.filter(n => n.scope === filter)
+  const subtitle = [license.state, license.func, license.item].filter(Boolean).join(' · ')
+  const filters: { id: 'all' | LicenseNoteScope; label: string }[] = [
+    { id: 'all', label: 'All applicable' },
+    { id: 'license', label: 'License' },
+    { id: 'function', label: 'Function' },
+    { id: 'item', label: 'Item' },
+  ]
+
+  return (
+    <AddressModalShell maxWidth="max-w-xl" onClose={onClose}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-[#12518c]/10 text-[#12518c] flex items-center justify-center flex-shrink-0">
+            <MessageSquare size={16} strokeWidth={1.4} aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-slate-900">License Notes</h3>
+            <p className="text-[11px] text-slate-500 truncate">{subtitle}</p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="Close">
+          <X size={14} strokeWidth={1.5} aria-hidden />
+        </button>
+      </div>
+
+      <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="flex flex-wrap gap-1.5">
+          {filters.map(f => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id)}
+              className={`px-2.5 h-7 rounded-lg text-[11px] font-semibold transition-colors ${
+                filter === f.id
+                  ? 'bg-[#12518c] text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {filtered.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-6">No notes for this filter.</p>
+        ) : (
+          <div className="relative space-y-3 before:absolute before:left-[4px] before:top-2 before:bottom-2 before:w-px before:bg-slate-200">
+            {filtered.map(note => (
+              <LicenseNoteTimelineItem
+                key={note.id}
+                note={note}
+                showScope
+                highlighted={highlightedNoteId === note.id}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 space-y-3">
+        {adding ? (
+          <LicenseNotesAddForm
+            defaultScope="item"
+            allowScopeChange
+            defaultOpen
+            onCancel={() => setAdding(false)}
+            onSave={(text, scope) => {
+              onAdd(text, scope)
+              setFilter('all')
+              setAdding(false)
+            }}
+          />
+        ) : (
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#12518c] hover:bg-[#0e4173] transition-colors"
+            >
+              <Plus size={14} strokeWidth={1.75} aria-hidden />
+              Add note
+            </button>
+          </div>
+        )}
+      </div>
+    </AddressModalShell>
+  )
+}
+
+function LicenseNotesExpandPanel({
+  license,
+  notes,
+  highlightedNoteId,
+  onAdd,
+}: {
+  license: LicenseRowLike
+  notes: LicenseNote[]
+  highlightedNoteId?: number | null
+  onAdd: (text: string, scope: LicenseNoteScope) => void
+}) {
+  const applicable = notesForLicense(notes, license, 'applicable')
+  return (
+    <div className="rounded-xl border border-[#12518c]/15 bg-[#12518c]/[0.03] p-4 space-y-3 animate-[fadeIn_0.2s_ease-out]">
+      <div>
+        <p className="text-xs font-semibold text-slate-800">Notes for this row</p>
+        <p className="text-[11px] text-slate-500 mt-0.5">Only applicable license / function / item notes are listed.</p>
+      </div>
+      <LicenseNotesAddForm defaultScope="item" allowScopeChange onSave={onAdd} />
+      {applicable.length === 0 ? (
+        <p className="text-sm text-slate-400 py-2">No applicable notes.</p>
+      ) : (
+        <div className="space-y-2.5">
+          {applicable.map(note => {
+            const highlighted = highlightedNoteId === note.id
+            return (
+              <div
+                key={note.id}
+                className={`rounded-xl px-3.5 py-3 ${
+                  highlighted
+                    ? 'border-2 border-[#12518c]/40 bg-[#12518c]/[0.06] ring-2 ring-[#12518c]/15 animate-[fadeIn_0.25s_ease-out]'
+                    : 'border border-slate-200 bg-white'
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold ${licenseNoteScopeChipClass(note.scope)}`}>
+                    {licenseNoteScopeLabel(note.scope)}
+                  </span>
+                  <span className="text-[11px] tabular-nums text-slate-500">{note.createdAt}</span>
+                  <span className="text-[11px] font-semibold text-slate-600">{note.author}</span>
+                  {highlighted && (
+                    <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#12518c] text-white">
+                      New
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{note.text}</p>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LicenseCommentCell({
+  mode,
+  license,
+  notes,
+  onOpen,
+}: {
+  mode: NotesPreviewMode
+  license: LicenseRowLike
+  notes: LicenseNote[]
+  onOpen: () => void
+}) {
+  if (mode === '1') {
+    const itemNotes = notesForLicense(notes, license, 'item')
+    const latest = itemNotes[0]
+    return (
+      <button
+        type="button"
+        onClick={e => {
+          e.stopPropagation()
+          onOpen()
+        }}
+        className="w-full max-w-[180px] text-left group"
+        title={latest?.text || 'Open item notes'}
+      >
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span className="truncate text-sm text-slate-600 group-hover:text-[#12518c]">
+            {latest?.text || '—'}
+          </span>
+          {itemNotes.length > 0 && (
+            <span className="shrink-0 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#12518c]/10 px-1.5 text-[10px] font-bold text-[#12518c]">
+              {itemNotes.length}
+            </span>
+          )}
+        </span>
+      </button>
+    )
+  }
+
+  if (mode === '2') {
+    const applicable = notesForLicense(notes, license, 'applicable')
+    const latest = applicable[0]
+    return (
+      <button
+        type="button"
+        onClick={e => {
+          e.stopPropagation()
+          onOpen()
+        }}
+        className="w-full max-w-[180px] text-left group"
+        title={latest?.text || 'Open notes'}
+      >
+        {applicable.length === 0 ? (
+          <span className="text-sm text-slate-400">—</span>
+        ) : (
+          <span className="block min-w-0">
+            <span className="text-[11px] font-semibold text-[#12518c]">
+              {applicable.length} note{applicable.length === 1 ? '' : 's'}
+            </span>
+            <span className="mt-0.5 block truncate text-sm text-slate-600 group-hover:text-[#12518c]">
+              {latest.text}
+            </span>
+          </span>
+        )}
+      </button>
+    )
+  }
+
+  const applicable = notesForLicense(notes, license, 'applicable')
+  const counts = licenseNoteScopeCounts(applicable)
+  const chips = (
+    [
+      { scope: 'item' as const, count: counts.item, short: 'Item' },
+      { scope: 'function' as const, count: counts.function, short: 'Func' },
+      { scope: 'license' as const, count: counts.license, short: 'Lic' },
+    ] satisfies { scope: LicenseNoteScope; count: number; short: string }[]
+  ).filter(c => c.count > 0)
+
+  return (
+    <button
+      type="button"
+      onClick={e => {
+        e.stopPropagation()
+        onOpen()
+      }}
+      className="flex flex-wrap items-center gap-1 max-w-[200px] text-left"
+      title="Expand notes"
+    >
+      {chips.length === 0 ? (
+        <span className="text-sm text-slate-400">—</span>
+      ) : (
+        chips.map(c => (
+          <span
+            key={c.scope}
+            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${licenseNoteScopeChipClass(c.scope)}`}
+          >
+            {c.short} · {c.count}
+          </span>
+        ))
+      )}
+    </button>
+  )
+}
+
 function ListingNotesModal({
   title,
   subtitle,
@@ -17804,14 +18535,14 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   const [pastReports, setPastReports] = useState<ReportRow[]>(PAST_REPORTING)
   const [search, setSearch] = useState('')
   const [stateFilter, setStateFilter] = useState('')
-  const [funcFilter, setFuncFilter] = useState('')
+  const [funcFilters, setFuncFilters] = useState<string[]>([])
   const [itemFilter, setItemFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [renewalFilter, setRenewalFilter] = useState('')
   const [reportSearch, setReportSearch] = useState('')
   const [reportPage, setReportPage] = useState(1)
   const [reportStateFilter, setReportStateFilter] = useState('')
-  const [reportFuncFilter, setReportFuncFilter] = useState('')
+  const [reportFuncFilters, setReportFuncFilters] = useState<string[]>([])
   const [reportTypeFilter, setReportTypeFilter] = useState('')
   const [reportFilingTypeFilter, setReportFilingTypeFilter] = useState('')
   const [reportFreqFilter, setReportFreqFilter] = useState('')
@@ -17843,6 +18574,11 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     subtitle: string
     notes: { label: string; text: string }[]
   } | null>(null)
+  const [notesPreviewMode, setNotesPreviewMode] = useState<NotesPreviewMode>('1')
+  const [licenseNotes, setLicenseNotes] = useState<LicenseNote[]>(LICENSE_NOTES_INIT)
+  const [notesTarget, setNotesTarget] = useState<LicenseRow | null>(null)
+  const [expandedNotesId, setExpandedNotesId] = useState<number | null>(null)
+  const [highlightedNoteId, setHighlightedNoteId] = useState<number | null>(null)
   const [editLicense, setEditLicense] = useState<LicenseRow | null>(licensePopup === 'edit' ? sampleLicense : null)
   const [reportLicense, setReportLicense] = useState<LicenseRow | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(licensePopup === 'delete' ? sampleLicense.id : null)
@@ -17877,18 +18613,20 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   ])
 
   const states = [...new Set(licenses.map(l => l.state))].sort()
-  const funcs = [...new Set(licenses.map(l => l.func))].sort()
+  const funcs = uniqueFunctionsFromRows([...licenses.map(l => l.func), ...ATOMIC_FUNCTIONS])
   const items = [...new Set(licenses.map(l => l.item).filter(Boolean))].sort()
 
   const filteredLicenses = licenses.filter(l => {
     const q = search.toLowerCase()
+    const rowNotes = notesForLicense(licenseNotes, l, notesPreviewMode === '1' ? 'item' : 'applicable')
     const matchesSearch =
       !q ||
       [l.state, l.cityCounty, l.func, l.item, l.itemName, l.licenseNo, l.status, l.comment].some(v =>
         v.toLowerCase().includes(q)
-      )
+      ) ||
+      rowNotes.some(n => n.text.toLowerCase().includes(q) || n.author.toLowerCase().includes(q))
     const matchesState = !stateFilter || l.state === stateFilter
-    const matchesFunc = !funcFilter || l.func === funcFilter
+    const matchesFunc = matchesFunctionFilter(l.func, funcFilters)
     const matchesItem = !itemFilter || l.item === itemFilter
     const matchesStatus = !statusFilter || l.status === statusFilter
     const matchesRenewal =
@@ -17899,8 +18637,46 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     return matchesSearch && matchesState && matchesFunc && matchesItem && matchesStatus && matchesRenewal
   })
 
+  const openLicenseNotes = (license: LicenseRow) => {
+    if (notesPreviewMode === '3') {
+      setExpandedNotesId(prev => (prev === license.id ? null : license.id))
+      setNotesTarget(null)
+      return
+    }
+    setExpandedNotesId(null)
+    setNotesTarget(license)
+  }
+
+  const addLicenseNote = (license: LicenseRow, text: string, scope: LicenseNoteScope) => {
+    const nextId = Math.max(0, ...licenseNotes.map(n => n.id)) + 1
+    const note: LicenseNote = {
+      id: nextId,
+      text,
+      createdAt: formatPersonNoteTimestamp(),
+      author: 'HI',
+      scope,
+      state: license.state,
+      func: scope === 'license' ? undefined : license.func,
+      item: scope === 'item' ? license.item : undefined,
+      itemName: scope === 'item' ? license.itemName : undefined,
+      licenseId: scope === 'item' ? license.id : undefined,
+    }
+    setLicenseNotes(prev => [note, ...prev])
+    setHighlightedNoteId(nextId)
+  }
+
+  useEffect(() => {
+    if (highlightedNoteId == null) return
+    const timer = window.setTimeout(() => setHighlightedNoteId(null), 4500)
+    return () => window.clearTimeout(timer)
+  }, [highlightedNoteId])
+
   const reportStates = [...new Set(reportRows.map(r => r.state))].sort()
-  const reportFuncs = [...new Set(reportRows.map(r => r.func))].sort()
+  const reportFuncs = uniqueFunctionsFromRows([
+    ...reportRows.map(r => r.func),
+    ...pastReports.map(r => r.func),
+    ...ATOMIC_FUNCTIONS,
+  ])
   const reportTypes = [...new Set(reportRows.map(r => r.type))].sort()
   const reportFilingTypes = [...new Set(reportRows.map(r => r.filingType))].sort()
   const reportFreqs = [...new Set(reportRows.map(r => r.filingFrequency))].sort()
@@ -17915,7 +18691,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   const filteredReports = reportRows.filter(r =>
     matchReport(r, reportSearch) &&
     (!reportStateFilter || r.state === reportStateFilter) &&
-    (!reportFuncFilter || r.func === reportFuncFilter) &&
+    matchesFunctionFilter(r.func, reportFuncFilters) &&
     (!reportTypeFilter || r.type === reportTypeFilter) &&
     (!reportFilingTypeFilter || r.filingType === reportFilingTypeFilter) &&
     (!reportFreqFilter || r.filingFrequency === reportFreqFilter) &&
@@ -17924,12 +18700,12 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
 
   const filteredPastReports = pastReports.filter(r => matchReport(r, pastSearch))
 
-  const reportFiltersActive = !!(reportStateFilter || reportFuncFilter || reportTypeFilter || reportFilingTypeFilter || reportFreqFilter || reportDueFilter || reportSearch)
+  const reportFiltersActive = !!(reportStateFilter || reportFuncFilters.length || reportTypeFilter || reportFilingTypeFilter || reportFreqFilter || reportDueFilter || reportSearch)
 
   const clearReportFilters = () => {
     setReportSearch('')
     setReportStateFilter('')
-    setReportFuncFilter('')
+    setReportFuncFilters([])
     setReportTypeFilter('')
     setReportFilingTypeFilter('')
     setReportFreqFilter('')
@@ -17954,7 +18730,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   const exportReports = () => {
     const rows = reportRows.filter(r =>
       (!reportStateFilter || r.state === reportStateFilter) &&
-      (!reportFuncFilter || r.func === reportFuncFilter) &&
+      matchesFunctionFilter(r.func, reportFuncFilters) &&
       (!reportTypeFilter || r.type === reportTypeFilter) &&
       (!reportFilingTypeFilter || r.filingType === reportFilingTypeFilter) &&
       (!reportFreqFilter || r.filingFrequency === reportFreqFilter) &&
@@ -17995,7 +18771,7 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
       className={`border-b border-slate-100 cursor-pointer hover:bg-[#12518c]/5 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'} ${r.active ? '' : 'opacity-60'}`}
     >
       {reportCols.show('state') && <td className="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state}</td>}
-      {reportCols.show('func') && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.func}</td>}
+      {reportCols.show('func') && <td className="px-4 py-3 whitespace-nowrap"><FunctionChips func={r.func} /></td>}
       {reportCols.show('filingFrequency') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.filingFrequency}</td>}
       {reportCols.show('type') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.type}</td>}
       {reportCols.show('filingType') && <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{r.filingType}</td>}
@@ -18045,14 +18821,14 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   const canceledCount = licenses.filter(l => l.status === 'Canceled').length
   const reportActiveCount = reportRows.filter(r => r.active).length
   const reportInactiveCount = reportRows.filter(r => !r.active).length
-  const filtersActive = !!(stateFilter || funcFilter || itemFilter || statusFilter || renewalFilter || search)
+  const filtersActive = !!(stateFilter || funcFilters.length || itemFilter || statusFilter || renewalFilter || search)
   const licenseExtraCount = [itemFilter, statusFilter, renewalFilter].filter(Boolean).length
   const reportExtraCount = [reportTypeFilter, reportFilingTypeFilter, reportFreqFilter, reportDueFilter].filter(Boolean).length
 
   const clearFilters = () => {
     setSearch('')
     setStateFilter('')
-    setFuncFilter('')
+    setFuncFilters([])
     setItemFilter('')
     setStatusFilter('')
     setRenewalFilter('')
@@ -18063,11 +18839,55 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
     setDeleteId(null)
   }
 
+  const seedNotesForLicenses = (created: LicenseRow[]) => {
+    const withComments = created.filter(row => row.comment.trim())
+    if (withComments.length === 0) return
+    setLicenseNotes(prev => {
+      let nextId = Math.max(0, ...prev.map(n => n.id)) + 1
+      const seeded = withComments.map(row => {
+        const note: LicenseNote = {
+          id: nextId,
+          text: row.comment.trim(),
+          createdAt: formatPersonNoteTimestamp(),
+          author: 'HI',
+          scope: 'item',
+          state: row.state,
+          func: row.func,
+          item: row.item,
+          itemName: row.itemName,
+          licenseId: row.id,
+        }
+        nextId += 1
+        return note
+      })
+      return [...seeded, ...prev]
+    })
+  }
+
   const addLicense = (data: Omit<LicenseRow, 'id'>, addAnother: boolean) => {
+    let created: LicenseRow | null = null
     setLicenses(prev => {
       const nextId = Math.max(0, ...prev.map(l => l.id)) + 1
-      return [{ id: nextId, ...data }, ...prev]
+      created = { id: nextId, ...data }
+      return [created, ...prev]
     })
+    if (created) seedNotesForLicenses([created])
+    if (!addAnother) setAddOpen(false)
+  }
+
+  const addLicensesBatch = (rows: Omit<LicenseRow, 'id'>[], addAnother: boolean) => {
+    if (rows.length === 0) return
+    let created: LicenseRow[] = []
+    setLicenses(prev => {
+      let nextId = Math.max(0, ...prev.map(l => l.id)) + 1
+      created = rows.map(data => {
+        const row = { id: nextId, ...data }
+        nextId += 1
+        return row
+      })
+      return [...created, ...prev]
+    })
+    seedNotesForLicenses(created)
     if (!addAnother) setAddOpen(false)
   }
 
@@ -18080,6 +18900,17 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
   return (
     <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
       <ListingHeading title={visibleSubTab} />
+      {visibleSubTab === 'Licensing Summary' && (
+        <NotesPreviewBanner
+          value={notesPreviewMode}
+          onChange={mode => {
+            setNotesPreviewMode(mode)
+            setNotesTarget(null)
+            setExpandedNotesId(null)
+            setHighlightedNoteId(null)
+          }}
+        />
+      )}
       {/* Sub-tabs */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-visible">
         <div className="flex items-center gap-3 px-2 pr-4 border-b border-slate-100">
@@ -18151,10 +18982,12 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <option value="">State / State Code</option>
                 {states.map(s => <option key={s} value={s}>{s}</option>)}
               </FilterSelect>
-              <FilterSelect value={funcFilter} onChange={v => setFuncFilter(v)} className={filterSelectClassName(funcFilter)}>
-                <option value="">Function</option>
-                {funcs.map(f => <option key={f} value={f}>{f}</option>)}
-              </FilterSelect>
+              <FilterMultiSelect
+                label="Function"
+                values={funcFilters}
+                options={funcs}
+                onChange={setFuncFilters}
+              />
               <MoreFiltersButton
                 open={licenseMoreOpen}
                 extraCount={licenseExtraCount}
@@ -18227,65 +19060,83 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                     </tr>
                   ) : (
                     filteredLicenses.map((l, i) => (
-                      <tr
-                        key={l.id}
-                        onClick={() => setListingNotes({
-                          title: 'License Notes',
-                          subtitle: `${l.state} · ${l.func}${l.licenseNo ? ` · ${l.licenseNo}` : ''}`,
-                          notes: [{ label: 'Comment', text: l.comment }],
-                        })}
-                        className={`border-b border-slate-100 transition-colors cursor-pointer hover:bg-[#12518c]/5 ${
-                          i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
-                        }`}
-                      >
-                        {licenseCols.show('state') && <td className="px-3 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{l.state}</td>}
-                        {licenseCols.show('cityCounty') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.cityCounty || '—'}</td>}
-                        {licenseCols.show('func') && (
-                        <td className="px-3 py-3 whitespace-nowrap">
-                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700">{l.func}</span>
-                        </td>
-                        )}
-                        {licenseCols.show('item') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.item || '—'}</td>}
-                        {licenseCols.show('itemName') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap max-w-[180px] truncate" title={l.itemName}>{l.itemName || '—'}</td>}
-                        {licenseCols.show('licenseNo') && <td className="px-3 py-3 text-sm text-slate-700 font-medium whitespace-nowrap tabular-nums">{l.licenseNo || '—'}</td>}
-                        {licenseCols.show('status') && (
-                        <td className="px-3 py-3 whitespace-nowrap">
-                          <QueryStatusPill status={l.status} />
-                        </td>
-                        )}
-                        {licenseCols.show('renewalDue') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.renewalDue || '—'}</td>}
-                        {licenseCols.show('expiration') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.expiration || '—'}</td>}
-                        {licenseCols.show('actionIn') && (
-                        <td className="px-3 py-3 whitespace-nowrap">
-                          {l.actionIn === 'Expired' ? (
-                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#bb5757] text-white">Expired</span>
-                          ) : Number(l.actionIn) <= 30 ? (
-                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#e1c16e]/30 text-[#8a6d24]">{l.actionIn}d</span>
-                          ) : (
-                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">{l.actionIn}d</span>
+                      <Fragment key={l.id}>
+                        <tr
+                          onClick={() => openLicenseNotes(l)}
+                          className={`border-b border-slate-100 transition-colors cursor-pointer hover:bg-[#12518c]/5 ${
+                            expandedNotesId === l.id ? 'bg-[#12518c]/[0.06]' : i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
+                          }`}
+                        >
+                          {licenseCols.show('state') && <td className="px-3 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{l.state}</td>}
+                          {licenseCols.show('cityCounty') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.cityCounty || '—'}</td>}
+                          {licenseCols.show('func') && (
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <FunctionChips func={l.func} />
+                          </td>
                           )}
-                        </td>
-                        )}
-                        {licenseCols.show('comment') && <td className="px-3 py-3 text-sm text-slate-500 whitespace-nowrap max-w-[140px] truncate" title={l.comment}>{l.comment || '—'}</td>}
-                        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-0.5">
-                            <button type="button" onClick={() => setViewLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
-                              <Eye size={15} strokeWidth={1.5} aria-hidden />
-                            </button>
-                            <button type="button" onClick={() => setEditLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
-                              <Pencil size={14} strokeWidth={1.5} aria-hidden />
-                            </button>
-                            {SHOW_REPORTING_AND_CREDENTIALS && (
-                            <button type="button" onClick={() => setReportLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="Report">
-                              <FileText size={14} strokeWidth={1.5} aria-hidden />
-                            </button>
+                          {licenseCols.show('item') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.item || '—'}</td>}
+                          {licenseCols.show('itemName') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap max-w-[180px] truncate" title={l.itemName}>{l.itemName || '—'}</td>}
+                          {licenseCols.show('licenseNo') && <td className="px-3 py-3 text-sm text-slate-700 font-medium whitespace-nowrap tabular-nums">{l.licenseNo || '—'}</td>}
+                          {licenseCols.show('status') && (
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <QueryStatusPill status={l.status} />
+                          </td>
+                          )}
+                          {licenseCols.show('renewalDue') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.renewalDue || '—'}</td>}
+                          {licenseCols.show('expiration') && <td className="px-3 py-3 text-sm text-slate-600 whitespace-nowrap">{l.expiration || '—'}</td>}
+                          {licenseCols.show('actionIn') && (
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            {l.actionIn === 'Expired' ? (
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#bb5757] text-white">Expired</span>
+                            ) : Number(l.actionIn) <= 30 ? (
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#e1c16e]/30 text-[#8a6d24]">{l.actionIn}d</span>
+                            ) : (
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#BBDCFC] text-[#3B4A59]">{l.actionIn}d</span>
                             )}
-                            <button type="button" onClick={() => setDeleteId(l.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
-                              <Trash2 size={15} strokeWidth={1.5} aria-hidden />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                          )}
+                          {licenseCols.show('comment') && (
+                            <td className="px-3 py-3 whitespace-nowrap max-w-[200px]">
+                              <LicenseCommentCell
+                                mode={notesPreviewMode}
+                                license={l}
+                                notes={licenseNotes}
+                                onOpen={() => openLicenseNotes(l)}
+                              />
+                            </td>
+                          )}
+                          <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-0.5">
+                              <button type="button" onClick={() => setViewLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="View">
+                                <Eye size={15} strokeWidth={1.5} aria-hidden />
+                              </button>
+                              <button type="button" onClick={() => setEditLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit">
+                                <Pencil size={14} strokeWidth={1.5} aria-hidden />
+                              </button>
+                              {SHOW_REPORTING_AND_CREDENTIALS && (
+                              <button type="button" onClick={() => setReportLicense(l)} className="p-1.5 rounded-md text-slate-400 hover:text-[#12518c] hover:bg-[#12518c]/10 transition-colors" title="Report">
+                                <FileText size={14} strokeWidth={1.5} aria-hidden />
+                              </button>
+                              )}
+                              <button type="button" onClick={() => setDeleteId(l.id)} className="p-1.5 rounded-md text-slate-400 hover:text-[#bb5757] hover:bg-danger-light transition-colors" title="Delete">
+                                <Trash2 size={15} strokeWidth={1.5} aria-hidden />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {notesPreviewMode === '3' && expandedNotesId === l.id && (
+                          <tr className="border-b border-slate-100 bg-[#12518c]/[0.03]">
+                            <td colSpan={licenseCols.visibleCount + 1} className="px-4 py-3">
+                              <LicenseNotesExpandPanel
+                                license={l}
+                                notes={licenseNotes}
+                                highlightedNoteId={highlightedNoteId}
+                                onAdd={(text, scope) => addLicenseNote(l, text, scope)}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))
                   )}
                 </tbody>
@@ -18300,10 +19151,15 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
                 <option value="">State</option>
                 {reportStates.map(s => <option key={s} value={s}>{s}</option>)}
               </FilterSelect>
-              <FilterSelect value={reportFuncFilter} onChange={v => { setReportFuncFilter(v); setReportPage(1) }} className={filterSelectClassName(reportFuncFilter)}>
-                <option value="">Function</option>
-                {reportFuncs.map(s => <option key={s} value={s}>{s}</option>)}
-              </FilterSelect>
+              <FilterMultiSelect
+                label="Function"
+                values={reportFuncFilters}
+                options={reportFuncs}
+                onChange={next => {
+                  setReportFuncFilters(next)
+                  setReportPage(1)
+                }}
+              />
               <MoreFiltersButton
                 open={reportMoreOpen}
                 extraCount={reportExtraCount}
@@ -18560,6 +19416,32 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
         />
       )}
 
+      {notesTarget && notesPreviewMode === '1' && (
+        <LicenseNotesDrawer
+          license={notesTarget}
+          notes={licenseNotes}
+          highlightedNoteId={highlightedNoteId}
+          onClose={() => {
+            setNotesTarget(null)
+            setHighlightedNoteId(null)
+          }}
+          onAdd={(text, scope) => addLicenseNote(notesTarget, text, scope)}
+        />
+      )}
+
+      {notesTarget && notesPreviewMode === '2' && (
+        <LicenseNotesScopedModal
+          license={notesTarget}
+          notes={licenseNotes}
+          highlightedNoteId={highlightedNoteId}
+          onClose={() => {
+            setNotesTarget(null)
+            setHighlightedNoteId(null)
+          }}
+          onAdd={(text, scope) => addLicenseNote(notesTarget, text, scope)}
+        />
+      )}
+
       {viewLicense && (
         <ViewLicenseModal
           license={viewLicense}
@@ -18587,7 +19469,10 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
         <AddLicenseModal
           companyId={companyId}
           onClose={() => setAddOpen(false)}
-          onSave={addLicense}
+          onSave={(data, addAnother) => {
+            if (Array.isArray(data)) addLicensesBatch(data, addAnother)
+            else addLicense(data, addAnother)
+          }}
         />
       )}
       {editLicense && (
@@ -18595,7 +19480,10 @@ function CompanyLicensesPage({ companyId }: { companyId: number }) {
           companyId={companyId}
           license={editLicense}
           onClose={() => setEditLicense(null)}
-          onSave={(data) => updateLicense(data)}
+          onSave={data => {
+            if (Array.isArray(data)) return
+            updateLicense(data)
+          }}
         />
       )}
     </div>
@@ -20860,7 +21748,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
   const [notesDraft, setNotesDraft] = useState('')
   const [search, setSearch] = useState('')
   const [stateFilter, setStateFilter] = useState('')
-  const [funcFilter, setFuncFilter] = useState('')
+  const [funcFilters, setFuncFilters] = useState<string[]>([])
   const [filingTypeFilter, setFilingTypeFilter] = useState('')
   const [loginTypeFilter, setLoginTypeFilter] = useState('')
   const [page, setPage] = useState(1)
@@ -20870,7 +21758,11 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
   const [addOpen, setAddOpen] = useState(false)
 
   const states = [...new Set(credentials.map(c => c.state))].sort()
-  const funcs = [...new Set(credentials.map(c => c.func))].sort()
+  const funcs = uniqueFunctionsFromRows([
+    ...credentials.map(c => c.func),
+    ...pastCredentials.map(c => c.func),
+    ...ATOMIC_FUNCTIONS,
+  ])
   const filingTypes = [...new Set(credentials.map(c => c.filingType))].sort()
   const loginTypes = [...new Set(credentials.map(c => c.loginType))].sort()
 
@@ -20883,19 +21775,19 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
   const filtered = credentials.filter(c =>
     matchCredential(c, search) &&
     (!stateFilter || c.state === stateFilter) &&
-    (!funcFilter || c.func === funcFilter) &&
+    matchesFunctionFilter(c.func, funcFilters) &&
     (!filingTypeFilter || c.filingType === filingTypeFilter) &&
     (!loginTypeFilter || c.loginType === loginTypeFilter)
   )
 
   const filteredPast = pastCredentials.filter(c => matchCredential(c, pastSearch))
 
-  const filtersActive = !!(search || stateFilter || funcFilter || filingTypeFilter || loginTypeFilter)
+  const filtersActive = !!(search || stateFilter || funcFilters.length || filingTypeFilter || loginTypeFilter)
 
   const clearFilters = () => {
     setSearch('')
     setStateFilter('')
-    setFuncFilter('')
+    setFuncFilters([])
     setFilingTypeFilter('')
     setLoginTypeFilter('')
     setPage(1)
@@ -20938,7 +21830,7 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
       className={`border-b border-slate-100 hover:bg-slate-50/80 ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'} ${c.active ? '' : 'opacity-60'}`}
     >
       <td className="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{c.state}</td>
-      <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{c.func}</td>
+      <td className="px-4 py-3 whitespace-nowrap"><FunctionChips func={c.func} /></td>
       <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.loginType}</td>
       <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap max-w-[140px] truncate" title={c.companyName}>{c.companyName}</td>
       <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{c.filingType}</td>
@@ -21089,10 +21981,15 @@ function CompanyCredentialsPage({ companyId }: { companyId: number }) {
             <option value="">State</option>
             {states.map(s => <option key={s} value={s}>{s}</option>)}
           </FilterSelect>
-          <FilterSelect value={funcFilter} onChange={v => { setFuncFilter(v); setPage(1) }} className={filterSelectClassName(funcFilter)}>
-            <option value="">Function</option>
-            {funcs.map(s => <option key={s} value={s}>{s}</option>)}
-          </FilterSelect>
+          <FilterMultiSelect
+            label="Function"
+            values={funcFilters}
+            options={funcs}
+            onChange={next => {
+              setFuncFilters(next)
+              setPage(1)
+            }}
+          />
           <FilterSelect value={filingTypeFilter} onChange={v => { setFilingTypeFilter(v); setPage(1) }} className={filterSelectClassName(filingTypeFilter)}>
             <option value="">Filing Type</option>
             {filingTypes.map(s => <option key={s} value={s}>{s}</option>)}
@@ -21665,6 +22562,20 @@ function licenseDateToDisplay(value: string) {
   return match ? `${match[2]}-${match[3]}-${match[1]}` : value
 }
 
+type LicenseSavePayload = {
+  state: string
+  cityCounty: string
+  func: string
+  item: string
+  itemName: string
+  licenseNo: string
+  renewalDue: string
+  expiration: string
+  actionIn: string
+  status: string
+  comment: string
+}
+
 function AddLicenseModal({
   companyId,
   license,
@@ -21674,22 +22585,7 @@ function AddLicenseModal({
   companyId: number
   license?: (typeof COMPANY_LICENSES)[number] | null
   onClose: () => void
-  onSave: (
-    data: {
-      state: string
-      cityCounty: string
-      func: string
-      item: string
-      itemName: string
-      licenseNo: string
-      renewalDue: string
-      expiration: string
-      actionIn: string
-      status: string
-      comment: string
-    },
-    addAnother: boolean
-  ) => void
+  onSave: (data: LicenseSavePayload | LicenseSavePayload[], addAnother: boolean) => void
 }) {
   const isEdit = Boolean(license)
   const STATE_CODES = [
@@ -21769,7 +22665,7 @@ function AddLicenseModal({
   const [funcStatuses, setFuncStatuses] = useState<Record<string, string>>(() =>
     license?.func ? { [license.func]: license.status || 'Active' } : {}
   )
-  const [licenseItems, setLicenseItems] = useState<{ id: number; func: string; status: string; itemType: string; itemName: string; cancelDate: string }[]>([])
+  const [licenseItems, setLicenseItems] = useState<{ id: number; func: string; status: string; itemType: string; itemName: string; cancelDate: string; comment: string }[]>([])
   const formScrollRef = useRef<HTMLDivElement>(null)
   const shipViaOther = form.shippingSetup === 'Ship via Another Company'
   const opsStateLocked = form.licenseDept === 'OPS' && form.jurisdiction === 'State'
@@ -21799,8 +22695,20 @@ function AddLicenseModal({
     }
     setLicenseItems(prev => {
       const kept = prev.filter(item => selectedFuncs.includes(item.func))
-      if (kept.length > 0) return kept
-      return [{ id: Date.now(), func: selectedFuncs[0], status: '', itemType: '', itemName: '', cancelDate: '' }]
+      const missingFuncs = selectedFuncs.filter(func => !kept.some(item => item.func === func))
+      const additions = missingFuncs.map((func, i) => ({
+        id: Date.now() + i,
+        func,
+        status: '',
+        itemType: '',
+        itemName: '',
+        cancelDate: '',
+        comment: '',
+      }))
+      const next = [...kept, ...additions]
+      return next.length > 0
+        ? next
+        : [{ id: Date.now(), func: selectedFuncs[0], status: '', itemType: '', itemName: '', cancelDate: '', comment: '' }]
     })
   }, [selectedFuncs, form.state, shipViaOther, isEdit])
 
@@ -21874,11 +22782,11 @@ function AddLicenseModal({
   const addLicenseItem = () => {
     setLicenseItems(prev => [
       ...prev,
-      { id: Date.now(), func: selectedFuncs[0] || '', status: '', itemType: '', itemName: '', cancelDate: '' },
+      { id: Date.now(), func: selectedFuncs[0] || '', status: '', itemType: '', itemName: '', cancelDate: '', comment: '' },
     ])
   }
 
-  const updateLicenseItem = (id: number, key: 'func' | 'status' | 'itemType' | 'itemName' | 'cancelDate', value: string) => {
+  const updateLicenseItem = (id: number, key: 'func' | 'status' | 'itemType' | 'itemName' | 'cancelDate' | 'comment', value: string) => {
     setLicenseItems(prev =>
       prev.map(item => {
         if (item.id !== id) return item
@@ -21984,24 +22892,22 @@ function AddLicenseModal({
       onSave({ ...buildPayload(), func, status: funcStatuses[func] || form.status }, false)
       return
     }
-    if (showItemListing) {
-      licenseItems.forEach((row, i) => {
-        const last = i === licenseItems.length - 1
-        const displayName = row.itemType ? `${row.itemName} - ${row.itemType}` : row.itemName
-        onSave(
-          { ...buildPayload(displayName || row.func), func: row.func, status: row.status },
-          last ? addAnother : true,
-        )
-      })
-    } else {
-      selectedFuncs.forEach((func, i) => {
-        const last = i === selectedFuncs.length - 1
-        onSave(
-          { ...buildPayload(), func, status: funcStatuses[func] || 'Active' },
-          last ? addAnother : true,
-        )
-      })
-    }
+    const rows: LicenseSavePayload[] = showItemListing
+      ? licenseItems.map(row => {
+          const displayName = row.itemType ? `${row.itemName} - ${row.itemType}` : row.itemName
+          return {
+            ...buildPayload(displayName || row.func),
+            func: row.func,
+            status: row.status,
+            comment: row.comment.trim(),
+          }
+        })
+      : selectedFuncs.map(func => ({
+          ...buildPayload(),
+          func,
+          status: funcStatuses[func] || 'Active',
+        }))
+    onSave(rows.length === 1 ? rows[0] : rows, addAnother)
     if (addAnother) resetAddForm()
   }
 
@@ -22146,7 +23052,7 @@ function AddLicenseModal({
           </div>
           <div className="p-4 space-y-3 bg-white">
             <div className="rounded-lg border border-[#12518c]/15 bg-[#12518c]/[0.04] px-3.5 py-2.5 text-[12px] text-[#0e4173] leading-snug">
-              Add one or more items for any function selected above.
+              Add one or more items for any function selected above. Each item can have its own comment.
             </div>
             {licenseItems.map((row, index) => {
               const isCanceled = row.status === 'Canceled'
@@ -22215,6 +23121,17 @@ function AddLicenseModal({
                   placeholder={row.itemType ? 'Select…' : 'Select type first…'}
                   readOnly={!row.itemType}
                 />
+                <div>
+                  <OwnershipFormLabel>Comment</OwnershipFormLabel>
+                  <p className="text-[11px] text-slate-400 mb-1.5 -mt-1">Shown on this item’s License Summary row only.</p>
+                  <textarea
+                    value={row.comment}
+                    onChange={e => updateLicenseItem(row.id, 'comment', e.target.value)}
+                    rows={3}
+                    placeholder="Add a comment for this item…"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#12518c]/25 focus:border-[#12518c]/40 resize-y min-h-[72px]"
+                  />
+                </div>
               </div>
               )
             })}
@@ -22393,27 +23310,29 @@ function AddLicenseModal({
         </div>
         )}
 
-        {/* Comments */}
-        <div>
-          <OwnershipFormLabel>Comments</OwnershipFormLabel>
-          <p className="text-[11px] text-slate-400 mb-2 -mt-1">Comments entered here appear on the License Summary and export.</p>
-          <div className="rounded-lg border border-slate-200 overflow-hidden">
-            <div className="flex flex-wrap items-center gap-1 px-2 py-1.5 border-b border-slate-100 bg-slate-50">
-              {['B', 'I', 'U', 'S', '•', '1.', '❝', '🔗'].map(btn => (
-                <button key={btn} type="button" className="px-2 py-0.5 rounded text-[11px] font-semibold text-slate-500 hover:bg-white transition-colors">
-                  {btn}
-                </button>
-              ))}
+        {/* Shared comments — only when not using per-item comments */}
+        {!showItemListing && (
+          <div>
+            <OwnershipFormLabel>Comments</OwnershipFormLabel>
+            <p className="text-[11px] text-slate-400 mb-2 -mt-1">Comments entered here appear on the License Summary and export.</p>
+            <div className="rounded-lg border border-slate-200 overflow-hidden">
+              <div className="flex flex-wrap items-center gap-1 px-2 py-1.5 border-b border-slate-100 bg-slate-50">
+                {['B', 'I', 'U', 'S', '•', '1.', '❝', '🔗'].map(btn => (
+                  <button key={btn} type="button" className="px-2 py-0.5 rounded text-[11px] font-semibold text-slate-500 hover:bg-white transition-colors">
+                    {btn}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={form.comment}
+                onChange={e => set('comment', e.target.value)}
+                rows={4}
+                placeholder="Add comments…"
+                className="w-full px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none resize-y min-h-[96px]"
+              />
             </div>
-            <textarea
-              value={form.comment}
-              onChange={e => set('comment', e.target.value)}
-              rows={4}
-              placeholder="Add comments…"
-              className="w-full px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none resize-y min-h-[96px]"
-            />
           </div>
-        </div>
+        )}
       </div>
 
       <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-2.5">
@@ -25072,6 +25991,140 @@ function ContactTypeMultiSelect({
           </span>
         )}
       </button>
+      {menu}
+    </div>
+  )
+}
+
+function FilterMultiSelect({
+  label,
+  values,
+  onChange,
+  options,
+}: {
+  label: string
+  values: string[]
+  onChange: (values: string[]) => void
+  options: string[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const hasValue = values.length > 0
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) {
+      setMenuPos(null)
+      return
+    }
+    const updatePos = () => {
+      const rect = buttonRef.current!.getBoundingClientRect()
+      setMenuPos({ top: rect.bottom + 6, left: rect.left, width: rect.width })
+    }
+    updatePos()
+    window.addEventListener('scroll', updatePos, true)
+    window.addEventListener('resize', updatePos)
+    return () => {
+      window.removeEventListener('scroll', updatePos, true)
+      window.removeEventListener('resize', updatePos)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const toggle = (option: string) => {
+    if (values.includes(option)) onChange(values.filter(v => v !== option))
+    else onChange([...values, option])
+  }
+
+  const menu = open && menuPos && createPortal(
+    <div
+      ref={menuRef}
+      role="listbox"
+      aria-multiselectable="true"
+      style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, width: Math.max(menuPos.width, 200) }}
+      className="z-[9999] rounded-xl border border-slate-200 bg-white py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)] max-h-56 overflow-y-auto"
+    >
+      {options.length === 0 ? (
+        <p className="px-3.5 py-2.5 text-xs text-slate-400">No options</p>
+      ) : (
+        options.map(option => {
+          const selected = values.includes(option)
+          return (
+            <button
+              key={option}
+              type="button"
+              role="option"
+              aria-selected={selected}
+              onClick={() => toggle(option)}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <span
+                className={`w-4 h-4 rounded-[3px] flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
+                  selected ? 'bg-[#12518c] text-white shadow-sm' : 'border border-slate-300 bg-white'
+                }`}
+              >
+                {selected && <Check size={10} strokeWidth={1.5} aria-hidden />}
+              </span>
+              <span className="font-medium">{option}</span>
+            </button>
+          )
+        })
+      )}
+    </div>,
+    document.body,
+  )
+
+  return (
+    <div className="relative inline-flex shrink-0 max-w-full">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label={label}
+        className={`${filterSelectClassName(hasValue ? '1' : '')} text-left flex items-center gap-1.5 min-w-[140px] max-w-[240px]`}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'right 0.75rem center',
+          backgroundSize: '12px',
+        }}
+      >
+        {hasValue ? (
+          <span className="truncate">
+            {values.length === 1 ? values[0] : `${values.length} functions`}
+          </span>
+        ) : (
+          <span>{label}</span>
+        )}
+      </button>
+      {hasValue && (
+        <button
+          type="button"
+          tabIndex={-1}
+          onMouseDown={e => e.preventDefault()}
+          onClick={e => {
+            e.stopPropagation()
+            onChange([])
+          }}
+          className="absolute right-7 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-600"
+          aria-label={`Clear ${label}`}
+        >
+          <X size={12} strokeWidth={1.5} aria-hidden />
+        </button>
+      )}
       {menu}
     </div>
   )
